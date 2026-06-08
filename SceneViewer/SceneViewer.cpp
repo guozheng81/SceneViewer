@@ -2,7 +2,6 @@
 #include "./Source/Renderer.h"
 
 HWND        g_HWnd = nullptr;
-CRenderer*   g_Renderer = nullptr;
 
 static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -22,10 +21,7 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
         return 0;
 
     case WM_PAINT:
-        if (g_Renderer)
-        {
-            g_Renderer->Render();
-        }
+        CRenderer::GetInstance().Render();
         return 0;
 
     case WM_DESTROY:
@@ -44,15 +40,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     windowClass.lpfnWndProc = WindowProc;
     windowClass.hInstance = hInstance;
     windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-    windowClass.lpszClassName = L"SceneViewer_DX12";
+    windowClass.lpszClassName = L"SceneViewerClass";
     RegisterClassEx(&windowClass);
 
-    RECT windowRect = { 0, 0, g_Renderer->ViewportWidth, g_Renderer->ViewportHeight };
+    RECT windowRect = { 0, 0, CRenderer::GetInstance().ViewportWidth, CRenderer::GetInstance().ViewportHeight};
     AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
     g_HWnd = CreateWindow(
         windowClass.lpszClassName,
-        L"SceneViewerClass",
+        L"SceneViewer_DX12",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -63,7 +59,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
         hInstance,
         nullptr);
 
-    g_Renderer->Init(g_HWnd);
+    CRenderer::GetInstance().Init(g_HWnd);
 
     ShowWindow(g_HWnd, nCmdShow);
 
@@ -77,7 +73,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
         }
     }
 
-    g_Renderer->Shutdown();
+    CRenderer::GetInstance().Shutdown();
 
     return static_cast<char>(msg.wParam);
 }
