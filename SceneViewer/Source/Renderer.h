@@ -2,6 +2,8 @@
 
 #include "Utils.h"
 
+class CScene;
+
 struct SPerFrameContext
 {
 	ComPtr<ID3D12CommandAllocator>	CommandAllocator;
@@ -48,10 +50,16 @@ public:
 
 	static CRenderer& GetInstance();
 
+	std::shared_ptr<CScene>	Scene = nullptr;
+
 	bool	Init(HWND hWnd);
 	void	Render();
 	void	Shutdown();
 
+	void	LoadScene();
+
 	void ResourceBarrier(ID3D12Resource* InResource, D3D12_RESOURCE_STATES InBefore, D3D12_RESOURCE_STATES InAfter);
+
+	ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* InData, UINT64 InSize, ComPtr<ID3D12Resource>& OutUploadBuffer);
 };
 

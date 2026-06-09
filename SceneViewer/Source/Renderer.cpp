@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Scene.h"
 
 CRenderer& CRenderer::GetInstance()
 {
@@ -106,7 +107,26 @@ bool	CRenderer::Init(HWND hWnd)
     D3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, PerFrameContext[CurrentFrameIndex].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&CommandList));
     CommandList->Close();
 
+    LoadScene();
+
     return true;
+}
+
+void	CRenderer::LoadScene()
+{
+    //// load scene
+    GetCurrentFrameContext().CommandAllocator->Reset();
+    CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
+
+    Scene = std::make_shared<CScene>();
+
+    CommandList->Close();
+
+    ID3D12CommandList* CmdLists[] = { CommandList.Get() };
+    D3DCommandQueue->ExecuteCommandLists(1, CmdLists);
+
+    FlushCommandQueue();
+    ///
 }
 
 void	CRenderer::BeginFrame()
@@ -152,6 +172,8 @@ void	CRenderer::Render()
     float ClearColor[] = { 0.0f, 0.1f, 0.5f, 1.0f };
     CommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
 
+    Scene->OnRender();
+
     EndFrame();
 }
 
@@ -177,4 +199,27 @@ void	CRenderer::Shutdown()
 {
     FlushCommandQueue();
     CloseHandle(FrameFenceEvent);
+}
+
+ComPtr<ID3D12Resource> CRenderer::CreateDefaultBuffer(const void* InData, UINT64 InSize, ComPtr<ID3D12Resource>& OutUploadBuffer)
+{
+    ComPtr<ID3D12Resource> Buffer;
+
+    CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    CD3DX12_RESOURCE_DESC ResDesc = CD3DX12_RESOURCE_DESC::Buffer(InSize);
+    D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&Buffer));
+
+    CD3DX12_HEAP_PROPERTIES UploadHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    D3dDevice->CreateCommittedResource(&UploadHeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(OutUploadBuffer.GetAddressOf()));
+
+    D3D12_SUBRESOURCE_DATA SubResourceData = {};
+    SubResourceData.pData = InData;
+    SubResourceData.RowPitch = InSize;
+    SubResourceData.SlicePitch = SubResourceData.RowPitch;
+
+    ResourceBarrier(Buffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+    UpdateSubresources<1>(CommandList.Get(), Buffer.Get(), OutUploadBuffer.Get(), 0, 0, 1, &SubResourceData);
+    ResourceBarrier(Buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+    return Buffer;
 }

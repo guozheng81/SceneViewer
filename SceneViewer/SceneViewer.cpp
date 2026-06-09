@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "./Source/Renderer.h"
+#include "./Source/Scene.h"
 
 HWND        g_HWnd = nullptr;
 
