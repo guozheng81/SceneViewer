@@ -11,6 +11,6 @@ protected:
 public:
 	CMaterial(LPCWSTR InVSFileName, LPCWSTR InPSFileName, const D3D12_ROOT_SIGNATURE_DESC* InRootSignatureDesc);
 
-	void OnRender() {}
+	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 };
 

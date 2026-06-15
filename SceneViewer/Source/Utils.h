@@ -4,3 +4,11 @@
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
+
+struct SSceneVertex
+{
+	XMFLOAT3 Position;
+	XMFLOAT3 Normal;
+	XMFLOAT2 Tex;
+	XMFLOAT3 Tangent;
+};

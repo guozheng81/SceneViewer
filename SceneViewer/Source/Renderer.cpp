@@ -104,6 +104,15 @@ bool	CRenderer::Init(HWND hWnd)
         RtvHandle.Offset(1, RtvDescriptorSize);
     }
 
+    Viewport.TopLeftX = 0;
+    Viewport.TopLeftY = 0;
+    Viewport.Width = static_cast<float>(ViewportWidth);
+    Viewport.Height = static_cast<float>(ViewportHeight);
+    Viewport.MinDepth = 0.0f;
+    Viewport.MaxDepth = 1.0f;
+
+    ScissorRect = CD3DX12_RECT(0, 0, ViewportWidth, ViewportHeight);
+
     D3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, PerFrameContext[CurrentFrameIndex].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&CommandList));
     CommandList->Close();
 
@@ -166,13 +175,16 @@ void	CRenderer::Render()
 {
     BeginFrame();
 
+    CommandList->RSSetViewports(1, &Viewport);
+    CommandList->RSSetScissorRects(1, &ScissorRect);
+
     CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), CurrentFrameIndex, RtvDescriptorSize);
     CommandList->OMSetRenderTargets(1, &RtvHandle, FALSE, nullptr);
 
     float ClearColor[] = { 0.0f, 0.1f, 0.5f, 1.0f };
     CommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
 
-    Scene->OnRender();
+    Scene->OnRender(CommandList.Get());
 
     EndFrame();
 }
@@ -201,12 +213,12 @@ void	CRenderer::Shutdown()
     CloseHandle(FrameFenceEvent);
 }
 
-ComPtr<ID3D12Resource> CRenderer::CreateDefaultBuffer(const void* InData, UINT64 InSize, ComPtr<ID3D12Resource>& OutUploadBuffer)
+ComPtr<ID3D12Resource> CRenderer::CreateDefaultBuffer(const void* InData, UINT InTotalByteSize, ComPtr<ID3D12Resource>& OutUploadBuffer)
 {
     ComPtr<ID3D12Resource> Buffer;
 
     CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    CD3DX12_RESOURCE_DESC ResDesc = CD3DX12_RESOURCE_DESC::Buffer(InSize);
+    CD3DX12_RESOURCE_DESC ResDesc = CD3DX12_RESOURCE_DESC::Buffer(InTotalByteSize);
     D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&Buffer));
 
     CD3DX12_HEAP_PROPERTIES UploadHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -214,8 +226,8 @@ ComPtr<ID3D12Resource> CRenderer::CreateDefaultBuffer(const void* InData, UINT64
 
     D3D12_SUBRESOURCE_DATA SubResourceData = {};
     SubResourceData.pData = InData;
-    SubResourceData.RowPitch = InSize;
-    SubResourceData.SlicePitch = SubResourceData.RowPitch;
+    SubResourceData.RowPitch = InTotalByteSize;
+    SubResourceData.SlicePitch = InTotalByteSize;
 
     ResourceBarrier(Buffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
     UpdateSubresources<1>(CommandList.Get(), Buffer.Get(), OutUploadBuffer.Get(), 0, 0, 1, &SubResourceData);

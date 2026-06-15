@@ -36,6 +36,9 @@ protected:
 	void	BeginFrame();
 	void	EndFrame();
 
+	CD3DX12_VIEWPORT Viewport;
+	CD3DX12_RECT ScissorRect;
+
 	ComPtr<ID3D12DescriptorHeap>	RtvDescriptorHeap;
 	UINT	RtvDescriptorSize = 0;
 
@@ -60,6 +63,6 @@ public:
 
 	void ResourceBarrier(ID3D12Resource* InResource, D3D12_RESOURCE_STATES InBefore, D3D12_RESOURCE_STATES InAfter);
 
-	ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* InData, UINT64 InSize, ComPtr<ID3D12Resource>& OutUploadBuffer);
+	ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* InData, UINT InTotalByteSize, ComPtr<ID3D12Resource>& OutUploadBuffer);
 };
 
