@@ -12,3 +12,11 @@ struct SSceneVertex
 	XMFLOAT2 Tex;
 	XMFLOAT3 Tangent;
 };
+
+struct SViewBuffer
+{
+	XMFLOAT4X4	ViewMatrix;
+	XMFLOAT4X4	ProjectionMatrix;
+
+	float padding[32];
+};

@@ -49,5 +49,5 @@ CMaterial::CMaterial(LPCWSTR InVSFileName, LPCWSTR InPSFileName, const D3D12_ROO
 void CMaterial::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
     InCommandList->SetPipelineState(PSO.Get());
-    //InCommandList->SetGraphicsRootSignature(RootSign.Get());
+    InCommandList->SetGraphicsRootSignature(RootSign.Get());
 }

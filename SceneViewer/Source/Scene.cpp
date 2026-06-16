@@ -29,6 +29,9 @@ void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 
 CScene::CScene()
 {
+
+	MainCamera.SetAspectRatio(CRenderer::GetInstance().ViewportWidth, CRenderer::GetInstance().ViewportHeight);
+
 	CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc;
 	RootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 

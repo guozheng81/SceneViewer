@@ -2,6 +2,7 @@
 
 #include "Utils.h"
 #include "Material.h"
+#include "Camera.h"
 
 class CMesh
 {
@@ -25,12 +26,20 @@ public:
 
 class CScene
 {
+protected:
+	CCamera MainCamera;
+
 public:
 	std::shared_ptr<CMaterial>	Material;
 	std::vector<std::shared_ptr<CMesh>> AllMeshes;
 
 	CScene();
 	~CScene();
+
+	CCamera* GetMainCamera()
+	{
+		return &MainCamera;
+	}
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 };

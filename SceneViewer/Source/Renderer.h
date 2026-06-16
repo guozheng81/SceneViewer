@@ -4,11 +4,29 @@
 
 class CScene;
 
+class CUniformBuffer
+{
+protected:
+	ComPtr<ID3D12Resource> Buffer;
+	BYTE* MappedPtr = nullptr;
+
+	UINT ElementSize = 0;
+	UINT ElementCount = 0;
+
+public:
+	CUniformBuffer(UINT InEleSize, UINT InEleCount);
+	~CUniformBuffer();
+
+	void SetData(void* InData);
+};
+
 struct SPerFrameContext
 {
 	ComPtr<ID3D12CommandAllocator>	CommandAllocator;
 
 	ComPtr<ID3D12Resource>	FrameBuffer;
+
+	std::shared_ptr<CUniformBuffer> ViewBuffer;
 
 	UINT64 FenceValue = 0;
 };
@@ -39,6 +57,8 @@ protected:
 	CD3DX12_VIEWPORT Viewport;
 	CD3DX12_RECT ScissorRect;
 
+	SViewBuffer	 ViewBuffer;
+
 	ComPtr<ID3D12DescriptorHeap>	RtvDescriptorHeap;
 	UINT	RtvDescriptorSize = 0;
 
@@ -60,6 +80,8 @@ public:
 	void	Shutdown();
 
 	void	LoadScene();
+
+	void	UpdateViewBuffer();
 
 	void ResourceBarrier(ID3D12Resource* InResource, D3D12_RESOURCE_STATES InBefore, D3D12_RESOURCE_STATES InAfter);
 

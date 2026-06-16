@@ -1,6 +1,35 @@
 #include "Renderer.h"
 #include "Scene.h"
 
+CUniformBuffer::CUniformBuffer(UINT InItemSize, UINT InItemCount)
+{
+    ElementSize = InItemSize;
+    ElementCount = InItemCount;
+
+    CD3DX12_HEAP_PROPERTIES HeapProps(D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InItemSize * InItemCount);
+
+    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &BufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&Buffer));
+
+    Buffer->Map(0, nullptr, reinterpret_cast<void**>(&MappedPtr));
+}
+
+CUniformBuffer::~CUniformBuffer()
+{
+    Buffer->Unmap(0, nullptr);
+    MappedPtr = nullptr;
+}
+
+void CUniformBuffer::SetData(void* InData)
+{
+    if (InData == nullptr)
+    {
+        return;
+    }
+
+    memcpy(MappedPtr, InData, ElementSize * ElementCount);
+}
+
 CRenderer& CRenderer::GetInstance()
 {
     static CRenderer TheInstance;
@@ -102,6 +131,8 @@ bool	CRenderer::Init(HWND hWnd)
         SwapChain->GetBuffer(i, IID_PPV_ARGS(&(PerFrameContext[i].FrameBuffer)));
         D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), nullptr, RtvHandle);
         RtvHandle.Offset(1, RtvDescriptorSize);
+
+        PerFrameContext[i].ViewBuffer = std::make_shared<CUniformBuffer>((UINT)(sizeof(SViewBuffer)), 1);
     }
 
     Viewport.TopLeftX = 0;
@@ -171,9 +202,25 @@ void	CRenderer::EndFrame()
     GetCurrentFrameContext().FenceValue = (FenceValue + 1);
 }
 
+void	CRenderer::UpdateViewBuffer()
+{
+    if (Scene == nullptr)
+    {
+        return;
+    }
+
+    CCamera* Cam = Scene->GetMainCamera();
+    Cam->GetViewMatrix(&(ViewBuffer.ViewMatrix));
+    Cam->GetProjectionMatrix(&(ViewBuffer.ProjectionMatrix));
+
+    GetCurrentFrameContext().ViewBuffer->SetData(&ViewBuffer);
+}
+
 void	CRenderer::Render()
 {
     BeginFrame();
+
+    UpdateViewBuffer();
 
     CommandList->RSSetViewports(1, &Viewport);
     CommandList->RSSetScissorRects(1, &ScissorRect);
