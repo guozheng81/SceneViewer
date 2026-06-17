@@ -7,13 +7,14 @@ class CScene;
 class CUniformBuffer
 {
 protected:
-	ComPtr<ID3D12Resource> Buffer;
 	BYTE* MappedPtr = nullptr;
 
 	UINT ElementSize = 0;
 	UINT ElementCount = 0;
 
 public:
+	ComPtr<ID3D12Resource> Buffer;
+
 	CUniformBuffer(UINT InEleSize, UINT InEleCount);
 	~CUniformBuffer();
 
@@ -61,6 +62,9 @@ protected:
 
 	ComPtr<ID3D12DescriptorHeap>	RtvDescriptorHeap;
 	UINT	RtvDescriptorSize = 0;
+
+	ComPtr<ID3D12DescriptorHeap>	SrvDescriptorHeap;
+	UINT	SrvDescriptorSize = 0;
 
 	void	FlushCommandQueue();
 

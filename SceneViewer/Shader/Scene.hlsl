@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 struct VS_INPUT
 {
     float4 Position : POSITION;
@@ -20,8 +22,10 @@ VS_OUTPUT VSMain(VS_INPUT Input)
     VS_OUTPUT Output;
 
     float4 LocalPos = Input.Position;
+    LocalPos.w = 1.0f;
 	
-    Output.Position = LocalPos;
+    float4x4 ViewProjMtx = mul(mView, mProjection);
+    Output.Position = mul(LocalPos, ViewProjMtx);
 
     Output.Normal = Input.Normal;
     Output.Tangent = Input.Tangent;

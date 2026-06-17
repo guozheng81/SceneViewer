@@ -29,13 +29,17 @@ void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 
 CScene::CScene()
 {
-
 	MainCamera.SetAspectRatio(CRenderer::GetInstance().ViewportWidth, CRenderer::GetInstance().ViewportHeight);
+	MainCamera.SetFOV(55.0f);
 
-	CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc;
-	RootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	Material = std::make_shared<CMaterial>();
+	Material->PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
-	Material = std::make_shared<CMaterial>(L"Scene_VSMain.cso", L"Scene_PSMain.cso", &RootSignatureDesc);
+	CD3DX12_ROOT_PARAMETER	RootParams[1];
+	RootParams[0].InitAsConstantBufferView(0);
+
+	Material->RootSignatureDesc.Init(1, RootParams, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso");
 
 	std::shared_ptr<CMesh> CurMesh = std::make_shared<CMesh>();
 	AllMeshes.push_back(CurMesh);
@@ -58,8 +62,6 @@ CScene::~CScene()
 
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
-	Material->OnRender(InCommandList);
-
 	for (auto CurMesh : AllMeshes)
 	{
 		CurMesh->OnRender(InCommandList);

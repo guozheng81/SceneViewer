@@ -110,7 +110,15 @@ bool	CRenderer::Init(HWND hWnd)
 
     CurrentFrameIndex = SwapChain->GetCurrentBackBufferIndex();
 
-    D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc;
+    D3D12_DESCRIPTOR_HEAP_DESC SrvHeapDesc = {};
+    SrvHeapDesc.NumDescriptors = 1024;
+    SrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    SrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    SrvHeapDesc.NodeMask = 0;
+    D3dDevice->CreateDescriptorHeap(&SrvHeapDesc, IID_PPV_ARGS(&SrvDescriptorHeap));
+    SrvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc = {};
     RtvHeapDesc.NumDescriptors = 32;
     RtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     RtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
@@ -214,22 +222,26 @@ void	CRenderer::UpdateViewBuffer()
     Cam->GetProjectionMatrix(&(ViewBuffer.ProjectionMatrix));
 
     GetCurrentFrameContext().ViewBuffer->SetData(&ViewBuffer);
+
+    CommandList->SetGraphicsRootConstantBufferView(0, GetCurrentFrameContext().ViewBuffer->Buffer->GetGPUVirtualAddress());
 }
 
 void	CRenderer::Render()
 {
     BeginFrame();
 
-    UpdateViewBuffer();
-
     CommandList->RSSetViewports(1, &Viewport);
     CommandList->RSSetScissorRects(1, &ScissorRect);
+
+    Scene->Material->OnRender(CommandList.Get());
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), CurrentFrameIndex, RtvDescriptorSize);
     CommandList->OMSetRenderTargets(1, &RtvHandle, FALSE, nullptr);
 
     float ClearColor[] = { 0.0f, 0.1f, 0.5f, 1.0f };
     CommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
+
+    UpdateViewBuffer();
 
     Scene->OnRender(CommandList.Get());
 

@@ -20,11 +20,11 @@ void	CCamera::GetViewMatrix(XMFLOAT4X4* OutMtx)
 	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
 	XMMATRIX Mtx = XMMatrixLookToLH(Pos, Dir, Up);
-	XMStoreFloat4x4(OutMtx, Mtx);
+	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(Mtx));
 }
 
 void	CCamera::GetProjectionMatrix(XMFLOAT4X4* OutMtx)
 {
 	XMMATRIX Mtx = XMMatrixPerspectiveFovLH(FOV, AspectRatio, NearPlane, FarPlane);
-	XMStoreFloat4x4(OutMtx, Mtx);
+	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(Mtx));
 }
