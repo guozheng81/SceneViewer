@@ -27,7 +27,7 @@ struct SPerFrameContext
 
 	ComPtr<ID3D12Resource>	FrameBuffer;
 
-	std::shared_ptr<CUniformBuffer> ViewBuffer;
+	std::unique_ptr<CUniformBuffer> ViewBuffer;
 
 	UINT64 FenceValue = 0;
 };
@@ -68,6 +68,8 @@ protected:
 
 	void	FlushCommandQueue();
 
+	std::unique_ptr<CScene>	Scene;
+
 public:
 	UINT	ViewportWidth = 1280;
 	UINT	ViewportHeight = 720;
@@ -77,11 +79,14 @@ public:
 
 	static CRenderer& GetInstance();
 
-	std::shared_ptr<CScene>	Scene = nullptr;
-
 	bool	Init(HWND hWnd);
 	void	Render();
 	void	Shutdown();
+
+	CScene* GetScene()
+	{
+		return Scene.get();
+	}
 
 	void	LoadScene();
 

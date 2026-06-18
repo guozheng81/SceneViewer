@@ -31,18 +31,21 @@ CScene::CScene()
 {
 	MainCamera.SetAspectRatio(CRenderer::GetInstance().ViewportWidth, CRenderer::GetInstance().ViewportHeight);
 	MainCamera.SetFOV(55.0f);
+	MainCamera.SetPositionAndRotation(XMFLOAT3(0.0f, 0.0f, -10.0f), 0.0f, 0.0f);
 
-	Material = std::make_shared<CMaterial>();
-	Material->PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	Material = std::make_unique<CMaterial>();
+	//Material->PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+}
 
+void CScene::Load()
+{
 	CD3DX12_ROOT_PARAMETER	RootParams[1];
 	RootParams[0].InitAsConstantBufferView(0);
 
 	Material->RootSignatureDesc.Init(1, RootParams, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso");
 
-	std::shared_ptr<CMesh> CurMesh = std::make_shared<CMesh>();
-	AllMeshes.push_back(CurMesh);
+	std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
 
 	std::vector<SSceneVertex> Verts = {
 			{ { 0.0f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f} },
@@ -51,8 +54,14 @@ CScene::CScene()
 	};
 
 	std::vector<UINT32>	Indices = { 0, 1, 2 };
-
 	CurMesh->Init(Verts, Indices);
+
+	AllMeshes.push_back(std::move(CurMesh));
+}
+
+CMaterial* CScene::GetSceneMaterial()
+{
+	return Material.get();
 }
 
 CScene::~CScene()
@@ -62,7 +71,7 @@ CScene::~CScene()
 
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
-	for (auto CurMesh : AllMeshes)
+	for (auto& CurMesh : AllMeshes)
 	{
 		CurMesh->OnRender(InCommandList);
 	}

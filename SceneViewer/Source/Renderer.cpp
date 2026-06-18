@@ -140,7 +140,7 @@ bool	CRenderer::Init(HWND hWnd)
         D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), nullptr, RtvHandle);
         RtvHandle.Offset(1, RtvDescriptorSize);
 
-        PerFrameContext[i].ViewBuffer = std::make_shared<CUniformBuffer>((UINT)(sizeof(SViewBuffer)), 1);
+        PerFrameContext[i].ViewBuffer = std::move(std::make_unique<CUniformBuffer>((UINT)(sizeof(SViewBuffer)), 1));
     }
 
     Viewport.TopLeftX = 0;
@@ -155,6 +155,8 @@ bool	CRenderer::Init(HWND hWnd)
     D3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, PerFrameContext[CurrentFrameIndex].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&CommandList));
     CommandList->Close();
 
+    Scene = std::make_unique<CScene>();
+
     LoadScene();
 
     return true;
@@ -166,7 +168,7 @@ void	CRenderer::LoadScene()
     GetCurrentFrameContext().CommandAllocator->Reset();
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
 
-    Scene = std::make_shared<CScene>();
+    Scene->Load();
 
     CommandList->Close();
 
@@ -218,6 +220,8 @@ void	CRenderer::UpdateViewBuffer()
     }
 
     CCamera* Cam = Scene->GetMainCamera();
+    Cam->OnUpdate();
+
     Cam->GetViewMatrix(&(ViewBuffer.ViewMatrix));
     Cam->GetProjectionMatrix(&(ViewBuffer.ProjectionMatrix));
 
@@ -233,7 +237,11 @@ void	CRenderer::Render()
     CommandList->RSSetViewports(1, &Viewport);
     CommandList->RSSetScissorRects(1, &ScissorRect);
 
-    Scene->Material->OnRender(CommandList.Get());
+    CMaterial* SceneMaterial = Scene->GetSceneMaterial();
+    if (SceneMaterial)
+    {
+        SceneMaterial->OnRender(CommandList.Get());
+    }
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), CurrentFrameIndex, RtvDescriptorSize);
     CommandList->OMSetRenderTargets(1, &RtvHandle, FALSE, nullptr);

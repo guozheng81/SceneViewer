@@ -3,6 +3,8 @@
 #include "./Source/Scene.h"
 
 HWND        g_HWnd = nullptr;
+int         g_LastMousePositionX = 0;
+int         g_LastMousePositionY = 0;
 
 static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -27,6 +29,39 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 
     case WM_DESTROY:
         PostQuitMessage(0);
+        return 0;
+
+    case WM_LBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    {
+        g_LastMousePositionX = (short)LOWORD(lParam);
+        g_LastMousePositionY = (short)HIWORD(lParam);
+        SetCapture(g_HWnd);
+    }
+        return 0;
+    case WM_LBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONUP:
+        ReleaseCapture();
+        return 0;
+    case WM_MOUSEMOVE:
+    {
+        int X = (short)LOWORD(lParam);
+        int Y = (short)HIWORD(lParam);
+
+        if (MK_LBUTTON & wParam)
+        {
+            CScene* Scene = CRenderer::GetInstance().GetScene();
+            if (Scene)
+            {
+                Scene->GetMainCamera()->OnInputMouse(X - g_LastMousePositionX, Y - g_LastMousePositionY);
+            }
+        }
+
+        g_LastMousePositionX = X;
+        g_LastMousePositionY = Y;
+    }
         return 0;
     }
 

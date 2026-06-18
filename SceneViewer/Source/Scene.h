@@ -28,13 +28,17 @@ class CScene
 {
 protected:
 	CCamera MainCamera;
+	std::vector<std::unique_ptr<CMesh>> AllMeshes;
+	std::unique_ptr<CMaterial>	Material;
 
 public:
-	std::shared_ptr<CMaterial>	Material;
-	std::vector<std::shared_ptr<CMesh>> AllMeshes;
 
 	CScene();
 	~CScene();
+
+	void	Load();
+
+	CMaterial* GetSceneMaterial();
 
 	CCamera* GetMainCamera()
 	{
