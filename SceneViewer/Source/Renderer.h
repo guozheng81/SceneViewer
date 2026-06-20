@@ -1,22 +1,30 @@
 #pragma once
 
 #include "Utils.h"
+#include <filesystem>
 
 class CScene;
+class CTexture2D;
 
 class CUniformBuffer
 {
 protected:
+	ComPtr<ID3D12Resource> Buffer;
 	BYTE* MappedPtr = nullptr;
 
 	UINT ElementSize = 0;
 	UINT ElementCount = 0;
 
 public:
-	ComPtr<ID3D12Resource> Buffer;
-
-	CUniformBuffer(UINT InEleSize, UINT InEleCount);
+	CUniformBuffer();
 	~CUniformBuffer();
+
+	void Init(UINT InEleSize, UINT InEleCount);
+	ID3D12Resource* GetResource() {
+		return Buffer.Get();
+	}
+
+	D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress();
 
 	void SetData(void* InData);
 };
@@ -27,7 +35,7 @@ struct SPerFrameContext
 
 	ComPtr<ID3D12Resource>	FrameBuffer;
 
-	std::unique_ptr<CUniformBuffer> ViewBuffer;
+	CUniformBuffer ViewBuffer;
 
 	UINT64 FenceValue = 0;
 };
@@ -65,10 +73,13 @@ protected:
 
 	ComPtr<ID3D12DescriptorHeap>	SrvDescriptorHeap;
 	UINT	SrvDescriptorSize = 0;
+	UINT	CurrentSrvDescriptorIndex = 0;
 
 	void	FlushCommandQueue();
 
 	std::unique_ptr<CScene>	Scene;
+
+	std::map<std::wstring, std::unique_ptr<CTexture2D>>  AllTextures;
 
 public:
 	UINT	ViewportWidth = 1280;
@@ -76,6 +87,8 @@ public:
 
 	ComPtr<ID3D12Device>	D3dDevice;
 	ComPtr<ID3D12CommandQueue> D3DCommandQueue;
+
+	std::vector<CD3DX12_STATIC_SAMPLER_DESC> TextureSamplers;
 
 	static CRenderer& GetInstance();
 
@@ -95,5 +108,10 @@ public:
 	void ResourceBarrier(ID3D12Resource* InResource, D3D12_RESOURCE_STATES InBefore, D3D12_RESOURCE_STATES InAfter);
 
 	ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* InData, UINT InTotalByteSize, ComPtr<ID3D12Resource>& OutUploadBuffer);
+
+	static std::filesystem::path GetExeDirectory();
+	CTexture2D* LoadTexture(LPCWSTR InFileName);
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescritor(UINT Idx);
 };
 

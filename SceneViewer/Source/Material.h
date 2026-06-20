@@ -2,6 +2,16 @@
 
 #include "Utils.h"
 
+class CTexture2D
+{
+public:
+	ComPtr<ID3D12Resource> Texture;
+	
+	// keep alive till gpu finish
+	ComPtr<ID3D12Resource> UploadTexture;
+	std::unique_ptr<uint8_t[]> DDSData;
+};
+
 class CMaterial
 {
 protected:

@@ -34,10 +34,7 @@ void CMaterial::Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
     ComPtr<ID3DBlob> VSBlob;
     ComPtr<ID3DBlob> PSBlob;
 
-    WCHAR PathCharArray[MAX_PATH];
-    GetModuleFileNameW(NULL, PathCharArray, MAX_PATH);
-    std::filesystem::path ExePath(PathCharArray);
-    std::filesystem::path ExeDirectory = ExePath.parent_path();
+    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
 
     D3DReadFileToBlob((ExeDirectory/InVSFileName).c_str(), &VSBlob);
     D3DReadFileToBlob((ExeDirectory/InPSFileName).c_str(), &PSBlob);

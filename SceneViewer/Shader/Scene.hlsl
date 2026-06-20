@@ -1,5 +1,11 @@
 #include "Common.hlsli"
 
+SamplerState LinearSampler : register(s0);
+SamplerState PointSampler : register(s1);
+SamplerState LinearSamplerWrap : register(s2);
+
+Texture2D DiffuseTexture : register(t0);
+
 struct VS_INPUT
 {
     float4 Position : POSITION;
@@ -45,5 +51,6 @@ struct PS_INPUT
 
 float4 PSMain(PS_INPUT Input) : SV_TARGET
 {
-    return float4(1.0f, 0.5f, 0.0f, 1.0f);
+    float4 Diff = DiffuseTexture.Sample(LinearSampler, Input.Texcoord);
+    return Diff;
 }

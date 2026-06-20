@@ -135,6 +135,7 @@
   <ItemGroup>
     <ClCompile Include="SceneViewer.cpp" />
     <ClCompile Include="Source\Camera.cpp" />
+    <ClCompile Include="Source\DDSTextureLoader12.cpp" />
     <ClCompile Include="Source\Material.cpp" />
     <ClCompile Include="Source\Renderer.cpp" />
     <ClCompile Include="Source\Scene.cpp" />
@@ -142,6 +143,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Camera.h" />
+    <ClInclude Include="Source\DDSTextureLoader12.h" />
     <ClInclude Include="Source\Material.h" />
     <ClInclude Include="Source\Renderer.h" />
     <ClInclude Include="Source\Scene.h" />

@@ -1,13 +1,18 @@
 #include "Renderer.h"
 #include "Scene.h"
+#include "DDSTextureLoader12.h"
 
-CUniformBuffer::CUniformBuffer(UINT InItemSize, UINT InItemCount)
+CUniformBuffer::CUniformBuffer()
 {
-    ElementSize = InItemSize;
-    ElementCount = InItemCount;
+}
+
+void CUniformBuffer::Init(UINT InEleSize, UINT InEleCount)
+{
+    ElementSize = InEleSize;
+    ElementCount = InEleCount;
 
     CD3DX12_HEAP_PROPERTIES HeapProps(D3D12_HEAP_TYPE_UPLOAD);
-    CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InItemSize * InItemCount);
+    CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InEleSize * InEleCount);
 
     CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &BufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&Buffer));
 
@@ -18,6 +23,11 @@ CUniformBuffer::~CUniformBuffer()
 {
     Buffer->Unmap(0, nullptr);
     MappedPtr = nullptr;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS CUniformBuffer::GetGPUAddress()
+{
+    return Buffer->GetGPUVirtualAddress();
 }
 
 void CUniformBuffer::SetData(void* InData)
@@ -124,8 +134,11 @@ bool	CRenderer::Init(HWND hWnd)
     RtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     RtvHeapDesc.NodeMask = 0;
     D3dDevice->CreateDescriptorHeap(&RtvHeapDesc, IID_PPV_ARGS(&RtvDescriptorHeap));
-
     RtvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+    TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
+    TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
+    TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(2, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP));
 
     D3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&FrameFence));
     FrameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -140,7 +153,7 @@ bool	CRenderer::Init(HWND hWnd)
         D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), nullptr, RtvHandle);
         RtvHandle.Offset(1, RtvDescriptorSize);
 
-        PerFrameContext[i].ViewBuffer = std::move(std::make_unique<CUniformBuffer>((UINT)(sizeof(SViewBuffer)), 1));
+        PerFrameContext[i].ViewBuffer.Init((UINT)(sizeof(SViewBuffer)), 1);
     }
 
     Viewport.TopLeftX = 0;
@@ -225,9 +238,9 @@ void	CRenderer::UpdateViewBuffer()
     Cam->GetViewMatrix(&(ViewBuffer.ViewMatrix));
     Cam->GetProjectionMatrix(&(ViewBuffer.ProjectionMatrix));
 
-    GetCurrentFrameContext().ViewBuffer->SetData(&ViewBuffer);
+    GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
 
-    CommandList->SetGraphicsRootConstantBufferView(0, GetCurrentFrameContext().ViewBuffer->Buffer->GetGPUVirtualAddress());
+    CommandList->SetGraphicsRootConstantBufferView(0, GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
 }
 
 void	CRenderer::Render()
@@ -242,6 +255,9 @@ void	CRenderer::Render()
     {
         SceneMaterial->OnRender(CommandList.Get());
     }
+
+    ID3D12DescriptorHeap* Heaps[] = { SrvDescriptorHeap.Get() };
+    CommandList->SetDescriptorHeaps(1, Heaps);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), CurrentFrameIndex, RtvDescriptorSize);
     CommandList->OMSetRenderTargets(1, &RtvHandle, FALSE, nullptr);
@@ -296,9 +312,74 @@ ComPtr<ID3D12Resource> CRenderer::CreateDefaultBuffer(const void* InData, UINT I
     SubResourceData.RowPitch = InTotalByteSize;
     SubResourceData.SlicePitch = InTotalByteSize;
 
+    // dx12 force the buffer created as COMMON
     ResourceBarrier(Buffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
     UpdateSubresources<1>(CommandList.Get(), Buffer.Get(), OutUploadBuffer.Get(), 0, 0, 1, &SubResourceData);
     ResourceBarrier(Buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 
     return Buffer;
+}
+
+std::filesystem::path CRenderer::GetExeDirectory()
+{
+    WCHAR PathCharArray[MAX_PATH];
+    GetModuleFileNameW(NULL, PathCharArray, MAX_PATH);
+    std::filesystem::path ExePath(PathCharArray);
+    return ExePath.parent_path();
+}
+
+CTexture2D* CRenderer::LoadTexture(LPCWSTR InFileName)
+{
+    if (AllTextures.find(InFileName) != AllTextures.end())
+    {
+        return AllTextures[InFileName].get();
+    }
+
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>();
+
+    std::vector<D3D12_SUBRESOURCE_DATA> Subresources;
+
+    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
+    std::filesystem::path AssetDir = ExeDirectory.parent_path().parent_path();
+    AssetDir /= L"SceneViewer/Asset";
+    AssetDir /= InFileName;
+
+    if (FAILED(LoadDDSTextureFromFile(D3dDevice.Get(), AssetDir.c_str(), NewTexture->Texture.GetAddressOf(), NewTexture->DDSData, Subresources)))
+    {
+        return nullptr;
+    }
+
+    UINT64 ReqSize = GetRequiredIntermediateSize(NewTexture->Texture.Get(), 0, static_cast<UINT>(Subresources.size()));
+
+    CD3DX12_HEAP_PROPERTIES UploadHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_RESOURCE_DESC ResDesc = CD3DX12_RESOURCE_DESC::Buffer(ReqSize);
+
+    D3dDevice->CreateCommittedResource(&UploadHeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(NewTexture->UploadTexture.GetAddressOf()));
+
+    UpdateSubresources(CommandList.Get(), NewTexture->Texture.Get(), NewTexture->UploadTexture.Get(), 0, 0, static_cast<UINT>(Subresources.size()), Subresources.data());
+    ResourceBarrier(NewTexture->Texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    CTexture2D* ResTex = NewTexture.get();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
+    SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    SrvDesc.Format = NewTexture->Texture->GetDesc().Format;
+    SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    SrvDesc.Texture2D.MostDetailedMip = 0;
+    SrvDesc.Texture2D.MipLevels = NewTexture->Texture->GetDesc().MipLevels;
+    SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    D3dDevice->CreateShaderResourceView(NewTexture->Texture.Get(), &SrvDesc, Descriptor);
+    CurrentSrvDescriptorIndex++;
+
+    AllTextures[InFileName] = std::move(NewTexture);
+    return ResTex;
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE CRenderer::GetSrvGPUDescritor(UINT Idx)
+{
+    CD3DX12_GPU_DESCRIPTOR_HANDLE Descriptor(SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+    Descriptor.Offset(Idx, SrvDescriptorSize);
+    return Descriptor;
 }
