@@ -15,6 +15,8 @@ protected:
 	UINT ElementSize = 0;
 	UINT ElementCount = 0;
 
+	int SrvDescriptorIndex = -1;
+
 public:
 	CUniformBuffer();
 	~CUniformBuffer();
@@ -25,6 +27,12 @@ public:
 	}
 
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress();
+
+	void CreateShaderResourceView();
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor();
+	inline	bool HasValidSrv() const {
+		return SrvDescriptorIndex >= 0;
+	}
 
 	void SetData(void* InData);
 };
@@ -73,7 +81,7 @@ protected:
 
 	ComPtr<ID3D12DescriptorHeap>	SrvDescriptorHeap;
 	UINT	SrvDescriptorSize = 0;
-	UINT	CurrentSrvDescriptorIndex = 0;
+	int		CurrentSrvDescriptorIndex = 0;
 
 	void	FlushCommandQueue();
 
@@ -112,6 +120,7 @@ public:
 	static std::filesystem::path GetExeDirectory();
 	CTexture2D* LoadTexture(LPCWSTR InFileName);
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescritor(UINT Idx);
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvDescriptor(int& OutDescriptorIdx);
 };
 

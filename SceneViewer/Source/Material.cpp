@@ -3,6 +3,31 @@
 #include "Material.h"
 #include "Renderer.h"
 
+void CTexture2D::CreateShaderResourceView()
+{
+    D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
+    SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    SrvDesc.Format = Texture->GetDesc().Format;
+    SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    SrvDesc.Texture2D.MostDetailedMip = 0;
+    SrvDesc.Texture2D.MipLevels = Texture->GetDesc().MipLevels;
+    SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
+    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, Descriptor);
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE CTexture2D::GetSrvGPUDescriptor()
+{
+    if (SrvDescriptorIndex < 0)
+    {
+        CD3DX12_GPU_DESCRIPTOR_HANDLE DefaultHandle = {};
+        return DefaultHandle;
+    }
+
+    return CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
+}
+
 CMaterial::CMaterial()
 {
     PSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -50,4 +75,59 @@ void CMaterial::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
     InCommandList->SetPipelineState(PSO.Get());
     InCommandList->SetGraphicsRootSignature(RootSign.Get());
+}
+
+int CMaterial::FindSrvRootParameterIndex(UINT InRegister)
+{
+    int FoundRootParamIdx = -1;
+
+    for (int i = 0; i < RootSignatureDesc.NumParameters; ++i)
+    {
+        const D3D12_ROOT_PARAMETER& Param = RootSignatureDesc.pParameters[i];
+        if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+        {
+            if (Param.DescriptorTable.NumDescriptorRanges > 0
+                && Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_ROOT_PARAMETER_TYPE_SRV
+                && Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister == InRegister
+                && Param.DescriptorTable.pDescriptorRanges[0].RegisterSpace == 0)
+            {
+                FoundRootParamIdx = i;
+                break;
+            }
+        }
+    }
+
+    return FoundRootParamIdx;
+}
+
+void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex)
+{
+    if (InTex == nullptr || InTex->HasValidSrv())
+    {
+        return;
+    }
+
+    int FoundRootParamIdx = FindSrvRootParameterIndex(InRegister);
+    if (FoundRootParamIdx == -1)
+    {
+        return;
+    }
+
+    InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InTex->GetSrvGPUDescriptor());
+}
+
+void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer)
+{
+    if (InBuffer == nullptr || InBuffer->HasValidSrv())
+    {
+        return;
+    }
+
+    int FoundRootParamIdx = FindSrvRootParameterIndex(InRegister);
+    if (FoundRootParamIdx == -1)
+    {
+        return;
+    }
+
+    InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InBuffer->GetSrvGPUDescriptor());
 }

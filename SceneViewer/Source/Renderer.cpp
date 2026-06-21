@@ -25,6 +25,32 @@ CUniformBuffer::~CUniformBuffer()
     MappedPtr = nullptr;
 }
 
+void CUniformBuffer::CreateShaderResourceView()
+{
+    D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
+    SrvDesc.Format = DXGI_FORMAT_UNKNOWN;
+    SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    SrvDesc.Buffer.FirstElement = 0;
+    SrvDesc.Buffer.NumElements = ElementCount;
+    SrvDesc.Buffer.StructureByteStride = ElementSize;
+    SrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
+    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Buffer.Get(), &SrvDesc, Descriptor);
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE CUniformBuffer::GetSrvGPUDescriptor()
+{
+    if (SrvDescriptorIndex < 0)
+    {
+        CD3DX12_GPU_DESCRIPTOR_HANDLE DefaultHandle = {};
+        return DefaultHandle;
+    }
+
+    return CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
+}
+
 D3D12_GPU_VIRTUAL_ADDRESS CUniformBuffer::GetGPUAddress()
 {
     return Buffer->GetGPUVirtualAddress();
@@ -361,23 +387,25 @@ CTexture2D* CRenderer::LoadTexture(LPCWSTR InFileName)
 
     CTexture2D* ResTex = NewTexture.get();
 
-    D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
-    SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    SrvDesc.Format = NewTexture->Texture->GetDesc().Format;
-    SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    SrvDesc.Texture2D.MostDetailedMip = 0;
-    SrvDesc.Texture2D.MipLevels = NewTexture->Texture->GetDesc().MipLevels;
-    SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    NewTexture->Width = NewTexture->Texture->GetDesc().Width;
+    NewTexture->Height = NewTexture->Texture->GetDesc().Height;
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    D3dDevice->CreateShaderResourceView(NewTexture->Texture.Get(), &SrvDesc, Descriptor);
-    CurrentSrvDescriptorIndex++;
+    NewTexture->CreateShaderResourceView();
 
     AllTextures[InFileName] = std::move(NewTexture);
     return ResTex;
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE CRenderer::GetSrvGPUDescritor(UINT Idx)
+CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::AllocSrvDescriptor(int& OutDescriptorIdx)
+{
+    OutDescriptorIdx = CurrentSrvDescriptorIndex;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    Descriptor.Offset(CurrentSrvDescriptorIndex, SrvDescriptorSize);
+    CurrentSrvDescriptorIndex++;
+    return Descriptor;
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE CRenderer::GetSrvGPUDescriptor(UINT Idx)
 {
     CD3DX12_GPU_DESCRIPTOR_HANDLE Descriptor(SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
     Descriptor.Offset(Idx, SrvDescriptorSize);

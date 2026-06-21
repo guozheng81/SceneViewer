@@ -78,7 +78,7 @@ CScene::~CScene()
 
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
-	InCommandList->SetGraphicsRootDescriptorTable(1, CRenderer::GetInstance().GetSrvGPUDescritor(0));
+	InCommandList->SetGraphicsRootDescriptorTable(1, CRenderer::GetInstance().GetSrvGPUDescriptor(0));
 	for (auto& CurMesh : AllMeshes)
 	{
 		CurMesh->OnRender(InCommandList);
