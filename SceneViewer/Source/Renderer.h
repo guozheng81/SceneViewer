@@ -119,6 +119,7 @@ public:
 
 	static std::filesystem::path GetExeDirectory();
 	CTexture2D* LoadTexture(LPCWSTR InFileName);
+	CTexture2D* GetTexture(LPCWSTR InFileName);
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvDescriptor(int& OutDescriptorIdx);

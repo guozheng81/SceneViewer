@@ -354,6 +354,16 @@ std::filesystem::path CRenderer::GetExeDirectory()
     return ExePath.parent_path();
 }
 
+CTexture2D* CRenderer::GetTexture(LPCWSTR InFileName)
+{
+    if (AllTextures.find(InFileName) != AllTextures.end())
+    {
+        return AllTextures[InFileName].get();
+    }
+
+    return nullptr;
+}
+
 CTexture2D* CRenderer::LoadTexture(LPCWSTR InFileName)
 {
     if (AllTextures.find(InFileName) != AllTextures.end())

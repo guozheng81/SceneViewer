@@ -39,15 +39,7 @@ CScene::CScene()
 
 void CScene::Load()
 {
-	CD3DX12_DESCRIPTOR_RANGE TexRange;
-	TexRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
-
-	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams(2);
-	RootParams[0].InitAsConstantBufferView(0);
-	RootParams[1].InitAsDescriptorTable(1, &TexRange, D3D12_SHADER_VISIBILITY_PIXEL);
-
-	auto& Samplers = CRenderer::GetInstance().TextureSamplers;
-	Material->RootSignatureDesc.Init((UINT)(RootParams.size()), RootParams.data(), (UINT)(Samplers.size()), Samplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	Material->IntRootParameters(1, 1, 0);
 	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso");
 
 	CRenderer::GetInstance().LoadTexture(L"spnza_bricks_a_diff.dds");
@@ -78,7 +70,8 @@ CScene::~CScene()
 
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
-	InCommandList->SetGraphicsRootDescriptorTable(1, CRenderer::GetInstance().GetSrvGPUDescriptor(0));
+	Material->SetShaderResource(InCommandList, 0, CRenderer::GetInstance().GetTexture(L"spnza_bricks_a_diff.dds"));
+	//InCommandList->SetGraphicsRootDescriptorTable(1, CRenderer::GetInstance().GetSrvGPUDescriptor(0));
 	for (auto& CurMesh : AllMeshes)
 	{
 		CurMesh->OnRender(InCommandList);

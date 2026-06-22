@@ -35,16 +35,21 @@ protected:
 	int FindSrvRootParameterIndex(UINT InRegister);
 
 public:
+	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
+
 	CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc = {};
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
 
 	CMaterial();
 
+	void IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCount);
 	void Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName);
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 
 	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex);
 	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer);
+
+	void SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer);
 };
 
