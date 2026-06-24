@@ -162,6 +162,16 @@ bool	CRenderer::Init(HWND hWnd)
     D3dDevice->CreateDescriptorHeap(&RtvHeapDesc, IID_PPV_ARGS(&RtvDescriptorHeap));
     RtvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
+    D3D12_DESCRIPTOR_HEAP_DESC DsvHeapDesc = {};
+    DsvHeapDesc.NumDescriptors = 3;
+    DsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    DsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    DsvHeapDesc.NodeMask = 0;
+    D3dDevice->CreateDescriptorHeap(&DsvHeapDesc, IID_PPV_ARGS(&DsvDescriptorHeap));
+    DsvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+    CreateDepthTexture(L"Depth", ViewportWidth, ViewportHeight);
+
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(2, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP));
@@ -286,10 +296,12 @@ void	CRenderer::Render()
     CommandList->SetDescriptorHeaps(1, Heaps);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), CurrentFrameIndex, RtvDescriptorSize);
-    CommandList->OMSetRenderTargets(1, &RtvHandle, FALSE, nullptr);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle(DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    CommandList->OMSetRenderTargets(1, &RtvHandle, true, &DsvHandle);
 
     float ClearColor[] = { 0.0f, 0.1f, 0.5f, 1.0f };
     CommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
+    CommandList->ClearDepthStencilView(DsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
     UpdateViewBuffer();
 
@@ -362,6 +374,53 @@ CTexture2D* CRenderer::GetTexture(LPCWSTR InFileName)
     }
 
     return nullptr;
+}
+
+CTexture2D* CRenderer::CreateDepthTexture(LPCWSTR InName, UINT InW, UINT InH)
+{
+    if (AllTextures.find(InName) != AllTextures.end())
+    {
+        return AllTextures[InName].get();
+    }
+
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>();
+
+    D3D12_RESOURCE_DESC TextureDesc = {};
+    TextureDesc.MipLevels = 1;
+    TextureDesc.Format = DXGI_FORMAT_R32_TYPELESS; // Use typeless so it can be cast to DSV and SRV
+    TextureDesc.Width = InW;
+    TextureDesc.Height = InH;
+    TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    TextureDesc.DepthOrArraySize = 1;
+    TextureDesc.SampleDesc.Count = 1;
+    TextureDesc.SampleDesc.Quality = 0;
+    TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    D3D12_CLEAR_VALUE ClearValue = {};
+    ClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    ClearValue.DepthStencil.Depth = 1.0f;
+    ClearValue.DepthStencil.Stencil = 0;
+
+    CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+    D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
+
+    CTexture2D* ResTex = NewTexture.get();
+    NewTexture->Width = InW;
+    NewTexture->Height = InH;
+
+    D3D12_DEPTH_STENCIL_VIEW_DESC DsvDesc = {};
+    DsvDesc.Format = DXGI_FORMAT_D32_FLOAT; // Cast from R32_TYPELESS
+    DsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    DsvDesc.Texture2D.MipSlice = 0;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE DsvHandle = DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    D3dDevice->CreateDepthStencilView(ResTex->Texture.Get(), &DsvDesc, DsvHandle);
+
+    NewTexture->CreateShaderResourceView();
+
+    AllTextures[InName] = std::move(NewTexture);
+    return ResTex;
 }
 
 CTexture2D* CRenderer::LoadTexture(LPCWSTR InFileName)

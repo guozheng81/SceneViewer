@@ -15,7 +15,7 @@ void	CCamera::SetFOV(float InDegree)
 
 void	CCamera::SetPositionAndRotation(XMFLOAT3 InPos, float InYaw, float InPitch)
 {
-	Position = InPos;
+	Position = XMVectorSet(InPos.x, InPos.y, InPos.z, 1.0f);
 	Yaw = InYaw;
 	Pitch = InPitch;
 
@@ -26,10 +26,9 @@ void	CCamera::SetPositionAndRotation(XMFLOAT3 InPos, float InYaw, float InPitch)
 
 void	CCamera::GetViewMatrix(XMFLOAT4X4* OutMtx)
 {
-	XMVECTOR Pos = XMVectorSet(Position.x, Position.y, Position.z, 1.0f);
 	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-	XMMATRIX Mtx = XMMatrixLookToLH(Pos, LookAtDirection, Up);
+	XMMATRIX Mtx = XMMatrixLookToLH(Position, LookAtDirection, Up);
 	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(Mtx));
 }
 
@@ -73,9 +72,6 @@ void	CCamera::OnUpdate()
 		X += 1;
 	}
 
-	XMVECTOR Pos = XMVectorSet(Position.x, Position.y, Position.z, 1.0f);
-	Pos += LookAtDirection * (Z * MoveSpeed);
-	Pos += RightDirection * (X * MoveSpeed);
-
-	XMStoreFloat3(&Position, Pos);
+	Position += LookAtDirection * (Z * MoveSpeed);
+	Position += RightDirection * (X * MoveSpeed);
 }

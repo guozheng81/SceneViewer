@@ -63,6 +63,9 @@
     <ClInclude Include="Source\DDSTextureLoader12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\tiny_obj_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Shader\Scene.hlsl" />

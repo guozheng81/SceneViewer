@@ -19,7 +19,9 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW	 IndexBufferView;
 
-	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices);
+	std::wstring	DiffuseTextureName;
+
+	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName);
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 };

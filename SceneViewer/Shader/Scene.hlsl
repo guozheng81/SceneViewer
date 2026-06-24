@@ -51,6 +51,11 @@ struct PS_INPUT
 
 float4 PSMain(PS_INPUT Input) : SV_TARGET
 {
-    float4 Diff = DiffuseTexture.Sample(LinearSampler, Input.Texcoord);
-    return Diff;
+    float4 Albedo = DiffuseTexture.Sample(LinearSamplerWrap, Input.Texcoord);
+
+    if (Albedo.a < 0.5f)
+    {
+        discard;
+    }
+    return Albedo;
 }

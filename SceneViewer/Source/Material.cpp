@@ -8,6 +8,10 @@ void CTexture2D::CreateShaderResourceView()
     D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
     SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     SrvDesc.Format = Texture->GetDesc().Format;
+    if (SrvDesc.Format == DXGI_FORMAT_R32_TYPELESS)
+    {
+        SrvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+    }
     SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     SrvDesc.Texture2D.MostDetailedMip = 0;
     SrvDesc.Texture2D.MipLevels = Texture->GetDesc().MipLevels;
@@ -32,12 +36,13 @@ CMaterial::CMaterial()
 {
     PSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     PSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    PSODesc.DepthStencilState.DepthEnable = FALSE;
+    PSODesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     PSODesc.DepthStencilState.StencilEnable = FALSE;
     PSODesc.SampleMask = UINT_MAX;
     PSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     PSODesc.NumRenderTargets = 1;
     PSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    PSODesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
     PSODesc.SampleDesc.Count = 1;
 }
 

@@ -8,8 +8,8 @@ protected:
 	float		AspectRatio = 1.778f;
 	float		FOV = 0.3f;		// radians
 
-	float		NearPlane = 0.1f;
-	float		FarPlane = 1000.0f;
+	float		NearPlane = 1.0f;
+	float		FarPlane = 10000.0f;
 
 	float		Yaw = 0.0f;
 	float		YawScale = 0.002f;
@@ -17,9 +17,9 @@ protected:
 	float		Pitch = 0.0f;
 	float		PitchScale = 0.002f;
 
-	float		MoveSpeed = 0.1f;
+	float		MoveSpeed = 2.5f;
 
-	XMFLOAT3	Position = { 0.0f, 0.0f, -10.0f };
+	XMVECTOR	Position = { 0.0f, 0.0f, -10.0f };
 	XMVECTOR	LookAtDirection = { 0.0f, 0.0f, 1.0f };
 	XMVECTOR	RightDirection = { 1.0f, 0.0f, 0.0f };
 

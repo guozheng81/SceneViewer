@@ -79,6 +79,9 @@ protected:
 	ComPtr<ID3D12DescriptorHeap>	RtvDescriptorHeap;
 	UINT	RtvDescriptorSize = 0;
 
+	ComPtr<ID3D12DescriptorHeap>	DsvDescriptorHeap;
+	UINT	DsvDescriptorSize = 0;
+
 	ComPtr<ID3D12DescriptorHeap>	SrvDescriptorHeap;
 	UINT	SrvDescriptorSize = 0;
 	int		CurrentSrvDescriptorIndex = 0;
@@ -120,6 +123,7 @@ public:
 	static std::filesystem::path GetExeDirectory();
 	CTexture2D* LoadTexture(LPCWSTR InFileName);
 	CTexture2D* GetTexture(LPCWSTR InFileName);
+	CTexture2D* CreateDepthTexture(LPCWSTR InName, UINT InW, UINT InH);
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvDescriptor(int& OutDescriptorIdx);
