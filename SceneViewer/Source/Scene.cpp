@@ -6,7 +6,8 @@
 
 void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName)
 {
-	UINT TotalSize = sizeof(SSceneVertex)*Verts.size();
+	VertexCount = Verts.size();
+	UINT TotalSize = sizeof(SSceneVertex)* VertexCount;
 	VertexBuffer = CRenderer::GetInstance().CreateDefaultBuffer(Verts.data(), TotalSize, VertexUploadBuffer);
 
 	VertexBufferView.BufferLocation = VertexBuffer->GetGPUVirtualAddress();
@@ -14,31 +15,40 @@ void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices,
 	VertexBufferView.StrideInBytes = sizeof(SSceneVertex);
 
 	IndicesCount = Indices.size();
-	TotalSize = sizeof(UINT32)*IndicesCount;
-	IndexBuffer = CRenderer::GetInstance().CreateDefaultBuffer(Indices.data(), TotalSize, IndexUploadBuffer);
-	IndexBufferView.BufferLocation = IndexBuffer->GetGPUVirtualAddress();
-	IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
-	IndexBufferView.SizeInBytes = TotalSize;
+	if (IndicesCount > 0)
+	{
+		TotalSize = sizeof(UINT32) * IndicesCount;
+		IndexBuffer = CRenderer::GetInstance().CreateDefaultBuffer(Indices.data(), TotalSize, IndexUploadBuffer);
+		IndexBufferView.BufferLocation = IndexBuffer->GetGPUVirtualAddress();
+		IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+		IndexBufferView.SizeInBytes = TotalSize;
+	}
 
 	DiffuseTextureName = std::wstring(InDiffTexName.begin(), InDiffTexName.end());
 	CRenderer::GetInstance().LoadTexture(DiffuseTextureName.c_str());
-
 }
 
 void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
-	InCommandList->IASetVertexBuffers(0, 1, &VertexBufferView);
-	InCommandList->IASetIndexBuffer(&IndexBufferView);
 	InCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	InCommandList->DrawIndexedInstanced(IndicesCount, 1, 0, 0, 0);
+	InCommandList->IASetVertexBuffers(0, 1, &VertexBufferView);
+	if (IndicesCount > 0)
+	{
+		InCommandList->IASetIndexBuffer(&IndexBufferView);
+		InCommandList->DrawIndexedInstanced(IndicesCount, 1, 0, 0, 0);
+	}
+	else
+	{
+		InCommandList->DrawInstanced(VertexCount, 1, 0, 0);
+	}
 }
 
 CScene::CScene()
 {
 	MainCamera.SetAspectRatio(CRenderer::GetInstance().ViewportWidth, CRenderer::GetInstance().ViewportHeight);
 	MainCamera.SetFOV(55.0f);
-	MainCamera.SetPositionAndRotation(XMFLOAT3(0.0f, 150.0f, -10.0f), 0.0f, 0.0f);
+	MainCamera.SetPositionAndRotation(XMFLOAT3(0.0f, 200.0f, 0.0f), XMConvertToRadians(-90.0f), 0.0f);
 
 	Material = std::make_unique<CMaterial>();
 	//Material->PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -112,13 +122,12 @@ void CScene::Load()
 					tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
 					tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
 
-					Indices.push_back((UINT)(Verts.size()));
+					//Indices.push_back((UINT)(Verts.size()));
 
 					SSceneVertex Vert;
 					Vert.Position = XMFLOAT3(vx, vy, vz);
 					Vert.Normal = XMFLOAT3(nx, ny, nz);
 					Vert.Tex = XMFLOAT2(tx, ty);
-					Vert.Tangent = XMFLOAT3(1.0f, 0.0f, 0.0f);
 					Verts.push_back(Vert);
 				}
 				index_offset += fv;

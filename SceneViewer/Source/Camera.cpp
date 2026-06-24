@@ -24,6 +24,11 @@ void	CCamera::SetPositionAndRotation(XMFLOAT3 InPos, float InYaw, float InPitch)
 	LookAtDirection = RotMtx.r[2];
 }
 
+void	CCamera::GetCameraPosition(XMFLOAT4* OutPos)
+{
+	XMStoreFloat4(OutPos, Position);
+}
+
 void	CCamera::GetViewMatrix(XMFLOAT4X4* OutMtx)
 {
 	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);

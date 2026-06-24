@@ -271,6 +271,7 @@ void	CRenderer::UpdateViewBuffer()
     CCamera* Cam = Scene->GetMainCamera();
     Cam->OnUpdate();
 
+    Cam->GetCameraPosition(&(ViewBuffer.CameraOrigin));
     Cam->GetViewMatrix(&(ViewBuffer.ViewMatrix));
     Cam->GetProjectionMatrix(&(ViewBuffer.ProjectionMatrix));
 

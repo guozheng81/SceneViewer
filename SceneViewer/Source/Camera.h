@@ -31,6 +31,7 @@ public:
 
 	void	GetViewMatrix(XMFLOAT4X4* OutMtx);
 	void	GetProjectionMatrix(XMFLOAT4X4* OutMtx);
+	void	GetCameraPosition(XMFLOAT4* OutPos);
 
 	void	OnInputMouse(int InDeltaX, int InDeltaY);
 	void	OnUpdate();

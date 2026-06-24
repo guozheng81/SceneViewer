@@ -8,6 +8,7 @@ class CMesh
 {
 protected:
 	UINT	IndicesCount = 0;
+	UINT	VertexCount = 0;
 
 public:
 	ComPtr<ID3D12Resource> VertexBuffer;
