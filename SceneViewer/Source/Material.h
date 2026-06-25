@@ -20,12 +20,15 @@ public:
 	ComPtr<ID3D12Resource> UploadTexture;
 	std::unique_ptr<uint8_t[]> DDSData;
 
+	void ResetUploadResource();
+
 	void CreateShaderResourceView();
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor();
 	inline	bool HasValidSrv() const {
 		return SrvDescriptorIndex >= 0;
 	}
 
+	CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtvCPUDescriptor();
 	void CreateRenderTargetView();
 	inline	bool HasValidRtv() const {
 		return RtvDescriptorIndex >= 0;

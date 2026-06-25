@@ -23,6 +23,7 @@ public:
 	std::string	DiffuseTextureName;
 
 	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName);
+	void ResetUploadResource();
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 };
@@ -49,5 +50,7 @@ public:
 	}
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
+
+	void OnLoaded();
 };
 

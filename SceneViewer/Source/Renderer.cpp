@@ -209,6 +209,12 @@ bool	CRenderer::Init(HWND hWnd)
 
     LoadScene();
 
+    Scene->OnLoaded();
+    for (auto& CurTexture : AllTextures)
+    {
+        CurTexture.second->ResetUploadResource();
+    }
+
     return true;
 }
 
@@ -542,4 +548,12 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE CRenderer::GetSrvGPUDescriptor(UINT Idx)
     CD3DX12_GPU_DESCRIPTOR_HANDLE Descriptor(SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
     Descriptor.Offset(Idx, SrvDescriptorSize);
     return Descriptor;
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::GetRtvCPUDescriptor(UINT Idx)
+{
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    Descriptor.Offset(Idx, RtvDescriptorSize);
+    return Descriptor;
+
 }

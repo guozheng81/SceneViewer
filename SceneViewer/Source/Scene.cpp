@@ -28,6 +28,20 @@ void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices,
 	CRenderer::GetInstance().LoadTexture(DiffuseTextureName);
 }
 
+void CMesh::ResetUploadResource()
+{
+	if (VertexUploadBuffer)
+	{
+		VertexUploadBuffer.Reset();
+	}
+
+	if (IndexUploadBuffer)
+	{
+		IndexUploadBuffer.Reset();
+	}
+
+}
+
 void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
 	InCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -149,7 +163,14 @@ CMaterial* CScene::GetSceneMaterial()
 
 CScene::~CScene()
 {
+}
 
+void CScene::OnLoaded()
+{
+	for (auto& CurMesh : AllMeshes)
+	{
+		CurMesh->ResetUploadResource();
+	}
 }
 
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)

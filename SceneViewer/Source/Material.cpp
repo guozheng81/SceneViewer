@@ -3,6 +3,15 @@
 #include "Material.h"
 #include "Renderer.h"
 
+void CTexture2D::ResetUploadResource()
+{
+    if (UploadTexture)
+    {
+        UploadTexture.Reset();
+        DDSData.reset();
+    }
+}
+
 void CTexture2D::CreateShaderResourceView()
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
@@ -37,6 +46,17 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE CTexture2D::GetSrvGPUDescriptor()
 
     return CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
 }
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE CTexture2D::GetRtvCPUDescriptor()
+{
+    if (RtvDescriptorIndex < 0)
+    {
+        CD3DX12_CPU_DESCRIPTOR_HANDLE DefaultHandle = {};
+        return DefaultHandle;
+    }
+    return CRenderer::GetInstance().GetRtvCPUDescriptor(RtvDescriptorIndex);
+}
+
 
 CMaterial::CMaterial()
 {
