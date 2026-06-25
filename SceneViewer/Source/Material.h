@@ -8,6 +8,7 @@ class CTexture2D
 {
 protected:
 	int		SrvDescriptorIndex = -1;
+	int		RtvDescriptorIndex = -1;
 
 public:
 	ComPtr<ID3D12Resource> Texture;
@@ -23,6 +24,11 @@ public:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor();
 	inline	bool HasValidSrv() const {
 		return SrvDescriptorIndex >= 0;
+	}
+
+	void CreateRenderTargetView();
+	inline	bool HasValidRtv() const {
+		return RtvDescriptorIndex >= 0;
 	}
 };
 

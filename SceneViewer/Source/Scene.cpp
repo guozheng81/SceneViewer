@@ -24,8 +24,8 @@ void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices,
 		IndexBufferView.SizeInBytes = TotalSize;
 	}
 
-	DiffuseTextureName = std::wstring(InDiffTexName.begin(), InDiffTexName.end());
-	CRenderer::GetInstance().LoadTexture(DiffuseTextureName.c_str());
+	DiffuseTextureName = InDiffTexName;
+	CRenderer::GetInstance().LoadTexture(DiffuseTextureName);
 }
 
 void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
@@ -61,15 +61,16 @@ void CScene::Load()
 
 	/*
 	std::vector<SSceneVertex> Verts = {
-			{ { 0.0f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f} },
-			{ { 0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-			{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f} }
+			{ { 0.0f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} },
+			{ { 0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+			{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f} }
 	};
 
 	std::vector<UINT32>	Indices = { 0, 1, 2 };
 	*/
 
-	std::string SceneFile = "C:/GitHub/SceneViewer/SceneViewer/Asset/sponza.obj";
+	std::filesystem::path AssetPath = CRenderer::GetAssetDirectory();
+	AssetPath /= "sponza.obj";
 
 	tinyobj::ObjReaderConfig ReaderConfig;
 	ReaderConfig.mtl_search_path = "";
@@ -79,7 +80,7 @@ void CScene::Load()
 	std::vector<SSceneVertex> Verts;
 	std::vector<UINT32>	Indices;
 
-	if (TinyObjReader.ParseFromFile(SceneFile, ReaderConfig))
+	if (TinyObjReader.ParseFromFile(AssetPath.string(), ReaderConfig))
 	{
 		auto& attrib = TinyObjReader.GetAttrib();
 		auto& shapes = TinyObjReader.GetShapes();
@@ -155,7 +156,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
 	for (auto& CurMesh : AllMeshes)
 	{
-		Material->SetShaderResource(InCommandList, 0, CRenderer::GetInstance().GetTexture(CurMesh->DiffuseTextureName.c_str()));
+		Material->SetShaderResource(InCommandList, 0, CRenderer::GetInstance().GetTexture(CurMesh->DiffuseTextureName));
 		CurMesh->OnRender(InCommandList);
 	}
 }

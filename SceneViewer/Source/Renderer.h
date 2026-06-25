@@ -78,6 +78,7 @@ protected:
 
 	ComPtr<ID3D12DescriptorHeap>	RtvDescriptorHeap;
 	UINT	RtvDescriptorSize = 0;
+	int		CurrentRtvDescriptorIndex = 0;
 
 	ComPtr<ID3D12DescriptorHeap>	DsvDescriptorHeap;
 	UINT	DsvDescriptorSize = 0;
@@ -90,7 +91,7 @@ protected:
 
 	std::unique_ptr<CScene>	Scene;
 
-	std::map<std::wstring, std::unique_ptr<CTexture2D>>  AllTextures;
+	std::map<std::string, std::unique_ptr<CTexture2D>>  AllTextures;
 
 public:
 	UINT	ViewportWidth = 1280;
@@ -121,11 +122,17 @@ public:
 	ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* InData, UINT InTotalByteSize, ComPtr<ID3D12Resource>& OutUploadBuffer);
 
 	static std::filesystem::path GetExeDirectory();
-	CTexture2D* LoadTexture(LPCWSTR InFileName);
-	CTexture2D* GetTexture(LPCWSTR InFileName);
-	CTexture2D* CreateDepthTexture(LPCWSTR InName, UINT InW, UINT InH);
+	static std::filesystem::path GetAssetDirectory();
+
+	CTexture2D* LoadTexture(const std::string& InFileName);
+	CTexture2D* GetTexture(const std::string& InFileName);
+	CTexture2D* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
+	CTexture2D* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, UINT InW, UINT InH);
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvDescriptor(int& OutDescriptorIdx);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor(int& OutDescriptorIdx);
+
 };
 

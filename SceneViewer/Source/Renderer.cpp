@@ -163,14 +163,14 @@ bool	CRenderer::Init(HWND hWnd)
     RtvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     D3D12_DESCRIPTOR_HEAP_DESC DsvHeapDesc = {};
-    DsvHeapDesc.NumDescriptors = 3;
+    DsvHeapDesc.NumDescriptors = 1;
     DsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     DsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     DsvHeapDesc.NodeMask = 0;
     D3dDevice->CreateDescriptorHeap(&DsvHeapDesc, IID_PPV_ARGS(&DsvDescriptorHeap));
     DsvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-    CreateDepthTexture(L"Depth", ViewportWidth, ViewportHeight);
+    CreateDepthTexture("Depth", ViewportWidth, ViewportHeight);
 
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
@@ -188,6 +188,7 @@ bool	CRenderer::Init(HWND hWnd)
         SwapChain->GetBuffer(i, IID_PPV_ARGS(&(PerFrameContext[i].FrameBuffer)));
         D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), nullptr, RtvHandle);
         RtvHandle.Offset(1, RtvDescriptorSize);
+        CurrentRtvDescriptorIndex++;
 
         PerFrameContext[i].ViewBuffer.Init((UINT)(sizeof(SViewBuffer)), 1);
     }
@@ -367,7 +368,16 @@ std::filesystem::path CRenderer::GetExeDirectory()
     return ExePath.parent_path();
 }
 
-CTexture2D* CRenderer::GetTexture(LPCWSTR InFileName)
+std::filesystem::path CRenderer::GetAssetDirectory()
+{
+    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
+    std::filesystem::path AssetDir = ExeDirectory.parent_path().parent_path();
+    AssetDir /= "SceneViewer/Asset";
+
+    return AssetDir;
+}
+
+CTexture2D* CRenderer::GetTexture(const std::string& InFileName)
 {
     if (AllTextures.find(InFileName) != AllTextures.end())
     {
@@ -377,7 +387,7 @@ CTexture2D* CRenderer::GetTexture(LPCWSTR InFileName)
     return nullptr;
 }
 
-CTexture2D* CRenderer::CreateDepthTexture(LPCWSTR InName, UINT InW, UINT InH)
+CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, UINT InH)
 {
     if (AllTextures.find(InName) != AllTextures.end())
     {
@@ -424,7 +434,7 @@ CTexture2D* CRenderer::CreateDepthTexture(LPCWSTR InName, UINT InW, UINT InH)
     return ResTex;
 }
 
-CTexture2D* CRenderer::LoadTexture(LPCWSTR InFileName)
+CTexture2D* CRenderer::LoadTexture(const std::string& InFileName)
 {
     if (AllTextures.find(InFileName) != AllTextures.end())
     {
@@ -435,9 +445,7 @@ CTexture2D* CRenderer::LoadTexture(LPCWSTR InFileName)
 
     std::vector<D3D12_SUBRESOURCE_DATA> Subresources;
 
-    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
-    std::filesystem::path AssetDir = ExeDirectory.parent_path().parent_path();
-    AssetDir /= L"SceneViewer/Asset";
+    std::filesystem::path AssetDir = CRenderer::GetAssetDirectory();
     AssetDir /= InFileName;
 
     if (FAILED(LoadDDSTextureFromFile(D3dDevice.Get(), AssetDir.c_str(), NewTexture->Texture.GetAddressOf(), NewTexture->DDSData, Subresources)))
@@ -464,6 +472,60 @@ CTexture2D* CRenderer::LoadTexture(LPCWSTR InFileName)
 
     AllTextures[InFileName] = std::move(NewTexture);
     return ResTex;
+}
+
+CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, UINT InW, UINT InH)
+{
+    if (AllTextures.find(InName) != AllTextures.end())
+    {
+        return AllTextures[InName].get();
+    }
+
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>();
+
+    D3D12_RESOURCE_DESC TextureDesc = {};
+
+    TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    TextureDesc.Alignment = 0;
+    TextureDesc.Width = InW;
+    TextureDesc.Height = InH;
+    TextureDesc.DepthOrArraySize = 1;
+    TextureDesc.MipLevels = 1;
+    TextureDesc.Format = InFormat; // DXGI_FORMAT_R8G8B8A8_UNORM; // Common texture format
+    TextureDesc.SampleDesc.Count = 1;
+    TextureDesc.SampleDesc.Quality = 0;
+    TextureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+    D3D12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+    D3D12_CLEAR_VALUE ClearValue = {};
+    ClearValue.Format = TextureDesc.Format;
+    ClearValue.Color[0] = 0.0f;
+    ClearValue.Color[1] = 0.0f;
+    ClearValue.Color[2] = 0.0f;
+    ClearValue.Color[3] = 1.0f;
+
+    D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
+
+    CTexture2D* ResTex = NewTexture.get();
+    NewTexture->Width = InW;
+    NewTexture->Height = InH;
+
+    NewTexture->CreateRenderTargetView();
+    NewTexture->CreateShaderResourceView();
+
+    AllTextures[InName] = std::move(NewTexture);
+    return ResTex;
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::AllocRtvDescriptor(int& OutDescriptorIdx)
+{
+    OutDescriptorIdx = CurrentRtvDescriptorIndex;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    Descriptor.Offset(CurrentRtvDescriptorIndex, RtvDescriptorSize);
+    CurrentRtvDescriptorIndex++;
+    return Descriptor;
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::AllocSrvDescriptor(int& OutDescriptorIdx)

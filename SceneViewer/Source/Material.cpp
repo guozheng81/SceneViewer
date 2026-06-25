@@ -21,6 +21,12 @@ void CTexture2D::CreateShaderResourceView()
     CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, Descriptor);
 }
 
+void CTexture2D::CreateRenderTargetView()
+{
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor = CRenderer::GetInstance().AllocRtvDescriptor(RtvDescriptorIndex);
+    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), nullptr, Descriptor);
+}
+
 CD3DX12_GPU_DESCRIPTOR_HANDLE CTexture2D::GetSrvGPUDescriptor()
 {
     if (SrvDescriptorIndex < 0)
