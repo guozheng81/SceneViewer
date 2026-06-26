@@ -15,11 +15,12 @@ protected:
 	UINT ElementSize = 0;
 	UINT ElementCount = 0;
 
-	int SrvDescriptorIndex = -1;
-
 public:
 	CUniformBuffer();
 	~CUniformBuffer();
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE SrvCPUDescriptor = {};
+	CD3DX12_GPU_DESCRIPTOR_HANDLE SrvGPUDescriptor = {};
 
 	void Init(UINT InEleSize, UINT InEleCount);
 	ID3D12Resource* GetResource() {
@@ -29,10 +30,6 @@ public:
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress();
 
 	void CreateShaderResourceView();
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor();
-	inline	bool HasValidSrv() const {
-		return SrvDescriptorIndex >= 0;
-	}
 
 	void SetData(void* InData);
 };
@@ -132,7 +129,6 @@ public:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvDescriptor(int& OutDescriptorIdx);
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtvCPUDescriptor(UINT Idx);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor(int& OutDescriptorIdx);
 
 };

@@ -10,16 +10,16 @@ protected:
 	UINT	IndicesCount = 0;
 	UINT	VertexCount = 0;
 
-public:
+	D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
+	D3D12_INDEX_BUFFER_VIEW	 IndexBufferView;
+
 	ComPtr<ID3D12Resource> VertexBuffer;
 	ComPtr<ID3D12Resource> IndexBuffer;
 
 	ComPtr<ID3D12Resource> VertexUploadBuffer;
 	ComPtr<ID3D12Resource> IndexUploadBuffer;
 
-	D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
-	D3D12_INDEX_BUFFER_VIEW	 IndexBufferView;
-
+public:
 	std::string	DiffuseTextureName;
 
 	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName);

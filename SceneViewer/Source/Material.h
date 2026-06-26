@@ -7,11 +7,14 @@ class CUniformBuffer;
 class CTexture2D
 {
 protected:
-	int		SrvDescriptorIndex = -1;
-	int		RtvDescriptorIndex = -1;
 
 public:
 	ComPtr<ID3D12Resource> Texture;
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE SrvGPUDescriptor = {};
+	CD3DX12_CPU_DESCRIPTOR_HANDLE SrvCPUDescriptor = {};
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvCPUDescriptor = {};
 
 	UINT		Width = 0;
 	UINT		Height = 0;
@@ -23,16 +26,8 @@ public:
 	void ResetUploadResource();
 
 	void CreateShaderResourceView();
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor();
-	inline	bool HasValidSrv() const {
-		return SrvDescriptorIndex >= 0;
-	}
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtvCPUDescriptor();
 	void CreateRenderTargetView();
-	inline	bool HasValidRtv() const {
-		return RtvDescriptorIndex >= 0;
-	}
 };
 
 class CMaterial

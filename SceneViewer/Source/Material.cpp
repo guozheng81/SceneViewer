@@ -26,37 +26,18 @@ void CTexture2D::CreateShaderResourceView()
     SrvDesc.Texture2D.MipLevels = Texture->GetDesc().MipLevels;
     SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
-    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, Descriptor);
+    int		SrvDescriptorIndex = -1;
+    SrvCPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
+    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, SrvCPUDescriptor);
+    SrvGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
 }
 
 void CTexture2D::CreateRenderTargetView()
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor = CRenderer::GetInstance().AllocRtvDescriptor(RtvDescriptorIndex);
-    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), nullptr, Descriptor);
+    int RtvDescriptorIndex = -1;
+    RtvCPUDescriptor = CRenderer::GetInstance().AllocRtvDescriptor(RtvDescriptorIndex);
+    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), nullptr, RtvCPUDescriptor);
 }
-
-CD3DX12_GPU_DESCRIPTOR_HANDLE CTexture2D::GetSrvGPUDescriptor()
-{
-    if (SrvDescriptorIndex < 0)
-    {
-        CD3DX12_GPU_DESCRIPTOR_HANDLE DefaultHandle = {};
-        return DefaultHandle;
-    }
-
-    return CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
-}
-
-CD3DX12_CPU_DESCRIPTOR_HANDLE CTexture2D::GetRtvCPUDescriptor()
-{
-    if (RtvDescriptorIndex < 0)
-    {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE DefaultHandle = {};
-        return DefaultHandle;
-    }
-    return CRenderer::GetInstance().GetRtvCPUDescriptor(RtvDescriptorIndex);
-}
-
 
 CMaterial::CMaterial()
 {
@@ -158,7 +139,7 @@ int CMaterial::FindSrvRootParameterIndex(UINT InRegister)
 
 void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex)
 {
-    if (InTex == nullptr || !InTex->HasValidSrv())
+    if (InTex == nullptr || InTex->SrvGPUDescriptor.ptr == 0)
     {
         return;
     }
@@ -169,12 +150,12 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InTex->GetSrvGPUDescriptor());
+    InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InTex->SrvGPUDescriptor);
 }
 
 void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer)
 {
-    if (InBuffer == nullptr || !InBuffer->HasValidSrv())
+    if (InBuffer == nullptr || InBuffer->SrvGPUDescriptor.ptr == 0)
     {
         return;
     }
@@ -185,7 +166,7 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InBuffer->GetSrvGPUDescriptor());
+    InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InBuffer->SrvGPUDescriptor);
 }
 
 void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer)

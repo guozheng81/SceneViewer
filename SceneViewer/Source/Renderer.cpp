@@ -36,19 +36,10 @@ void CUniformBuffer::CreateShaderResourceView()
     SrvDesc.Buffer.StructureByteStride = ElementSize;
     SrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
-    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Buffer.Get(), &SrvDesc, Descriptor);
-}
-
-CD3DX12_GPU_DESCRIPTOR_HANDLE CUniformBuffer::GetSrvGPUDescriptor()
-{
-    if (SrvDescriptorIndex < 0)
-    {
-        CD3DX12_GPU_DESCRIPTOR_HANDLE DefaultHandle = {};
-        return DefaultHandle;
-    }
-
-    return CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
+    int SrvDescriptorIndex = -1;
+    SrvCPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
+    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Buffer.Get(), &SrvDesc, SrvCPUDescriptor);
+    SrvGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS CUniformBuffer::GetGPUAddress()
@@ -548,12 +539,4 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE CRenderer::GetSrvGPUDescriptor(UINT Idx)
     CD3DX12_GPU_DESCRIPTOR_HANDLE Descriptor(SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
     Descriptor.Offset(Idx, SrvDescriptorSize);
     return Descriptor;
-}
-
-CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::GetRtvCPUDescriptor(UINT Idx)
-{
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    Descriptor.Offset(Idx, RtvDescriptorSize);
-    return Descriptor;
-
 }
