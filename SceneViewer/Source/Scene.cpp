@@ -135,7 +135,7 @@ void CScene::Load()
 					tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
 
 					tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
-					tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
+					tinyobj::real_t ty = 1.0f - attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
 
 					//Indices.push_back((UINT)(Verts.size()));
 

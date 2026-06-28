@@ -64,7 +64,7 @@ float4 PSMain(PS_INPUT Input) : SV_TARGET
     float metal = 0.25f;
 
     float4 FinalColor;
-    FinalColor.rgb = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, 8.0f) + Albedo.rgb*0.3f;
+    FinalColor.rgb = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, 4.0f) + Albedo.rgb*0.3f;
     FinalColor.a = 1.0f;
     
     return FinalColor;
