@@ -23,7 +23,7 @@ public:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE SrvGPUDescriptor = {};
 
 	void Init(UINT InEleSize, UINT InEleCount);
-	ID3D12Resource* GetResource() {
+	inline ID3D12Resource* GetResource() {
 		return Buffer.Get();
 	}
 
@@ -104,6 +104,8 @@ public:
 	bool	Init(HWND hWnd);
 	void	Render();
 	void	Shutdown();
+
+	void	SetDirectionalLight(const XMVECTOR& InDir, float Intensity);
 
 	CScene* GetScene()
 	{

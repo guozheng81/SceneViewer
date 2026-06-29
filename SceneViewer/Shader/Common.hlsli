@@ -3,6 +3,7 @@ cbuffer cbView : register(b0)
     matrix mView;
     matrix mProjection;
     float4 CameraOrigin;
+    float4 DirectionalLight;
 };
 
 #define PI 3.1415926f

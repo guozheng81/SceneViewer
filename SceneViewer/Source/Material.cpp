@@ -67,12 +67,15 @@ void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCo
         RootParams[RootIdx].InitAsUnorderedAccessView(RtvIdx);
     }
 
-    static CD3DX12_DESCRIPTOR_RANGE SrvRange;
-    for (UINT SrvIdx = 0; SrvIdx < InSrvCount; ++SrvIdx, ++RootIdx)
+    if (InSrvCount > 0)
     {
-        SrvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SrvIdx, 0);
+        SrvRangeArray.resize(InSrvCount);
+        for (UINT SrvIdx = 0; SrvIdx < InSrvCount; ++SrvIdx, ++RootIdx)
+        {
+            SrvRangeArray[SrvIdx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SrvIdx, 0);
 
-        RootParams[RootIdx].InitAsDescriptorTable(1, &SrvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+            RootParams[RootIdx].InitAsDescriptorTable(1, &(SrvRangeArray[SrvIdx]), D3D12_SHADER_VISIBILITY_PIXEL);
+        }
     }
 }
 

@@ -165,7 +165,7 @@ bool	CRenderer::Init(HWND hWnd)
 
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
-    TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(2, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP));
+    TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(2, D3D12_FILTER_ANISOTROPIC, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP));
 
     D3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&FrameFence));
     FrameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -206,7 +206,19 @@ bool	CRenderer::Init(HWND hWnd)
         CurTexture.second->ResetUploadResource();
     }
 
+    XMFLOAT3 LightDir(-0.3f, -1.0f, -0.3f);
+    XMVECTOR LightDirV = XMLoadFloat3(&LightDir);
+    LightDirV = XMVector3Normalize(LightDirV);
+    SetDirectionalLight(LightDirV, 4.0f);
+
     return true;
+}
+
+void	CRenderer::SetDirectionalLight(const XMVECTOR& InDir, float Intensity)
+{
+    XMFLOAT3 LightDir;
+    XMStoreFloat3(&LightDir, InDir);
+    ViewBuffer.DirectionalLight = XMFLOAT4(-LightDir.x, -LightDir.y, -LightDir.z, Intensity);
 }
 
 void	CRenderer::LoadScene()
@@ -410,10 +422,8 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
     ClearValue.DepthStencil.Stencil = 0;
 
     CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-
     D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
 
-    CTexture2D* ResTex = NewTexture.get();
     NewTexture->Width = InW;
     NewTexture->Height = InH;
 
@@ -423,10 +433,11 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
     DsvDesc.Texture2D.MipSlice = 0;
 
     D3D12_CPU_DESCRIPTOR_HANDLE DsvHandle = DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-    D3dDevice->CreateDepthStencilView(ResTex->Texture.Get(), &DsvDesc, DsvHandle);
+    D3dDevice->CreateDepthStencilView(NewTexture->GetResource(), &DsvDesc, DsvHandle);
 
     NewTexture->CreateShaderResourceView();
 
+    CTexture2D* ResTex = NewTexture.get();
     AllTextures[InName] = std::move(NewTexture);
     return ResTex;
 }
@@ -443,30 +454,32 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName)
     std::vector<D3D12_SUBRESOURCE_DATA> Subresources;
 
     std::filesystem::path AssetDir = CRenderer::GetAssetDirectory();
-    AssetDir /= InFileName;
+    std::filesystem::path TexFileName = AssetDir / InFileName;
+    if (!std::filesystem::exists(TexFileName))
+    {
+        TexFileName = AssetDir / "default_n.dds";
+    }
 
-    if (FAILED(LoadDDSTextureFromFile(D3dDevice.Get(), AssetDir.c_str(), NewTexture->Texture.GetAddressOf(), NewTexture->DDSData, Subresources)))
+    if (FAILED(LoadDDSTextureFromFile(D3dDevice.Get(), TexFileName.c_str(), NewTexture->Texture.GetAddressOf(), NewTexture->DDSData, Subresources)))
     {
         return nullptr;
     }
 
-    UINT64 ReqSize = GetRequiredIntermediateSize(NewTexture->Texture.Get(), 0, static_cast<UINT>(Subresources.size()));
+    UINT64 ReqSize = GetRequiredIntermediateSize(NewTexture->GetResource(), 0, static_cast<UINT>(Subresources.size()));
 
     CD3DX12_HEAP_PROPERTIES UploadHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     CD3DX12_RESOURCE_DESC ResDesc = CD3DX12_RESOURCE_DESC::Buffer(ReqSize);
 
     D3dDevice->CreateCommittedResource(&UploadHeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(NewTexture->UploadTexture.GetAddressOf()));
 
-    UpdateSubresources(CommandList.Get(), NewTexture->Texture.Get(), NewTexture->UploadTexture.Get(), 0, 0, static_cast<UINT>(Subresources.size()), Subresources.data());
-    ResourceBarrier(NewTexture->Texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    CTexture2D* ResTex = NewTexture.get();
+    UpdateSubresources(CommandList.Get(), NewTexture->GetResource(), NewTexture->UploadTexture.Get(), 0, 0, static_cast<UINT>(Subresources.size()), Subresources.data());
+    ResourceBarrier(NewTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     NewTexture->Width = NewTexture->Texture->GetDesc().Width;
     NewTexture->Height = NewTexture->Texture->GetDesc().Height;
-
     NewTexture->CreateShaderResourceView();
 
+    CTexture2D* ResTex = NewTexture.get();
     AllTextures[InFileName] = std::move(NewTexture);
     return ResTex;
 }
@@ -505,13 +518,13 @@ CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT
 
     D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
 
-    CTexture2D* ResTex = NewTexture.get();
     NewTexture->Width = InW;
     NewTexture->Height = InH;
 
     NewTexture->CreateRenderTargetView();
     NewTexture->CreateShaderResourceView();
 
+    CTexture2D* ResTex = NewTexture.get();
     AllTextures[InName] = std::move(NewTexture);
     return ResTex;
 }

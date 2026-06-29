@@ -21,8 +21,9 @@ protected:
 
 public:
 	std::string	DiffuseTextureName;
+	std::string	NormalTextureName;
 
-	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName);
+	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName, const std::string InNormalTexName);
 	void ResetUploadResource();
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);

@@ -17,6 +17,7 @@ struct SViewBuffer
 	XMFLOAT4X4	ViewMatrix;
 	XMFLOAT4X4	ProjectionMatrix;
 	XMFLOAT4	CameraOrigin;
+	XMFLOAT4	DirectionalLight;
 
-	float padding[28];
+	float padding[24];
 };

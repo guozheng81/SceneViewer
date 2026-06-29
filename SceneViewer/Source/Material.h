@@ -11,6 +11,10 @@ protected:
 public:
 	ComPtr<ID3D12Resource> Texture;
 
+	inline ID3D12Resource* GetResource() {
+		return Texture.Get();
+	}
+
 	CD3DX12_GPU_DESCRIPTOR_HANDLE SrvGPUDescriptor = {};
 	CD3DX12_CPU_DESCRIPTOR_HANDLE SrvCPUDescriptor = {};
 
@@ -36,6 +40,7 @@ protected:
 	ComPtr<ID3D12RootSignature>		RootSign;
 	ComPtr<ID3D12PipelineState>		PSO;
 
+	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRangeArray;
 	int FindSrvRootParameterIndex(UINT InRegister);
 
 public:

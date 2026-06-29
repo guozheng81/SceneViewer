@@ -4,7 +4,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName)
+void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName, const std::string InNormalTexName)
 {
 	VertexCount = Verts.size();
 	UINT TotalSize = sizeof(SSceneVertex)* VertexCount;
@@ -25,7 +25,14 @@ void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices,
 	}
 
 	DiffuseTextureName = InDiffTexName;
+	NormalTextureName = InNormalTexName;
+	if (InNormalTexName.empty())
+	{
+		NormalTextureName = std::string("default_normal_") + DiffuseTextureName;
+	}
+
 	CRenderer::GetInstance().LoadTexture(DiffuseTextureName);
+	CRenderer::GetInstance().LoadTexture(NormalTextureName);
 }
 
 void CMesh::ResetUploadResource()
@@ -70,7 +77,7 @@ CScene::CScene()
 
 void CScene::Load()
 {
-	Material->IntRootParameters(1, 1, 0);
+	Material->IntRootParameters(1, 2, 0);
 	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso");
 
 	/*
@@ -114,7 +121,7 @@ void CScene::Load()
 				{
 					auto TinyObjMat = materials[CurrentMatIdx];
 					std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
-					CurMesh->Init(Verts, Indices, TinyObjMat.diffuse_texname);
+					CurMesh->Init(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
 					AllMeshes.push_back(std::move(CurMesh));
 
 					Verts.clear();
@@ -150,7 +157,8 @@ void CScene::Load()
 
 			auto TinyObjMat = materials[CurrentMatIdx];
 			std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
-			CurMesh->Init(Verts, Indices, TinyObjMat.diffuse_texname);
+
+			CurMesh->Init(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
 			AllMeshes.push_back(std::move(CurMesh));
 		}
 	}
@@ -178,6 +186,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 	for (auto& CurMesh : AllMeshes)
 	{
 		Material->SetShaderResource(InCommandList, 0, CRenderer::GetInstance().GetTexture(CurMesh->DiffuseTextureName));
+		Material->SetShaderResource(InCommandList, 1, CRenderer::GetInstance().GetTexture(CurMesh->NormalTextureName));
 		CurMesh->OnRender(InCommandList);
 	}
 }

@@ -2,9 +2,10 @@
 
 SamplerState LinearSampler : register(s0);
 SamplerState PointSampler : register(s1);
-SamplerState LinearSamplerWrap : register(s2);
+SamplerState AnisotropicSampler : register(s2);
 
 Texture2D DiffuseTexture : register(t0);
+Texture2D NormalTexture : register(t1);
 
 struct VS_INPUT
 {
@@ -47,24 +48,45 @@ struct PS_INPUT
 
 float4 PSMain(PS_INPUT Input) : SV_TARGET
 {
-    float4 Albedo = DiffuseTexture.Sample(LinearSamplerWrap, Input.Texcoord);
+    float4 Albedo = DiffuseTexture.Sample(AnisotropicSampler, Input.Texcoord);
 
     if (Albedo.a < 0.5f)
     {
         discard;
     }
     
-    float4 WldPos = Input.WorldPos;
+    float3 WldPos = Input.WorldPos.xyz;
+    float3 WldNormal = normalize(Input.Normal);
+    
+    float3 PosDdx = ddx(WldPos);
+    float3 PosDdy = ddy(WldPos);
+    float2 UvDdx = ddx(Input.Texcoord);
+    float2 UvDdy = ddy(Input.Texcoord);
 
-    float3 N = normalize(Input.Normal);
-    float3 L = normalize(float3(0.5f, 1.0f, 0.5f));
-    float3 V = normalize(CameraOrigin.xyz - WldPos.xyz);
+    float3 Perp2 = cross(PosDdy, WldNormal);
+    float3 Perp1 = cross(WldNormal, PosDdx);
+    float3 T = Perp2 * UvDdx.x + Perp1 * UvDdy.x;
+    float3 B = Perp2 * UvDdx.y + Perp1 * UvDdy.y;
+    
+    float Invmax = rsqrt(max(dot(T, T), dot(B, B)));
+    T *= Invmax;
+    B *= Invmax;
+    
+    float3 NormalColor = NormalTexture.Sample(AnisotropicSampler, Input.Texcoord).rgb;
+    NormalColor = (NormalColor * 2.0f - 1.0f);
+
+    float3 N = T * NormalColor.x + B * NormalColor.y + WldNormal * NormalColor.z;
+    N = normalize(N);    
+
+    float3 L = DirectionalLight.xyz;
+    float3 V = normalize(CameraOrigin.xyz - WldPos);
 
     float roughness = 0.7f;
     float metal = 0.25f;
 
     float4 FinalColor;
-    FinalColor.rgb = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, 4.0f) + Albedo.rgb*0.3f;
+    FinalColor.rgb = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) + Albedo.rgb * 0.3f;
+    //FinalColor.rgb = (N + 1.0f) * 0.5f;
     FinalColor.a = 1.0f;
     
     return FinalColor;
