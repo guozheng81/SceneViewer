@@ -40,19 +40,21 @@ protected:
 	ComPtr<ID3D12RootSignature>		RootSign;
 	ComPtr<ID3D12PipelineState>		PSO;
 
-	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRangeArray;
-	int FindSrvRootParameterIndex(UINT InRegister);
+	std::map<UINT, int>	 SrvRegisterMap;	// textures and structured buffer
+	std::map<UINT, int>	 ConstantRegisterMap;	//  constant buffer and constants
+	std::map<UINT, int>	 RtvRegisterMap;
 
 public:
-	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
-
-	CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc = {};
+	
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
+
+	int FindSrvRootParameterIndex(UINT InRegister);
+	int FindConstantRootParameterIndex(UINT InRegister);
 
 	CMaterial();
 
-	void IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCount);
-	void Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName);
+	static void IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& SrvRanges);
+	void Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName, std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams);
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 

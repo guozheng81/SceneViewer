@@ -4,8 +4,13 @@ SamplerState LinearSampler : register(s0);
 SamplerState PointSampler : register(s1);
 SamplerState AnisotropicSampler : register(s2);
 
-Texture2D DiffuseTexture : register(t0);
-Texture2D NormalTexture : register(t1);
+StructuredBuffer<MeshInfo> AllMeshes: register(t0);
+Texture2D MaterialTextures[] : register(t1);
+
+cbuffer cbMeshIndex : register(b1)
+{
+    int MeshIndex;
+}
 
 struct VS_INPUT
 {
@@ -48,8 +53,11 @@ struct PS_INPUT
 
 float4 PSMain(PS_INPUT Input) : SV_TARGET
 {
+    int TexIdx = AllMeshes[MeshIndex].TextureIdx;
+    Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
+    Texture2D NormalTexture = MaterialTextures[TexIdx * 2 + 1];
+    
     float4 Albedo = DiffuseTexture.Sample(AnisotropicSampler, Input.Texcoord);
-
     if (Albedo.a < 0.5f)
     {
         discard;

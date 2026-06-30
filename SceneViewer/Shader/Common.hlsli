@@ -6,6 +6,12 @@ cbuffer cbView : register(b0)
     float4 DirectionalLight;
 };
 
+struct MeshInfo
+{
+    matrix mWorld;
+    int TextureIdx;
+};
+
 #define PI 3.1415926f
 
 float GGX(float3 N, float3 H, float roughness)

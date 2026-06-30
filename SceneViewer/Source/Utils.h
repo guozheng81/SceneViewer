@@ -21,3 +21,9 @@ struct SViewBuffer
 
 	float padding[24];
 };
+
+struct SMeshInfo
+{
+	XMFLOAT4X4 WorldMatrix;
+	int	TextureIdx;
+};

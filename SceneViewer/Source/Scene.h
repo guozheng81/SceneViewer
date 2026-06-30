@@ -3,6 +3,7 @@
 #include "Utils.h"
 #include "Material.h"
 #include "Camera.h"
+#include "Renderer.h"
 
 class CMesh
 {
@@ -19,12 +20,16 @@ protected:
 	ComPtr<ID3D12Resource> VertexUploadBuffer;
 	ComPtr<ID3D12Resource> IndexUploadBuffer;
 
+	XMMATRIX WorldMatrix = XMMatrixIdentity();
+
 public:
 	std::string	DiffuseTextureName;
 	std::string	NormalTextureName;
 
 	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName, const std::string InNormalTexName);
 	void ResetUploadResource();
+
+	void	GetWorldMatrix(XMFLOAT4X4* OutMtx);
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 };
@@ -35,6 +40,12 @@ protected:
 	CCamera MainCamera;
 	std::vector<std::unique_ptr<CMesh>> AllMeshes;
 	std::unique_ptr<CMaterial>	Material;
+
+	std::vector<SMeshInfo> MeshInfoArray;
+
+	CUniformBuffer ModelBuffer;
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesStartDspt = {};
 
 public:
 

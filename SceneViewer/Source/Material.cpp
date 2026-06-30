@@ -53,7 +53,7 @@ CMaterial::CMaterial()
     PSODesc.SampleDesc.Count = 1;
 }
 
-void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCount)
+void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& SrvRanges)
 {
     RootParams.resize(InCbvCount + InSrvCount + InRtvCount);
     int RootIdx = 0;
@@ -69,20 +69,22 @@ void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCo
 
     if (InSrvCount > 0)
     {
-        SrvRangeArray.resize(InSrvCount);
+        SrvRanges.resize(InSrvCount);
         for (UINT SrvIdx = 0; SrvIdx < InSrvCount; ++SrvIdx, ++RootIdx)
         {
-            SrvRangeArray[SrvIdx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SrvIdx, 0);
+            SrvRanges[SrvIdx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SrvIdx, 0);
 
-            RootParams[RootIdx].InitAsDescriptorTable(1, &(SrvRangeArray[SrvIdx]), D3D12_SHADER_VISIBILITY_PIXEL);
+            RootParams[RootIdx].InitAsDescriptorTable(1, &(SrvRanges[SrvIdx]), D3D12_SHADER_VISIBILITY_PIXEL);
         }
     }
 }
 
-void CMaterial::Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
+void CMaterial::Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName, std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams)
 {
     auto& Samplers = CRenderer::GetInstance().TextureSamplers;
-    RootSignatureDesc.Init((UINT)(RootParams.size()), RootParams.data(), (UINT)(Samplers.size()), Samplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc = {};
+    RootSignatureDesc.Init((UINT)(InRootParams.size()), InRootParams.data(), (UINT)(Samplers.size()), Samplers.data(), 
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
 
     ComPtr<ID3DBlob> SignBlob;
     ComPtr<ID3DBlob> ErrorBlob;
@@ -109,6 +111,32 @@ void CMaterial::Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
     PSODesc.VS = CD3DX12_SHADER_BYTECODE(VSBlob->GetBufferPointer(), VSBlob->GetBufferSize());
     PSODesc.PS = CD3DX12_SHADER_BYTECODE(PSBlob->GetBufferPointer(), PSBlob->GetBufferSize());
     CRenderer::GetInstance().D3dDevice->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&PSO));
+
+
+    for (int i = 0; i < InRootParams.size(); ++i)
+    {
+        const D3D12_ROOT_PARAMETER& Param = InRootParams[i];
+        if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV)
+        {
+            ConstantRegisterMap[Param.Descriptor.ShaderRegister] = i;
+        }
+        else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
+        {
+            ConstantRegisterMap[Param.Constants.ShaderRegister] = i;
+        }
+        else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+        {
+            if (Param.DescriptorTable.NumDescriptorRanges > 0 && Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
+            {
+                SrvRegisterMap[Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister] = i;
+            }
+        }
+        else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_UAV)
+        {
+            RtvRegisterMap[Param.Descriptor.ShaderRegister] = i;
+        }
+    }
+
 }
 
 void CMaterial::OnRender(ID3D12GraphicsCommandList* InCommandList)
@@ -119,25 +147,22 @@ void CMaterial::OnRender(ID3D12GraphicsCommandList* InCommandList)
 
 int CMaterial::FindSrvRootParameterIndex(UINT InRegister)
 {
-    int FoundRootParamIdx = -1;
-
-    for (int i = 0; i < RootSignatureDesc.NumParameters; ++i)
+    auto Iter = SrvRegisterMap.find(InRegister);
+    if (Iter != SrvRegisterMap.end())
     {
-        const D3D12_ROOT_PARAMETER& Param = RootSignatureDesc.pParameters[i];
-        if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
-        {
-            if (Param.DescriptorTable.NumDescriptorRanges > 0
-                && Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV
-                && Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister == InRegister
-                && Param.DescriptorTable.pDescriptorRanges[0].RegisterSpace == 0)
-            {
-                FoundRootParamIdx = i;
-                break;
-            }
-        }
+        return Iter->second;
     }
+    return -1;
+}
 
-    return FoundRootParamIdx;
+int CMaterial::FindConstantRootParameterIndex(UINT InRegister)
+{
+    auto Iter = ConstantRegisterMap.find(InRegister);
+    if (Iter != ConstantRegisterMap.end())
+    {
+        return Iter->second;
+    }
+    return -1;
 }
 
 void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex)
@@ -179,21 +204,7 @@ void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    int FoundRootParamIdx = -1;
-    for (int i = 0; i < RootSignatureDesc.NumParameters; ++i)
-    {
-        const D3D12_ROOT_PARAMETER& Param = RootSignatureDesc.pParameters[i];
-        if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV)
-        {
-            if (Param.Descriptor.ShaderRegister == InRegister
-                && Param.Descriptor.RegisterSpace == 0)
-            {
-                FoundRootParamIdx = i;
-                break;
-            }
-        }
-    }
-
+    int FoundRootParamIdx = FindConstantRootParameterIndex(InRegister);
     if (FoundRootParamIdx == -1)
     {
         return;

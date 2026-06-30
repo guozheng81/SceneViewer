@@ -297,14 +297,14 @@ void	CRenderer::Render()
     CommandList->RSSetViewports(1, &Viewport);
     CommandList->RSSetScissorRects(1, &ScissorRect);
 
+    ID3D12DescriptorHeap* Heaps[] = { SrvDescriptorHeap.Get() };
+    CommandList->SetDescriptorHeaps(1, Heaps);
+
     CMaterial* SceneMaterial = Scene->GetSceneMaterial();
     if (SceneMaterial)
     {
         SceneMaterial->OnRender(CommandList.Get());
     }
-
-    ID3D12DescriptorHeap* Heaps[] = { SrvDescriptorHeap.Get() };
-    CommandList->SetDescriptorHeaps(1, Heaps);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), CurrentFrameIndex, RtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle(DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
@@ -545,6 +545,11 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::AllocSrvDescriptor(int& OutDescriptorId
     Descriptor.Offset(CurrentSrvDescriptorIndex, SrvDescriptorSize);
     CurrentSrvDescriptorIndex++;
     return Descriptor;
+}
+
+int	CRenderer::GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd)
+{
+    return (int)(InEnd.ptr - InStart.ptr) / (int)SrvDescriptorSize;
 }
 
 CD3DX12_GPU_DESCRIPTOR_HANDLE CRenderer::GetSrvGPUDescriptor(UINT Idx)

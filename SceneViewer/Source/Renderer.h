@@ -128,8 +128,10 @@ public:
 	CTexture2D* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
 	CTexture2D* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, UINT InW, UINT InH);
 
+	inline int GetCurrentSrvDescriptorIndex() const {	return CurrentSrvDescriptorIndex;	}
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvDescriptor(int& OutDescriptorIdx);
+	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor(int& OutDescriptorIdx);
 

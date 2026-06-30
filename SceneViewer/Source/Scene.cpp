@@ -65,6 +65,11 @@ void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 	}
 }
 
+void	CMesh::GetWorldMatrix(XMFLOAT4X4* OutMtx)
+{
+	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(WorldMatrix));
+}
+
 CScene::CScene()
 {
 	MainCamera.SetAspectRatio(CRenderer::GetInstance().ViewportWidth, CRenderer::GetInstance().ViewportHeight);
@@ -77,8 +82,22 @@ CScene::CScene()
 
 void CScene::Load()
 {
-	Material->IntRootParameters(1, 2, 0);
-	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso");
+	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
+	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
+	CMaterial::IntRootParameters(1, 1, 0, RootParams, SrvRanges);
+
+	CD3DX12_DESCRIPTOR_RANGE DescRange;
+	DescRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 1, 0);
+
+	CD3DX12_ROOT_PARAMETER TexturesRootParam;
+	TexturesRootParam.InitAsDescriptorTable(1, &DescRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	RootParams.push_back(TexturesRootParam);
+
+	CD3DX12_ROOT_PARAMETER MeshIdxRootParam;
+	MeshIdxRootParam.InitAsConstants(1, 1);
+	RootParams.push_back(MeshIdxRootParam);
+
+	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso", RootParams);
 
 	/*
 	std::vector<SSceneVertex> Verts = {
@@ -101,6 +120,9 @@ void CScene::Load()
 	std::vector<SSceneVertex> Verts;
 	std::vector<UINT32>	Indices;
 
+	CRenderer& RendererInst = CRenderer::GetInstance();
+	MaterialTexturesStartDspt = RendererInst.GetSrvGPUDescriptor(RendererInst.GetCurrentSrvDescriptorIndex());
+
 	if (TinyObjReader.ParseFromFile(AssetPath.string(), ReaderConfig))
 	{
 		auto& attrib = TinyObjReader.GetAttrib();
@@ -122,6 +144,13 @@ void CScene::Load()
 					auto TinyObjMat = materials[CurrentMatIdx];
 					std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
 					CurMesh->Init(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+
+					int TextureIdx = RendererInst.GetSrvDescriptorOffset(MaterialTexturesStartDspt, RendererInst.GetTexture(CurMesh->DiffuseTextureName)->SrvGPUDescriptor);
+					SMeshInfo MeshInfo;
+					MeshInfo.TextureIdx = TextureIdx/2;
+					CurMesh->GetWorldMatrix(&(MeshInfo.WorldMatrix));
+					MeshInfoArray.push_back(MeshInfo);
+
 					AllMeshes.push_back(std::move(CurMesh));
 
 					Verts.clear();
@@ -159,6 +188,13 @@ void CScene::Load()
 			std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
 
 			CurMesh->Init(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+
+			int TextureIdx = RendererInst.GetSrvDescriptorOffset(MaterialTexturesStartDspt, RendererInst.GetTexture(CurMesh->DiffuseTextureName)->SrvGPUDescriptor);
+			SMeshInfo MeshInfo;
+			MeshInfo.TextureIdx = TextureIdx/2;
+			CurMesh->GetWorldMatrix(&(MeshInfo.WorldMatrix));
+			MeshInfoArray.push_back(MeshInfo);
+
 			AllMeshes.push_back(std::move(CurMesh));
 		}
 	}
@@ -179,14 +215,32 @@ void CScene::OnLoaded()
 	{
 		CurMesh->ResetUploadResource();
 	}
+
+	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(AllMeshes.size()));
+	ModelBuffer.SetData(MeshInfoArray.data());
+	ModelBuffer.CreateShaderResourceView();
 }
 
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
-	for (auto& CurMesh : AllMeshes)
+	Material->SetShaderResource(InCommandList, 0, &ModelBuffer);
+	
+	int RootParamIdx = Material->FindSrvRootParameterIndex(1);
+	if (RootParamIdx >= 0)
 	{
-		Material->SetShaderResource(InCommandList, 0, CRenderer::GetInstance().GetTexture(CurMesh->DiffuseTextureName));
-		Material->SetShaderResource(InCommandList, 1, CRenderer::GetInstance().GetTexture(CurMesh->NormalTextureName));
+		InCommandList->SetGraphicsRootDescriptorTable(RootParamIdx, MaterialTexturesStartDspt);
+	}
+	
+	int MeshIndexRootParam = Material->FindConstantRootParameterIndex(1);
+	if (MeshIndexRootParam < 0)
+	{
+		return;
+	}
+	
+	for(int i = 0; i < AllMeshes.size(); ++i)
+	{
+		auto& CurMesh = AllMeshes[i];
+		InCommandList->SetGraphicsRoot32BitConstant(MeshIndexRootParam, i, 0);
 		CurMesh->OnRender(InCommandList);
 	}
 }
