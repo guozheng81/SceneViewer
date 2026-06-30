@@ -105,8 +105,6 @@ public:
 	void	Render();
 	void	Shutdown();
 
-	void	SetDirectionalLight(const XMVECTOR& InDir, float Intensity);
-
 	CScene* GetScene()
 	{
 		return Scene.get();

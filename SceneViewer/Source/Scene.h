@@ -23,10 +23,8 @@ protected:
 	XMMATRIX WorldMatrix = XMMatrixIdentity();
 
 public:
-	std::string	DiffuseTextureName;
-	std::string	NormalTextureName;
 
-	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName, const std::string InNormalTexName);
+	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices);
 	void ResetUploadResource();
 
 	void	GetWorldMatrix(XMFLOAT4X4* OutMtx);
@@ -48,13 +46,18 @@ protected:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesStartDspt = {};
 
 public:
+	XMVECTOR DirectionalLightDir;
+	float	 DirectionalLightIntensity = 4.0f;
 
 	CScene();
 	~CScene();
 
 	void	Load();
 
+	CMesh* AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName);
 	CMaterial* GetSceneMaterial();
+
+	void	SetDirectionalLight(const XMFLOAT3& InDir, float Intensity);
 
 	CCamera* GetMainCamera()
 	{

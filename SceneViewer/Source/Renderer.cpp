@@ -206,19 +206,9 @@ bool	CRenderer::Init(HWND hWnd)
         CurTexture.second->ResetUploadResource();
     }
 
-    XMFLOAT3 LightDir(-0.3f, -1.0f, -0.3f);
-    XMVECTOR LightDirV = XMLoadFloat3(&LightDir);
-    LightDirV = XMVector3Normalize(LightDirV);
-    SetDirectionalLight(LightDirV, 4.0f);
+    Scene->SetDirectionalLight(XMFLOAT3(-0.3f, -1.0f, -0.3f), 4.0f);
 
     return true;
-}
-
-void	CRenderer::SetDirectionalLight(const XMVECTOR& InDir, float Intensity)
-{
-    XMFLOAT3 LightDir;
-    XMStoreFloat3(&LightDir, InDir);
-    ViewBuffer.DirectionalLight = XMFLOAT4(-LightDir.x, -LightDir.y, -LightDir.z, Intensity);
 }
 
 void	CRenderer::LoadScene()
@@ -284,6 +274,10 @@ void	CRenderer::UpdateViewBuffer()
     Cam->GetCameraPosition(&(ViewBuffer.CameraOrigin));
     Cam->GetViewMatrix(&(ViewBuffer.ViewMatrix));
     Cam->GetProjectionMatrix(&(ViewBuffer.ProjectionMatrix));
+
+    XMFLOAT3 LightDir;
+    XMStoreFloat3(&LightDir, Scene->DirectionalLightDir);
+    ViewBuffer.DirectionalLight = XMFLOAT4(-LightDir.x, -LightDir.y, -LightDir.z, Scene->DirectionalLightIntensity);
 
     GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
 

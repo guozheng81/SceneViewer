@@ -4,7 +4,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string InDiffTexName, const std::string InNormalTexName)
+void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices)
 {
 	VertexCount = Verts.size();
 	UINT TotalSize = sizeof(SSceneVertex)* VertexCount;
@@ -24,15 +24,6 @@ void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices,
 		IndexBufferView.SizeInBytes = TotalSize;
 	}
 
-	DiffuseTextureName = InDiffTexName;
-	NormalTextureName = InNormalTexName;
-	if (InNormalTexName.empty())
-	{
-		NormalTextureName = std::string("default_normal_") + DiffuseTextureName;
-	}
-
-	CRenderer::GetInstance().LoadTexture(DiffuseTextureName);
-	CRenderer::GetInstance().LoadTexture(NormalTextureName);
 }
 
 void CMesh::ResetUploadResource()
@@ -142,16 +133,7 @@ void CScene::Load()
 				if (shapes[s].mesh.material_ids[f] != CurrentMatIdx)
 				{
 					auto TinyObjMat = materials[CurrentMatIdx];
-					std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
-					CurMesh->Init(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
-
-					int TextureIdx = RendererInst.GetSrvDescriptorOffset(MaterialTexturesStartDspt, RendererInst.GetTexture(CurMesh->DiffuseTextureName)->SrvGPUDescriptor);
-					SMeshInfo MeshInfo;
-					MeshInfo.TextureIdx = TextureIdx/2;
-					CurMesh->GetWorldMatrix(&(MeshInfo.WorldMatrix));
-					MeshInfoArray.push_back(MeshInfo);
-
-					AllMeshes.push_back(std::move(CurMesh));
+					AddMesh(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
 
 					Verts.clear();
 					Indices.clear();
@@ -185,19 +167,35 @@ void CScene::Load()
 			}
 
 			auto TinyObjMat = materials[CurrentMatIdx];
-			std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
-
-			CurMesh->Init(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
-
-			int TextureIdx = RendererInst.GetSrvDescriptorOffset(MaterialTexturesStartDspt, RendererInst.GetTexture(CurMesh->DiffuseTextureName)->SrvGPUDescriptor);
-			SMeshInfo MeshInfo;
-			MeshInfo.TextureIdx = TextureIdx/2;
-			CurMesh->GetWorldMatrix(&(MeshInfo.WorldMatrix));
-			MeshInfoArray.push_back(MeshInfo);
-
-			AllMeshes.push_back(std::move(CurMesh));
+			AddMesh(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
 		}
 	}
+}
+
+CMesh* CScene::AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName)
+{
+	std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
+
+	std::string	NormalTextureName = InNormalTexName;
+	if (InNormalTexName.empty())
+	{
+		NormalTextureName = std::string("default_normal_") + InDiffTexName;
+	}
+
+	CTexture2D* DiffTexture = CRenderer::GetInstance().LoadTexture(InDiffTexName);
+	CRenderer::GetInstance().LoadTexture(NormalTextureName);
+
+	CurMesh->Init(Verts, Indices);
+
+	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesStartDspt, DiffTexture->SrvGPUDescriptor);
+	SMeshInfo MeshInfo;
+	MeshInfo.TextureIdx = TextureIdx / 2;
+	CurMesh->GetWorldMatrix(&(MeshInfo.WorldMatrix));
+	MeshInfoArray.push_back(MeshInfo);
+
+	CMesh* Res = CurMesh.get();
+	AllMeshes.push_back(std::move(CurMesh));
+	return Res;
 }
 
 CMaterial* CScene::GetSceneMaterial()
@@ -219,6 +217,13 @@ void CScene::OnLoaded()
 	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(AllMeshes.size()));
 	ModelBuffer.SetData(MeshInfoArray.data());
 	ModelBuffer.CreateShaderResourceView();
+}
+
+void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
+{
+	XMVECTOR LightDirV = XMLoadFloat3(&InDir);
+	DirectionalLightDir = XMVector3Normalize(LightDirV);
+	DirectionalLightIntensity = Intensity;
 }
 
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
