@@ -74,7 +74,7 @@ void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCo
         {
             SrvRanges[SrvIdx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SrvIdx, 0);
 
-            RootParams[RootIdx].InitAsDescriptorTable(1, &(SrvRanges[SrvIdx]), D3D12_SHADER_VISIBILITY_PIXEL);
+            RootParams[RootIdx].InitAsDescriptorTable(1, &(SrvRanges[SrvIdx]), D3D12_SHADER_VISIBILITY_ALL);
         }
     }
 }

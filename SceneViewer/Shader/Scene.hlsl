@@ -34,12 +34,14 @@ VS_OUTPUT VSMain(VS_INPUT Input)
     float4 LocalPos = Input.Position;
     LocalPos.w = 1.0f;
 	
+    float4x4 WldMtx = AllMeshes[MeshIndex].mWorld;
+    float4 WldPos = mul(LocalPos, WldMtx);
     float4x4 ViewProjMtx = mul(mView, mProjection);
     Output.Position = mul(LocalPos, ViewProjMtx);
 
-    Output.Normal = Input.Normal;
+    Output.Normal = mul(Input.Normal, (float3x3) WldMtx);
     Output.Texcoord = Input.Texcoord;
-    Output.WorldPos = float4(Input.Position.xyz, 1.0f);
+    Output.WorldPos = WldPos;
 	
     return Output;
 }
@@ -62,6 +64,7 @@ float4 PSMain(PS_INPUT Input) : SV_TARGET
     {
         discard;
     }
+    Albedo.rgb = pow(Albedo.rgb, 2.2f);
     
     float3 WldPos = Input.WorldPos.xyz;
     float3 WldNormal = normalize(Input.Normal);
@@ -92,10 +95,12 @@ float4 PSMain(PS_INPUT Input) : SV_TARGET
     float roughness = 0.7f;
     float metal = 0.25f;
 
-    float4 FinalColor;
-    FinalColor.rgb = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) + Albedo.rgb * 0.3f;
-    //FinalColor.rgb = (N + 1.0f) * 0.5f;
-    FinalColor.a = 1.0f;
+    float3 FinalColor;
+    FinalColor = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) + Albedo.rgb * 0.02f;
     
-    return FinalColor;
+    FinalColor = ACESFitted(FinalColor);
+    FinalColor = pow(FinalColor, 1.0f / 2.2f);
+    //FinalColor.rgb = (N + 1.0f) * 0.5f;
+        
+    return float4(FinalColor, 1.0f);
 }

@@ -49,7 +49,7 @@ float3 CalculatePBR(float3 L, float3 N, float3 V, float roughness, float metal, 
     float3 H = normalize(V + L);
 
     float N_dot_L = max(dot(N, L), 0.0f);
-    float N_dot_V = max(abs(dot(N, V)), 0.0001f);
+    float N_dot_V = max(dot(N, V), 0.0f);
 
     float D = GGX(N, H, roughness);
     float G = Geometry(N_dot_V, N_dot_L, roughness);
@@ -57,9 +57,19 @@ float3 CalculatePBR(float3 L, float3 N, float3 V, float roughness, float metal, 
     SpecularColor = lerp(SpecularColor, albedo.rgb, metal);
     float3 F = Fresnel(H, L, SpecularColor);
 
-    float Kd = 1.0f - metal;
+    float3 Kd = (1.0f - F) * (1.0f - metal);
 
-    float3 Specular = D * G * F / max((4.0f * N_dot_V * N_dot_L), 0.001f);
+    float3 Specular = D * G * F / max((4.0f * N_dot_V * N_dot_L), 0.0001f);
     return max((Kd * albedo / PI + Specular) * N_dot_L * Radiance, 0.0f);
 }
 
+float3 ACESFitted(float3 color)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    
+    return clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.0f, 1.0f);
+}

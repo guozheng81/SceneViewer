@@ -206,7 +206,7 @@ bool	CRenderer::Init(HWND hWnd)
         CurTexture.second->ResetUploadResource();
     }
 
-    Scene->SetDirectionalLight(XMFLOAT3(-0.3f, -1.0f, -0.3f), 4.0f);
+    Scene->SetDirectionalLight(XMFLOAT3(-0.3f, -1.0f, -0.3f), 10.0f);
 
     return true;
 }
