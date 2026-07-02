@@ -14,6 +14,13 @@ struct MeshInfo
 
 #define PI 3.1415926f
 
+struct VS_INPUT
+{
+    float4 Position : POSITION;
+    float3 Normal : NORMAL;
+    float2 Texcoord : TEXCOORD0;
+};
+
 float GGX(float3 N, float3 H, float roughness)
 {
     float a = roughness * roughness;
@@ -73,3 +80,9 @@ float3 ACESFitted(float3 color)
     
     return clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.0f, 1.0f);
 }
+
+struct QuadVS_Output
+{
+    float4 Pos : SV_POSITION;
+    float2 Uv : TEXCOORD0;
+};

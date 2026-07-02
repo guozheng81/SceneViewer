@@ -7,8 +7,13 @@ class CUniformBuffer;
 class CTexture2D
 {
 protected:
+	bool bIsRenderTarget;
+	bool bIsDepth;
+	bool bIsDiffuse;
 
 public:
+	CTexture2D(bool InIsRenderTarget, bool InIsDepth, bool InIsDiffuse);
+
 	ComPtr<ID3D12Resource> Texture;
 
 	inline ID3D12Resource* GetResource() {
@@ -19,6 +24,7 @@ public:
 	CD3DX12_CPU_DESCRIPTOR_HANDLE SrvCPUDescriptor = {};
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvCPUDescriptor = {};
+	CD3DX12_CPU_DESCRIPTOR_HANDLE DsvCPUDescriptor = {};
 
 	UINT		Width = 0;
 	UINT		Height = 0;

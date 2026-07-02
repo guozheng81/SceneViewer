@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "Scene.h"
 #include "DDSTextureLoader12.h"
+#include "ScreenPass.h"
 
 CUniformBuffer::CUniformBuffer()
 {
@@ -104,6 +105,8 @@ bool	CRenderer::Init(HWND hWnd)
         return false;
     }
 
+    //////// command queue /////////////////
+
     D3D12_COMMAND_QUEUE_DESC QueueDesc = {};
     QueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -112,6 +115,8 @@ bool	CRenderer::Init(HWND hWnd)
     {
         return false;
     }
+
+    //////// swap chain /////////////////
 
     DXGI_SWAP_CHAIN_DESC1 SwapChainDesc = {};
     SwapChainDesc.BufferCount = TotalFrameCount;
@@ -137,6 +142,8 @@ bool	CRenderer::Init(HWND hWnd)
 
     CurrentFrameIndex = SwapChain->GetCurrentBackBufferIndex();
 
+    //////////// descriptor heaps /////////////////
+
     D3D12_DESCRIPTOR_HEAP_DESC SrvHeapDesc = {};
     SrvHeapDesc.NumDescriptors = 1024;
     SrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -161,11 +168,11 @@ bool	CRenderer::Init(HWND hWnd)
     D3dDevice->CreateDescriptorHeap(&DsvHeapDesc, IID_PPV_ARGS(&DsvDescriptorHeap));
     DsvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-    CreateDepthTexture("Depth", ViewportWidth, ViewportHeight);
-
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(2, D3D12_FILTER_ANISOTROPIC, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP));
+
+    /////////////////// per frame resources ///////////////////
 
     D3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&FrameFence));
     FrameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -178,11 +185,14 @@ bool	CRenderer::Init(HWND hWnd)
 
         SwapChain->GetBuffer(i, IID_PPV_ARGS(&(PerFrameContext[i].FrameBuffer)));
         D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), nullptr, RtvHandle);
+        PerFrameContext[i].FrameBufferRtvDescriptor = RtvHandle;
         RtvHandle.Offset(1, RtvDescriptorSize);
         CurrentRtvDescriptorIndex++;
 
         PerFrameContext[i].ViewBuffer.Init((UINT)(sizeof(SViewBuffer)), 1);
     }
+
+    ///////////////////////////////////////////////
 
     Viewport.TopLeftX = 0;
     Viewport.TopLeftY = 0;
@@ -196,17 +206,29 @@ bool	CRenderer::Init(HWND hWnd)
     D3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, PerFrameContext[CurrentFrameIndex].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&CommandList));
     CommandList->Close();
 
+    CreateDepthTexture("Depth", ViewportWidth, ViewportHeight);
+
+    /////////////////////////////////////////////////
+
     Scene = std::make_unique<CScene>();
 
     LoadScene();
 
     Scene->OnLoaded();
+    ScreenQuad->ResetUploadResource();
     for (auto& CurTexture : AllTextures)
     {
         CurTexture.second->ResetUploadResource();
     }
 
     Scene->SetDirectionalLight(XMFLOAT3(-0.3f, -1.0f, -0.3f), 10.0f);
+
+    ScreenPasses.push_back(std::make_unique<CLightPass>());
+
+    for (auto& Pass : ScreenPasses)
+    {
+        Pass->Init();
+    }
 
     return true;
 }
@@ -218,6 +240,18 @@ void	CRenderer::LoadScene()
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
 
     Scene->Load();
+
+    ScreenQuad = std::make_unique<CMesh>();
+
+    std::vector<SSceneVertex> Verts = {
+        { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} },
+        { { 1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        { { -1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} },
+        { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f} }
+    };
+
+    std::vector<UINT32>	Indices = { 0, 1, 2, 0, 3, 1 };
+    ScreenQuad->Init(Verts, Indices);
 
     CommandList->Close();
 
@@ -312,6 +346,11 @@ void	CRenderer::Render()
 
     Scene->OnRender(CommandList.Get());
 
+    for (auto& Pass : ScreenPasses)
+    {
+        Pass->OnRender(CommandList.Get());
+    }
+
     EndFrame();
 }
 
@@ -397,7 +436,7 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
         return AllTextures[InName].get();
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>();
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, true, false);
 
     D3D12_RESOURCE_DESC TextureDesc = {};
     TextureDesc.MipLevels = 1;
@@ -428,6 +467,7 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
 
     D3D12_CPU_DESCRIPTOR_HANDLE DsvHandle = DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
     D3dDevice->CreateDepthStencilView(NewTexture->GetResource(), &DsvDesc, DsvHandle);
+    NewTexture->DsvCPUDescriptor = DsvHandle;
 
     NewTexture->CreateShaderResourceView();
 
@@ -443,7 +483,7 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName)
         return AllTextures[InFileName].get();
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>();
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, false);
 
     std::vector<D3D12_SUBRESOURCE_DATA> Subresources;
 
@@ -485,7 +525,7 @@ CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT
         return AllTextures[InName].get();
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>();
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(true, false, false);
 
     D3D12_RESOURCE_DESC TextureDesc = {};
 

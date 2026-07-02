@@ -40,6 +40,9 @@
     <ClCompile Include="Source\DDSTextureLoader12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\ScreenPass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Renderer.h">
@@ -66,8 +69,12 @@
     <ClInclude Include="Source\tiny_obj_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\ScreenPass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Shader\Scene.hlsl" />
+    <CustomBuild Include="Shader\PostProcessing.hlsl" />
   </ItemGroup>
 </Project>

@@ -5,6 +5,8 @@
 
 class CScene;
 class CTexture2D;
+class CScreenPass;
+class CMesh;
 
 class CUniformBuffer
 {
@@ -39,6 +41,7 @@ struct SPerFrameContext
 	ComPtr<ID3D12CommandAllocator>	CommandAllocator;
 
 	ComPtr<ID3D12Resource>	FrameBuffer;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE FrameBufferRtvDescriptor = {};
 
 	CUniformBuffer ViewBuffer;
 
@@ -90,6 +93,9 @@ protected:
 
 	std::map<std::string, std::unique_ptr<CTexture2D>>  AllTextures;
 
+	std::unique_ptr<CMesh>	ScreenQuad;
+	std::vector<std::unique_ptr<CScreenPass>>	ScreenPasses;
+
 public:
 	UINT	ViewportWidth = 1280;
 	UINT	ViewportHeight = 720;
@@ -105,10 +111,8 @@ public:
 	void	Render();
 	void	Shutdown();
 
-	CScene* GetScene()
-	{
-		return Scene.get();
-	}
+	inline CScene* GetScene()	{		return Scene.get();	}
+	inline CMesh* GetScreenQuad() {	return ScreenQuad.get();	}
 
 	void	LoadScene();
 
@@ -132,6 +136,5 @@ public:
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor(int& OutDescriptorIdx);
-
 };
 

@@ -12,13 +12,6 @@ cbuffer cbMeshIndex : register(b1)
     int MeshIndex;
 }
 
-struct VS_INPUT
-{
-    float4 Position : POSITION;
-    float3 Normal : NORMAL;
-    float2 Texcoord : TEXCOORD0;
-};
-
 struct VS_OUTPUT
 {
     float3 Normal : NORMAL;

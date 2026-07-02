@@ -3,6 +3,14 @@
 #include "Material.h"
 #include "Renderer.h"
 
+CTexture2D::CTexture2D(bool InIsRenderTarget, bool InIsDepth, bool InIsDiffuse)
+    :bIsRenderTarget(InIsRenderTarget),
+    bIsDepth(InIsDepth),
+    bIsDiffuse(InIsDiffuse)
+{
+
+}
+
 void CTexture2D::ResetUploadResource()
 {
     if (UploadTexture)
@@ -17,7 +25,7 @@ void CTexture2D::CreateShaderResourceView()
     D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
     SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     SrvDesc.Format = Texture->GetDesc().Format;
-    if (SrvDesc.Format == DXGI_FORMAT_R32_TYPELESS)
+    if (bIsDepth)
     {
         SrvDesc.Format = DXGI_FORMAT_R32_FLOAT;
     }
