@@ -90,6 +90,9 @@ void CScene::Load()
 
 	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso", RootParams);
 
+	CRenderer& RendererInst = CRenderer::GetInstance();
+	GBufferA = RendererInst.CreateRenderTarget("GBufferA", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.529f, 0.808f, 0.922f, 1.0f));
+
 	/*
 	std::vector<SSceneVertex> Verts = {
 			{ { 0.0f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} },
@@ -111,7 +114,6 @@ void CScene::Load()
 	std::vector<SSceneVertex> Verts;
 	std::vector<UINT32>	Indices;
 
-	CRenderer& RendererInst = CRenderer::GetInstance();
 	MaterialTexturesStartDspt = RendererInst.GetSrvGPUDescriptor(RendererInst.GetCurrentSrvDescriptorIndex());
 
 	if (TinyObjReader.ParseFromFile(AssetPath.string(), ReaderConfig))
@@ -182,7 +184,7 @@ CMesh* CScene::AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& In
 		NormalTextureName = std::string("default_normal_") + InDiffTexName;
 	}
 
-	CTexture2D* DiffTexture = CRenderer::GetInstance().LoadTexture(InDiffTexName);
+	CTexture2D* DiffTexture = CRenderer::GetInstance().LoadTexture(InDiffTexName, true);
 	CRenderer::GetInstance().LoadTexture(NormalTextureName);
 
 	CurMesh->Init(Verts, Indices);
@@ -228,8 +230,21 @@ void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
 
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
+	CRenderer::GetInstance().ResourceBarrier(GBufferA->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	Material->OnRender(InCommandList);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle = GBufferA->RtvCPUDescriptor;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle = CRenderer::GetInstance().GetTexture("Depth")->DsvCPUDescriptor;
+	InCommandList->OMSetRenderTargets(1, &RtvHandle, true, &DsvHandle);
+
+	float ClearColor[] = { 0.529f, 0.808f, 0.922f, 1.0f };
+	InCommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
+	InCommandList->ClearDepthStencilView(DsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
 	Material->SetShaderResource(InCommandList, 0, &ModelBuffer);
-	
+	InCommandList->SetGraphicsRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
+
 	int RootParamIdx = Material->FindSrvRootParameterIndex(1);
 	if (RootParamIdx >= 0)
 	{

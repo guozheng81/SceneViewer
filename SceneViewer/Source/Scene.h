@@ -45,6 +45,8 @@ protected:
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesStartDspt = {};
 
+	CTexture2D* GBufferA = nullptr;
+
 public:
 	XMVECTOR DirectionalLightDir;
 	float	 DirectionalLightIntensity = 4.0f;

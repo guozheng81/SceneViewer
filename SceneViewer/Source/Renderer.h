@@ -61,11 +61,6 @@ protected:
 
 	SPerFrameContext	PerFrameContext[TotalFrameCount];
 
-	inline SPerFrameContext& GetCurrentFrameContext()
-	{
-		return PerFrameContext[CurrentFrameIndex];
-	}
-
 	ComPtr<ID3D12GraphicsCommandList>	CommandList;
 
 	void	BeginFrame();
@@ -105,6 +100,11 @@ public:
 
 	std::vector<CD3DX12_STATIC_SAMPLER_DESC> TextureSamplers;
 
+	inline SPerFrameContext& GetCurrentFrameContext()
+	{
+		return PerFrameContext[CurrentFrameIndex];
+	}
+
 	static CRenderer& GetInstance();
 
 	bool	Init(HWND hWnd);
@@ -125,10 +125,10 @@ public:
 	static std::filesystem::path GetExeDirectory();
 	static std::filesystem::path GetAssetDirectory();
 
-	CTexture2D* LoadTexture(const std::string& InFileName);
+	CTexture2D* LoadTexture(const std::string& InFileName, bool InIsDiffuse = false);
 	CTexture2D* GetTexture(const std::string& InFileName);
 	CTexture2D* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
-	CTexture2D* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, UINT InW, UINT InH);
+	CTexture2D* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0);
 
 	inline int GetCurrentSrvDescriptorIndex() const {	return CurrentSrvDescriptorIndex;	}
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);

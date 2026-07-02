@@ -57,7 +57,6 @@ float4 PSMain(PS_INPUT Input) : SV_TARGET
     {
         discard;
     }
-    Albedo.rgb = pow(Albedo.rgb, 2.2f);
     
     float3 WldPos = Input.WorldPos.xyz;
     float3 WldNormal = normalize(Input.Normal);
@@ -90,9 +89,7 @@ float4 PSMain(PS_INPUT Input) : SV_TARGET
 
     float3 FinalColor;
     FinalColor = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) + Albedo.rgb * 0.02f;
-    
-    FinalColor = ACESFitted(FinalColor);
-    FinalColor = pow(FinalColor, 1.0f / 2.2f);
+        
     //FinalColor.rgb = (N + 1.0f) * 0.5f;
         
     return float4(FinalColor, 1.0f);

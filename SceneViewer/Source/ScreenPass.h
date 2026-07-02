@@ -20,8 +20,8 @@ public:
 class CLightPass : public CScreenPass
 {
 protected:
-	CTexture2D* Albedo = nullptr;
-	CTexture2D* Normal = nullptr;
+	CTexture2D* GBufferA = nullptr;
+	CTexture2D* GBufferB = nullptr;
 	CTexture2D* Depth = nullptr;
 
 public:

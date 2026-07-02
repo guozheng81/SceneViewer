@@ -178,13 +178,17 @@ bool	CRenderer::Init(HWND hWnd)
     FrameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     PerFrameContext[CurrentFrameIndex].FenceValue = 1;
 
+    D3D12_RENDER_TARGET_VIEW_DESC FrameBufferRtvDesc = {};
+    FrameBufferRtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // Apply gamma correction
+    FrameBufferRtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
     CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     for (UINT i = 0; i < TotalFrameCount; ++i)
     {
         D3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&(PerFrameContext[i].CommandAllocator)));
 
         SwapChain->GetBuffer(i, IID_PPV_ARGS(&(PerFrameContext[i].FrameBuffer)));
-        D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), nullptr, RtvHandle);
+        D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), &FrameBufferRtvDesc, RtvHandle);
         PerFrameContext[i].FrameBufferRtvDescriptor = RtvHandle;
         RtvHandle.Offset(1, RtvDescriptorSize);
         CurrentRtvDescriptorIndex++;
@@ -314,8 +318,6 @@ void	CRenderer::UpdateViewBuffer()
     ViewBuffer.DirectionalLight = XMFLOAT4(-LightDir.x, -LightDir.y, -LightDir.z, Scene->DirectionalLightIntensity);
 
     GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
-
-    CommandList->SetGraphicsRootConstantBufferView(0, GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
 }
 
 void	CRenderer::Render()
@@ -327,20 +329,6 @@ void	CRenderer::Render()
 
     ID3D12DescriptorHeap* Heaps[] = { SrvDescriptorHeap.Get() };
     CommandList->SetDescriptorHeaps(1, Heaps);
-
-    CMaterial* SceneMaterial = Scene->GetSceneMaterial();
-    if (SceneMaterial)
-    {
-        SceneMaterial->OnRender(CommandList.Get());
-    }
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), CurrentFrameIndex, RtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle(DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    CommandList->OMSetRenderTargets(1, &RtvHandle, true, &DsvHandle);
-
-    float ClearColor[] = { 0.0f, 0.1f, 0.5f, 1.0f };
-    CommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
-    CommandList->ClearDepthStencilView(DsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
     UpdateViewBuffer();
 
@@ -476,14 +464,14 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
     return ResTex;
 }
 
-CTexture2D* CRenderer::LoadTexture(const std::string& InFileName)
+CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffuse)
 {
     if (AllTextures.find(InFileName) != AllTextures.end())
     {
         return AllTextures[InFileName].get();
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, false);
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, InIsDiffuse);
 
     std::vector<D3D12_SUBRESOURCE_DATA> Subresources;
 
@@ -518,7 +506,7 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName)
     return ResTex;
 }
 
-CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, UINT InW, UINT InH)
+CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW, UINT InH)
 {
     if (AllTextures.find(InName) != AllTextures.end())
     {
@@ -531,11 +519,11 @@ CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT
 
     TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     TextureDesc.Alignment = 0;
-    TextureDesc.Width = InW;
-    TextureDesc.Height = InH;
+    TextureDesc.Width = (InW != 0? InW : ViewportWidth);
+    TextureDesc.Height = (InH !=0? InH : ViewportHeight);
     TextureDesc.DepthOrArraySize = 1;
     TextureDesc.MipLevels = 1;
-    TextureDesc.Format = InFormat; // DXGI_FORMAT_R8G8B8A8_UNORM; // Common texture format
+    TextureDesc.Format = InFormat;
     TextureDesc.SampleDesc.Count = 1;
     TextureDesc.SampleDesc.Quality = 0;
     TextureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -545,15 +533,15 @@ CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT
 
     D3D12_CLEAR_VALUE ClearValue = {};
     ClearValue.Format = TextureDesc.Format;
-    ClearValue.Color[0] = 0.0f;
-    ClearValue.Color[1] = 0.0f;
-    ClearValue.Color[2] = 0.0f;
-    ClearValue.Color[3] = 1.0f;
+    ClearValue.Color[0] = InColor.x;
+    ClearValue.Color[1] = InColor.y;
+    ClearValue.Color[2] = InColor.z;
+    ClearValue.Color[3] = InColor.w;
 
     D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
 
-    NewTexture->Width = InW;
-    NewTexture->Height = InH;
+    NewTexture->Width = TextureDesc.Width;
+    NewTexture->Height = TextureDesc.Height;
 
     NewTexture->CreateRenderTargetView();
     NewTexture->CreateShaderResourceView();

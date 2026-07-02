@@ -3,6 +3,26 @@
 #include "Material.h"
 #include "Renderer.h"
 
+DXGI_FORMAT ConvertUnormToSrgb(DXGI_FORMAT format)
+{
+    switch (format)
+    {
+        // Standard formats
+        case DXGI_FORMAT_R8G8B8A8_UNORM: return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        case DXGI_FORMAT_B8G8R8A8_UNORM: return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        case DXGI_FORMAT_B8G8R8X8_UNORM: return DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+
+        // Block Compressed (BC) formats
+        case DXGI_FORMAT_BC1_UNORM:      return DXGI_FORMAT_BC1_UNORM_SRGB;
+        case DXGI_FORMAT_BC2_UNORM:      return DXGI_FORMAT_BC2_UNORM_SRGB;
+        case DXGI_FORMAT_BC3_UNORM:      return DXGI_FORMAT_BC3_UNORM_SRGB;
+        case DXGI_FORMAT_BC7_UNORM:      return DXGI_FORMAT_BC7_UNORM_SRGB;
+
+        // Already SRGB or does not support hardware gamma mapping
+        default:                         return format;
+    }
+}
+
 CTexture2D::CTexture2D(bool InIsRenderTarget, bool InIsDepth, bool InIsDiffuse)
     :bIsRenderTarget(InIsRenderTarget),
     bIsDepth(InIsDepth),
@@ -28,6 +48,9 @@ void CTexture2D::CreateShaderResourceView()
     if (bIsDepth)
     {
         SrvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+    } else if (bIsDiffuse)
+    {
+        SrvDesc.Format = ConvertUnormToSrgb(SrvDesc.Format);
     }
     SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     SrvDesc.Texture2D.MostDetailedMip = 0;
@@ -44,7 +67,7 @@ void CTexture2D::CreateRenderTargetView()
 {
     int RtvDescriptorIndex = -1;
     RtvCPUDescriptor = CRenderer::GetInstance().AllocRtvDescriptor(RtvDescriptorIndex);
-    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), nullptr, RtvCPUDescriptor);
+    CRenderer::GetInstance().D3dDevice->CreateRenderTargetView(Texture.Get(), nullptr, RtvCPUDescriptor);
 }
 
 CMaterial::CMaterial()
