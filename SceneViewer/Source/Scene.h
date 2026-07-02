@@ -46,6 +46,8 @@ protected:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesStartDspt = {};
 
 	CTexture2D* GBufferA = nullptr;
+	CTexture2D* GBufferB = nullptr;
+	CTexture2D* Depth = nullptr;
 
 public:
 	XMVECTOR DirectionalLightDir;

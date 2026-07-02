@@ -210,8 +210,6 @@ bool	CRenderer::Init(HWND hWnd)
     D3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, PerFrameContext[CurrentFrameIndex].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&CommandList));
     CommandList->Close();
 
-    CreateDepthTexture("Depth", ViewportWidth, ViewportHeight);
-
     /////////////////////////////////////////////////
 
     Scene = std::make_unique<CScene>();
@@ -270,8 +268,6 @@ void	CRenderer::BeginFrame()
 {
     GetCurrentFrameContext().CommandAllocator->Reset();
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
-
-    ResourceBarrier(GetCurrentFrameContext().FrameBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
 void	CRenderer::EndFrame()
@@ -443,7 +439,7 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
     ClearValue.DepthStencil.Stencil = 0;
 
     CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
+    D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
 
     NewTexture->Width = InW;
     NewTexture->Height = InH;

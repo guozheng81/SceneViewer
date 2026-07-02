@@ -92,6 +92,8 @@ void CScene::Load()
 
 	CRenderer& RendererInst = CRenderer::GetInstance();
 	GBufferA = RendererInst.CreateRenderTarget("GBufferA", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.529f, 0.808f, 0.922f, 1.0f));
+	GBufferB = RendererInst.CreateRenderTarget("GBufferB", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.5f, 0.5f, 0.5f, 0.0f));
+	Depth = RendererInst.CreateDepthTexture("Depth", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
 
 	/*
 	std::vector<SSceneVertex> Verts = {
@@ -231,6 +233,8 @@ void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
 void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
 	CRenderer::GetInstance().ResourceBarrier(GBufferA->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	CRenderer::GetInstance().ResourceBarrier(Depth->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 	Material->OnRender(InCommandList);
 

@@ -27,11 +27,17 @@ void CLightPass::Init()
 	Material.Build(L"PostProcessing_VSMain.cso", L"PostProcessing_PSMain.cso", RootParams);
 
 	GBufferA = CRenderer::GetInstance().GetTexture("GBufferA");
+	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
+	Depth = CRenderer::GetInstance().GetTexture("Depth");
 }
 
 void CLightPass::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
+	CRenderer::GetInstance().ResourceBarrier(CRenderer::GetInstance().GetCurrentFrameContext().FrameBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
 	CRenderer::GetInstance().ResourceBarrier(GBufferA->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	CRenderer::GetInstance().ResourceBarrier(Depth->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	Material.OnRender(InCommandList);
 
