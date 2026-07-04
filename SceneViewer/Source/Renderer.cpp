@@ -241,7 +241,7 @@ void	CRenderer::LoadScene()
     GetCurrentFrameContext().CommandAllocator->Reset();
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
 
-    Scene->Load();
+    Scene->Load("sponza.obj");
 
     ScreenQuad = std::make_unique<CMesh>();
 
@@ -306,8 +306,7 @@ void	CRenderer::UpdateViewBuffer()
     Cam->OnUpdate();
 
     Cam->GetCameraPosition(&(ViewBuffer.CameraOrigin));
-    Cam->GetViewMatrix(&(ViewBuffer.ViewMatrix));
-    Cam->GetProjectionMatrix(&(ViewBuffer.ProjectionMatrix));
+    Cam->UpdateViewBuffer(&ViewBuffer);
 
     XMFLOAT3 LightDir;
     XMStoreFloat3(&LightDir, Scene->DirectionalLightDir);

@@ -23,6 +23,9 @@ protected:
 	XMVECTOR	LookAtDirection = { 0.0f, 0.0f, 1.0f };
 	XMVECTOR	RightDirection = { 1.0f, 0.0f, 0.0f };
 
+	XMMATRIX ViewMatrix;
+	XMMATRIX ProjectionMatrix;
+
 public:
 	void	SetPositionAndRotation(XMFLOAT3 InPos, float InYaw, float InPitch);
 
@@ -31,6 +34,7 @@ public:
 
 	void	GetViewMatrix(XMFLOAT4X4* OutMtx);
 	void	GetProjectionMatrix(XMFLOAT4X4* OutMtx);
+	void	UpdateViewBuffer(struct SViewBuffer* OutViewBuffer);
 	void	GetCameraPosition(XMFLOAT4* OutPos);
 
 	void	OnInputMouse(int InDeltaX, int InDeltaY);

@@ -14,8 +14,8 @@ struct SSceneVertex
 
 struct SViewBuffer
 {
-	XMFLOAT4X4	ViewMatrix;
-	XMFLOAT4X4	ProjectionMatrix;
+	XMFLOAT4X4	ViewProjectionMatrix;
+	XMFLOAT4X4	InvViewProjectionMatrix;
 	XMFLOAT4	CameraOrigin;
 	XMFLOAT4	DirectionalLight;
 

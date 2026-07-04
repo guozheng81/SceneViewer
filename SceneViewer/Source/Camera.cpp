@@ -1,4 +1,5 @@
 #include "Camera.h"
+#include "Renderer.h"
 
 void	CCamera::SetAspectRatio(UINT InW, UINT InH)
 {
@@ -29,18 +30,27 @@ void	CCamera::GetCameraPosition(XMFLOAT4* OutPos)
 	XMStoreFloat4(OutPos, Position);
 }
 
-void	CCamera::GetViewMatrix(XMFLOAT4X4* OutMtx)
+void	CCamera::UpdateViewBuffer(SViewBuffer* OutViewBuffer)
 {
 	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	ViewMatrix = XMMatrixLookToLH(Position, LookAtDirection, Up);
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(FOV, AspectRatio, NearPlane, FarPlane);
 
-	XMMATRIX Mtx = XMMatrixLookToLH(Position, LookAtDirection, Up);
-	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(Mtx));
+	XMMATRIX ViewProjMtx = XMMatrixMultiply(ViewMatrix, ProjectionMatrix);
+	XMMATRIX InvViewProjMtx = XMMatrixInverse(nullptr, ViewProjMtx);
+
+	XMStoreFloat4x4(&(OutViewBuffer->ViewProjectionMatrix), XMMatrixTranspose(ViewProjMtx));
+	XMStoreFloat4x4(&(OutViewBuffer->InvViewProjectionMatrix), XMMatrixTranspose(InvViewProjMtx));
+}
+
+void	CCamera::GetViewMatrix(XMFLOAT4X4* OutMtx)
+{
+	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(ViewMatrix));
 }
 
 void	CCamera::GetProjectionMatrix(XMFLOAT4X4* OutMtx)
 {
-	XMMATRIX Mtx = XMMatrixPerspectiveFovLH(FOV, AspectRatio, NearPlane, FarPlane);
-	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(Mtx));
+	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(ProjectionMatrix));
 }
 
 void	CCamera::OnInputMouse(int InDeltaX, int InDeltaY)

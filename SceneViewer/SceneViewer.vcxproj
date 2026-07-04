@@ -137,6 +137,7 @@
     <ClCompile Include="Source\Camera.cpp" />
     <ClCompile Include="Source\DDSTextureLoader12.cpp" />
     <ClCompile Include="Source\Material.cpp" />
+    <ClCompile Include="Source\Mesh.cpp" />
     <ClCompile Include="Source\Renderer.cpp" />
     <ClCompile Include="Source\Scene.cpp" />
     <ClCompile Include="Source\ScreenPass.cpp" />
@@ -146,6 +147,7 @@
     <ClInclude Include="Source\Camera.h" />
     <ClInclude Include="Source\DDSTextureLoader12.h" />
     <ClInclude Include="Source\Material.h" />
+    <ClInclude Include="Source\Mesh.h" />
     <ClInclude Include="Source\Renderer.h" />
     <ClInclude Include="Source\Scene.h" />
     <ClInclude Include="Source\ScreenPass.h" />

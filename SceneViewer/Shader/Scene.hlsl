@@ -29,8 +29,7 @@ VS_OUTPUT VSMain(VS_INPUT Input)
 	
     float4x4 WldMtx = AllMeshes[MeshIndex].mWorld;
     float4 WldPos = mul(LocalPos, WldMtx);
-    float4x4 ViewProjMtx = mul(mView, mProjection);
-    Output.Position = mul(LocalPos, ViewProjMtx);
+    Output.Position = mul(WldPos, mViewProjection);
 
     Output.Normal = mul(Input.Normal, (float3x3) WldMtx);
     Output.Texcoord = Input.Texcoord;
@@ -84,8 +83,9 @@ float4 PSMain(PS_INPUT Input) : SV_TARGET
     float3 L = DirectionalLight.xyz;
     float3 V = normalize(CameraOrigin.xyz - WldPos);
 
-    float roughness = 0.7f;
-    float metal = 0.25f;
+    // todo: pbr params should be read from textures
+    float roughness = 0.85f;
+    float metal = 0.1f;
 
     float3 FinalColor;
     FinalColor = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) + Albedo.rgb * 0.02f;

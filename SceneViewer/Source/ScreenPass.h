@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Scene.h"
+#include "Mesh.h"
+#include "Material.h"
 
 class CScreenPass
 {

@@ -1,65 +1,10 @@
 #include "Scene.h"
 #include "Renderer.h"
+#include "Mesh.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices)
-{
-	VertexCount = Verts.size();
-	UINT TotalSize = sizeof(SSceneVertex)* VertexCount;
-	VertexBuffer = CRenderer::GetInstance().CreateDefaultBuffer(Verts.data(), TotalSize, VertexUploadBuffer);
-
-	VertexBufferView.BufferLocation = VertexBuffer->GetGPUVirtualAddress();
-	VertexBufferView.SizeInBytes = TotalSize;
-	VertexBufferView.StrideInBytes = sizeof(SSceneVertex);
-
-	IndicesCount = Indices.size();
-	if (IndicesCount > 0)
-	{
-		TotalSize = sizeof(UINT32) * IndicesCount;
-		IndexBuffer = CRenderer::GetInstance().CreateDefaultBuffer(Indices.data(), TotalSize, IndexUploadBuffer);
-		IndexBufferView.BufferLocation = IndexBuffer->GetGPUVirtualAddress();
-		IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
-		IndexBufferView.SizeInBytes = TotalSize;
-	}
-
-}
-
-void CMesh::ResetUploadResource()
-{
-	if (VertexUploadBuffer)
-	{
-		VertexUploadBuffer.Reset();
-	}
-
-	if (IndexUploadBuffer)
-	{
-		IndexUploadBuffer.Reset();
-	}
-
-}
-
-void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
-{
-	InCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	InCommandList->IASetVertexBuffers(0, 1, &VertexBufferView);
-	if (IndicesCount > 0)
-	{
-		InCommandList->IASetIndexBuffer(&IndexBufferView);
-		InCommandList->DrawIndexedInstanced(IndicesCount, 1, 0, 0, 0);
-	}
-	else
-	{
-		InCommandList->DrawInstanced(VertexCount, 1, 0, 0);
-	}
-}
-
-void	CMesh::GetWorldMatrix(XMFLOAT4X4* OutMtx)
-{
-	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(WorldMatrix));
-}
 
 CScene::CScene()
 {
@@ -71,7 +16,7 @@ CScene::CScene()
 	//Material->PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 }
 
-void CScene::Load()
+void CScene::Load(const std::string& InSceneName)
 {
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
@@ -95,18 +40,8 @@ void CScene::Load()
 	GBufferB = RendererInst.CreateRenderTarget("GBufferB", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.5f, 0.5f, 0.5f, 0.0f));
 	Depth = RendererInst.CreateDepthTexture("Depth", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
 
-	/*
-	std::vector<SSceneVertex> Verts = {
-			{ { 0.0f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} },
-			{ { 0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-			{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f} }
-	};
-
-	std::vector<UINT32>	Indices = { 0, 1, 2 };
-	*/
-
 	std::filesystem::path AssetPath = CRenderer::GetAssetDirectory();
-	AssetPath /= "sponza.obj";
+	AssetPath /= InSceneName;
 
 	tinyobj::ObjReaderConfig ReaderConfig;
 	ReaderConfig.mtl_search_path = "";
@@ -246,17 +181,18 @@ void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 	InCommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
 	InCommandList->ClearDepthStencilView(DsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
-	Material->SetShaderResource(InCommandList, 0, &ModelBuffer);
 	InCommandList->SetGraphicsRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
 
-	int RootParamIdx = Material->FindSrvRootParameterIndex(1);
-	if (RootParamIdx >= 0)
+	Material->SetShaderResource(InCommandList, 0, &ModelBuffer);
+
+	int TexturesParam = Material->FindSrvRootParameterIndex(1);
+	if (TexturesParam >= 0)
 	{
-		InCommandList->SetGraphicsRootDescriptorTable(RootParamIdx, MaterialTexturesStartDspt);
+		InCommandList->SetGraphicsRootDescriptorTable(TexturesParam, MaterialTexturesStartDspt);
 	}
 	
-	int MeshIndexRootParam = Material->FindConstantRootParameterIndex(1);
-	if (MeshIndexRootParam < 0)
+	int MeshIndexParam = Material->FindConstantRootParameterIndex(1);
+	if (MeshIndexParam < 0)
 	{
 		return;
 	}
@@ -264,7 +200,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 	for(int i = 0; i < AllMeshes.size(); ++i)
 	{
 		auto& CurMesh = AllMeshes[i];
-		InCommandList->SetGraphicsRoot32BitConstant(MeshIndexRootParam, i, 0);
+		InCommandList->SetGraphicsRoot32BitConstant(MeshIndexParam, i, 0);
 		CurMesh->OnRender(InCommandList);
 	}
 }

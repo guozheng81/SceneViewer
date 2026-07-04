@@ -1,7 +1,7 @@
 cbuffer cbView : register(b0)
 {
-    matrix mView;
-    matrix mProjection;
+    matrix mViewProjection;
+    matrix mInvViewProjection;
     float4 CameraOrigin;
     float4 DirectionalLight;
 };
