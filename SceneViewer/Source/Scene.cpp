@@ -13,6 +13,9 @@ CScene::CScene()
 	MainCamera.SetPositionAndRotation(XMFLOAT3(0.0f, 200.0f, 0.0f), XMConvertToRadians(-90.0f), 0.0f);
 
 	Material = std::make_unique<CMaterial>();
+	Material->PSODesc.NumRenderTargets = 2;
+	Material->PSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	Material->PSODesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	//Material->PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 }
 
@@ -36,7 +39,7 @@ void CScene::Load(const std::string& InSceneName)
 	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso", RootParams);
 
 	CRenderer& RendererInst = CRenderer::GetInstance();
-	GBufferA = RendererInst.CreateRenderTarget("GBufferA", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.529f, 0.808f, 0.922f, 1.0f));
+	GBufferA = RendererInst.CreateRenderTarget("GBufferA", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f));
 	GBufferB = RendererInst.CreateRenderTarget("GBufferB", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.5f, 0.5f, 0.5f, 0.0f));
 	Depth = RendererInst.CreateDepthTexture("Depth", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
 
@@ -173,12 +176,16 @@ void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 
 	Material->OnRender(InCommandList);
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle = GBufferA->RtvCPUDescriptor;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandles[2] = { GBufferA->RtvCPUDescriptor, GBufferB->RtvCPUDescriptor };
 	CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle = CRenderer::GetInstance().GetTexture("Depth")->DsvCPUDescriptor;
-	InCommandList->OMSetRenderTargets(1, &RtvHandle, true, &DsvHandle);
+	InCommandList->OMSetRenderTargets(2, RtvHandles, true, &DsvHandle);
 
-	float ClearColor[] = { 0.529f, 0.808f, 0.922f, 1.0f };
-	InCommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
+	float ClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	InCommandList->ClearRenderTargetView(RtvHandles[0], ClearColor, 0, nullptr);
+
+	float ClearColorB[] = { 0.5f, 0.5f, 0.5f, 0.0f };
+	InCommandList->ClearRenderTargetView(RtvHandles[1], ClearColorB, 0, nullptr);
+
 	InCommandList->ClearDepthStencilView(DsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	InCommandList->SetGraphicsRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());

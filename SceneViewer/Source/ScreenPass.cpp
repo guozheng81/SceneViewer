@@ -23,8 +23,8 @@ void CLightPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::IntRootParameters(0, 1, 0, RootParams, SrvRanges);
-	Material.Build(L"PostProcessing_VSMain.cso", L"PostProcessing_PSMain.cso", RootParams);
+	CMaterial::IntRootParameters(1, 3, 0, RootParams, SrvRanges);
+	Material.Build(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso", RootParams);
 
 	GBufferA = CRenderer::GetInstance().GetTexture("GBufferA");
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
@@ -47,7 +47,10 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList* InCommandList)
 	float ClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	InCommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
 
+	InCommandList->SetGraphicsRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
 	Material.SetShaderResource(InCommandList, 0, GBufferA);
+	Material.SetShaderResource(InCommandList, 1, GBufferB);
+	Material.SetShaderResource(InCommandList, 2, Depth);
 
 	CScreenPass::OnRender(InCommandList);
 }

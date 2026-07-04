@@ -45,7 +45,13 @@ struct PS_INPUT
     float4 WorldPos : TEXCOORD1;
 };
 
-float4 PSMain(PS_INPUT Input) : SV_TARGET
+struct PS_OUTPUT
+{
+    float4 Albedo : SV_TARGET0;
+    float4 Normal : SV_TARGET1;
+};
+
+PS_OUTPUT PSMain(PS_INPUT Input)
 {
     int TexIdx = AllMeshes[MeshIndex].TextureIdx;
     Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
@@ -78,19 +84,15 @@ float4 PSMain(PS_INPUT Input) : SV_TARGET
     NormalColor = (NormalColor * 2.0f - 1.0f);
 
     float3 N = T * NormalColor.x + B * NormalColor.y + WldNormal * NormalColor.z;
-    N = normalize(N);    
-
-    float3 L = DirectionalLight.xyz;
-    float3 V = normalize(CameraOrigin.xyz - WldPos);
+    N = normalize(N);
 
     // todo: pbr params should be read from textures
     float roughness = 0.85f;
     float metal = 0.1f;
-
-    float3 FinalColor;
-    FinalColor = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) + Albedo.rgb * 0.02f;
-        
-    //FinalColor.rgb = (N + 1.0f) * 0.5f;
-        
-    return float4(FinalColor, 1.0f);
+    
+    PS_OUTPUT Output;
+    Albedo.a = roughness;
+    Output.Albedo = Albedo;
+    Output.Normal = float4((N + 1.0f) * 0.5f, metal);
+    return Output;
 }

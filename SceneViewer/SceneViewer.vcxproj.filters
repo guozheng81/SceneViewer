@@ -81,6 +81,6 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Shader\Scene.hlsl" />
-    <CustomBuild Include="Shader\PostProcessing.hlsl" />
+    <CustomBuild Include="Shader\ScreenPass.hlsl" />
   </ItemGroup>
 </Project>

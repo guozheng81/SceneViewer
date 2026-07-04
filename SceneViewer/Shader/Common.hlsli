@@ -81,6 +81,18 @@ float3 ACESFitted(float3 color)
     return clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.0f, 1.0f);
 }
 
+float4 GetWorldPositionFromDepth(float Depth, float2 ScreenUV)
+{
+    float4 ScreenPos;
+    ScreenPos.x = ScreenUV.x * 2.0f - 1.0f;
+    ScreenPos.y = 1.0f - ScreenUV.y * 2.0f;
+    ScreenPos.z = Depth;
+    ScreenPos.w = 1.0f;
+    
+    float4 WldPos = mul(ScreenPos, mInvViewProjection);
+    return (WldPos / WldPos.w);
+}
+
 struct QuadVS_Output
 {
     float4 Pos : SV_POSITION;
