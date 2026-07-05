@@ -5,17 +5,18 @@
 HWND        g_HWnd = nullptr;
 int         g_LastMousePositionX = 0;
 int         g_LastMousePositionY = 0;
+bool        g_InSizeMove = false;
 
 static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-        case WM_CREATE:
-        {
-            LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
-            SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
-        }
-        return 0;
+    case WM_CREATE:
+    {
+        LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+    }
+    return 0;
 
     case WM_KEYDOWN:
         return 0;
@@ -39,7 +40,7 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
         g_LastMousePositionY = (short)HIWORD(lParam);
         SetCapture(g_HWnd);
     }
-        return 0;
+    return 0;
     case WM_LBUTTONUP:
     case WM_MBUTTONUP:
     case WM_RBUTTONUP:
@@ -62,7 +63,44 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
         g_LastMousePositionX = X;
         g_LastMousePositionY = Y;
     }
+    return 0;
+    case WM_SIZE:
+    {
+        int Width = LOWORD(lParam);
+        int Height = HIWORD(lParam);
+
+        // Don't resize DX12 resources if the window is minimized
+        if (wParam == SIZE_MINIMIZED)
+        {
+            break;
+        }
+
+        // Only resize instantly if the user clicked Maximize/Restore, 
+        // or if the window size changed via code (not dragging)
+        if (!g_InSizeMove)
+        {
+            CRenderer::GetInstance().OnResize(Width, Height);
+        }
+    }
+    return 0;
+
+    case WM_ENTERSIZEMOVE:
+        g_InSizeMove = true;
         return 0;
+
+    case WM_EXITSIZEMOVE:
+    {
+        g_InSizeMove = false;
+
+        // Trigger the DirectX 12 resize now that resizing has stopped
+        RECT clientRect;
+        GetClientRect(hWnd, &clientRect);
+        int Width = clientRect.right - clientRect.left;
+        int Height = clientRect.bottom - clientRect.top;
+
+        CRenderer::GetInstance().OnResize(Width, Height);
+    }
+    return 0;
     }
 
     return DefWindowProc(hWnd, message, wParam, lParam);

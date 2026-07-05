@@ -11,6 +11,8 @@ protected:
 	bool bIsDepth;
 	bool bIsDiffuse;
 
+	XMFLOAT4 RTClearColor;
+
 public:
 	CTexture2D(bool InIsRenderTarget, bool InIsDepth, bool InIsDiffuse);
 
@@ -35,9 +37,14 @@ public:
 
 	void ResetUploadResource();
 
-	void CreateShaderResourceView();
+	void CreateShaderResourceView(bool bIsResizing = false);
 
-	void CreateRenderTargetView();
+	void CreateRenderTargetView(bool bIsResizing = false);
+
+	void CreateDepthTextureResource();
+	void CreateRenderTargetResource(DXGI_FORMAT InFormat, XMFLOAT4 InColor);
+
+	void OnResize(UINT InW, UINT InH);
 };
 
 class CMaterial

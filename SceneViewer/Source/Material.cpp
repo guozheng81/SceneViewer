@@ -40,7 +40,7 @@ void CTexture2D::ResetUploadResource()
     }
 }
 
-void CTexture2D::CreateShaderResourceView()
+void CTexture2D::CreateShaderResourceView(bool bIsResizing)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
     SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -57,18 +57,111 @@ void CTexture2D::CreateShaderResourceView()
     SrvDesc.Texture2D.MipLevels = Texture->GetDesc().MipLevels;
     SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    int		SrvDescriptorIndex = -1;
-    SrvCPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
+    if (!bIsResizing)
+    {
+        int		SrvDescriptorIndex = -1;
+        SrvCPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
+        SrvGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
+    }
+        
     CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, SrvCPUDescriptor);
-    SrvGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
 }
 
-void CTexture2D::CreateRenderTargetView()
+void CTexture2D::CreateRenderTargetView(bool bIsResizing)
 {
-    int RtvDescriptorIndex = -1;
-    RtvCPUDescriptor = CRenderer::GetInstance().AllocRtvDescriptor(RtvDescriptorIndex);
+    if (!bIsResizing)
+    {
+        int RtvDescriptorIndex = -1;
+        RtvCPUDescriptor = CRenderer::GetInstance().AllocRtvDescriptor(RtvDescriptorIndex);
+    }
     CRenderer::GetInstance().D3dDevice->CreateRenderTargetView(Texture.Get(), nullptr, RtvCPUDescriptor);
 }
+
+void CTexture2D::OnResize(UINT InW, UINT InH)
+{
+    if (bIsDepth)
+    {
+        Texture.Reset();
+        Width = InW;
+        Height = InH;
+
+        CreateDepthTextureResource();
+
+        D3D12_DEPTH_STENCIL_VIEW_DESC DsvDesc = {};
+        DsvDesc.Format = DXGI_FORMAT_D32_FLOAT; // Cast from R32_TYPELESS
+        DsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        DsvDesc.Texture2D.MipSlice = 0;
+        CRenderer::GetInstance().D3dDevice->CreateDepthStencilView(GetResource(), &DsvDesc, DsvCPUDescriptor);
+
+        CreateShaderResourceView(true);
+    }
+    else if (bIsRenderTarget)
+    {
+        DXGI_FORMAT RTFormat = Texture->GetDesc().Format;
+
+        Texture.Reset();
+        Width = InW;
+        Height = InH;
+
+        CreateRenderTargetResource(RTFormat, RTClearColor);
+        CreateRenderTargetView(true);
+        CreateShaderResourceView(true);
+    }
+}
+
+void CTexture2D::CreateDepthTextureResource()
+{
+    D3D12_RESOURCE_DESC TextureDesc = {};
+    TextureDesc.MipLevels = 1;
+    TextureDesc.Format = DXGI_FORMAT_R32_TYPELESS; // Use typeless so it can be cast to DSV and SRV
+    TextureDesc.Width = Width;
+    TextureDesc.Height = Height;
+    TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    TextureDesc.DepthOrArraySize = 1;
+    TextureDesc.SampleDesc.Count = 1;
+    TextureDesc.SampleDesc.Quality = 0;
+    TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    D3D12_CLEAR_VALUE ClearValue = {};
+    ClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    ClearValue.DepthStencil.Depth = 1.0f;
+    ClearValue.DepthStencil.Stencil = 0;
+
+    CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &ClearValue, IID_PPV_ARGS(Texture.GetAddressOf()));
+}
+
+void CTexture2D::CreateRenderTargetResource(DXGI_FORMAT InFormat, XMFLOAT4 InColor)
+{
+    D3D12_RESOURCE_DESC TextureDesc = {};
+
+    TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    TextureDesc.Alignment = 0;
+    TextureDesc.Width = Width;
+    TextureDesc.Height = Height;
+    TextureDesc.DepthOrArraySize = 1;
+    TextureDesc.MipLevels = 1;
+    TextureDesc.Format = InFormat;
+    TextureDesc.SampleDesc.Count = 1;
+    TextureDesc.SampleDesc.Quality = 0;
+    TextureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+    D3D12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+    RTClearColor = InColor;
+    D3D12_CLEAR_VALUE ClearValue = {};
+    ClearValue.Format = TextureDesc.Format;
+    ClearValue.Color[0] = InColor.x;
+    ClearValue.Color[1] = InColor.y;
+    ClearValue.Color[2] = InColor.z;
+    ClearValue.Color[3] = InColor.w;
+
+    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, IID_PPV_ARGS(Texture.GetAddressOf()));
+
+}
+
+///////////////////////////////////////////
 
 CMaterial::CMaterial()
 {

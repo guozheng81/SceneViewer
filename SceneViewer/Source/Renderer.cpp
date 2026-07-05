@@ -343,7 +343,7 @@ void CRenderer::ResourceBarrier(ID3D12Resource* InResource, D3D12_RESOURCE_STATE
     CommandList->ResourceBarrier(1, &ResBarrier);
 }
 
-void	CRenderer::FlushCommandQueue()
+void	CRenderer::FlushCommandQueue(bool bShouldIncreaseFence)
 {
     SPerFrameContext& CurContext = GetCurrentFrameContext();
     UINT64 FenceValue = CurContext.FenceValue;
@@ -352,7 +352,10 @@ void	CRenderer::FlushCommandQueue()
     FrameFence->SetEventOnCompletion(GetCurrentFrameContext().FenceValue, FrameFenceEvent);
     WaitForSingleObjectEx(FrameFenceEvent, INFINITE, FALSE);
 
-    CurContext.FenceValue = (FenceValue + 1);
+    if (bShouldIncreaseFence)
+    {
+        CurContext.FenceValue = (FenceValue + 1);
+    }
 }
 
 void	CRenderer::Shutdown()
@@ -420,28 +423,9 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
     }
 
     std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, true, false);
-
-    D3D12_RESOURCE_DESC TextureDesc = {};
-    TextureDesc.MipLevels = 1;
-    TextureDesc.Format = DXGI_FORMAT_R32_TYPELESS; // Use typeless so it can be cast to DSV and SRV
-    TextureDesc.Width = InW;
-    TextureDesc.Height = InH;
-    TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    TextureDesc.DepthOrArraySize = 1;
-    TextureDesc.SampleDesc.Count = 1;
-    TextureDesc.SampleDesc.Quality = 0;
-    TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-
-    D3D12_CLEAR_VALUE ClearValue = {};
-    ClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-    ClearValue.DepthStencil.Depth = 1.0f;
-    ClearValue.DepthStencil.Stencil = 0;
-
-    CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
-
     NewTexture->Width = InW;
     NewTexture->Height = InH;
+    NewTexture->CreateDepthTextureResource();
 
     D3D12_DEPTH_STENCIL_VIEW_DESC DsvDesc = {};
     DsvDesc.Format = DXGI_FORMAT_D32_FLOAT; // Cast from R32_TYPELESS
@@ -509,35 +493,10 @@ CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT
     }
 
     std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(true, false, false);
+    NewTexture->Width = (InW != 0 ? InW : ViewportWidth);
+    NewTexture->Height = (InH != 0 ? InH : ViewportHeight);
 
-    D3D12_RESOURCE_DESC TextureDesc = {};
-
-    TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    TextureDesc.Alignment = 0;
-    TextureDesc.Width = (InW != 0? InW : ViewportWidth);
-    TextureDesc.Height = (InH !=0? InH : ViewportHeight);
-    TextureDesc.DepthOrArraySize = 1;
-    TextureDesc.MipLevels = 1;
-    TextureDesc.Format = InFormat;
-    TextureDesc.SampleDesc.Count = 1;
-    TextureDesc.SampleDesc.Quality = 0;
-    TextureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-    D3D12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-
-    D3D12_CLEAR_VALUE ClearValue = {};
-    ClearValue.Format = TextureDesc.Format;
-    ClearValue.Color[0] = InColor.x;
-    ClearValue.Color[1] = InColor.y;
-    ClearValue.Color[2] = InColor.z;
-    ClearValue.Color[3] = InColor.w;
-
-    D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, IID_PPV_ARGS(NewTexture->Texture.GetAddressOf()));
-
-    NewTexture->Width = TextureDesc.Width;
-    NewTexture->Height = TextureDesc.Height;
-
+    NewTexture->CreateRenderTargetResource(InFormat, InColor);
     NewTexture->CreateRenderTargetView();
     NewTexture->CreateShaderResourceView();
 
@@ -574,4 +533,44 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE CRenderer::GetSrvGPUDescriptor(UINT Idx)
     CD3DX12_GPU_DESCRIPTOR_HANDLE Descriptor(SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
     Descriptor.Offset(Idx, SrvDescriptorSize);
     return Descriptor;
+}
+
+void	CRenderer::OnResize(int InW, int InH)
+{
+    FlushCommandQueue(false);
+
+    UINT64 FenceValue = GetCurrentFrameContext().FenceValue;
+
+    for (UINT i = 0; i < TotalFrameCount; ++i)
+    {
+        PerFrameContext[i].FrameBuffer.Reset();
+    }
+
+    SwapChain->ResizeBuffers(TotalFrameCount, InW, InH, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+
+    D3D12_RENDER_TARGET_VIEW_DESC FrameBufferRtvDesc = {};
+    FrameBufferRtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // Apply gamma correction
+    FrameBufferRtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    for (UINT i = 0; i < TotalFrameCount; ++i)
+    {
+        SwapChain->GetBuffer(i, IID_PPV_ARGS(&(PerFrameContext[i].FrameBuffer)));
+        D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), &FrameBufferRtvDesc, PerFrameContext[i].FrameBufferRtvDescriptor);
+    }
+
+    CurrentFrameIndex = SwapChain->GetCurrentBackBufferIndex();
+    GetCurrentFrameContext().FenceValue = (FenceValue + 1);
+
+    ViewportWidth = InW;
+    ViewportHeight = InH;
+
+    Viewport.Width = static_cast<float>(ViewportWidth);
+    Viewport.Height = static_cast<float>(ViewportHeight);
+
+    ScissorRect = CD3DX12_RECT(0, 0, ViewportWidth, ViewportHeight);
+    Scene->GetMainCamera()->SetAspectRatio(InW, InH);
+
+    for (auto TextureIter = AllTextures.begin(); TextureIter != AllTextures.end(); TextureIter++)
+    {
+        TextureIter->second->OnResize(InW, InH);
+    }
 }

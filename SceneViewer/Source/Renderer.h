@@ -82,7 +82,7 @@ protected:
 	UINT	SrvDescriptorSize = 0;
 	int		CurrentSrvDescriptorIndex = 0;
 
-	void	FlushCommandQueue();
+	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 
 	std::unique_ptr<CScene>	Scene;
 
@@ -136,5 +136,7 @@ public:
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor(int& OutDescriptorIdx);
+
+	void	OnResize(int InW, int InH);
 };
 
