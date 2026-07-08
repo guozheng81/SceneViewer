@@ -8,7 +8,7 @@ class CTexture2D;
 class CScreenPass;
 class CMesh;
 
-class CUniformBuffer
+class CBuffer
 {
 protected:
 	ComPtr<ID3D12Resource> Buffer;
@@ -17,14 +17,16 @@ protected:
 	UINT ElementSize = 0;
 	UINT ElementCount = 0;
 
+	bool bUseForUpload = false;
+
 public:
-	CUniformBuffer();
-	~CUniformBuffer();
+	CBuffer();
+	~CBuffer();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE SrvCPUDescriptor = {};
 	CD3DX12_GPU_DESCRIPTOR_HANDLE SrvGPUDescriptor = {};
 
-	void Init(UINT InEleSize, UINT InEleCount);
+	void Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState = D3D12_RESOURCE_STATE_GENERIC_READ, bool bNeedUAV = false);
 	inline ID3D12Resource* GetResource() {
 		return Buffer.Get();
 	}
@@ -43,7 +45,7 @@ struct SPerFrameContext
 	ComPtr<ID3D12Resource>	FrameBuffer;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE FrameBufferRtvDescriptor = {};
 
-	CUniformBuffer ViewBuffer;
+	CBuffer ViewBuffer;
 
 	UINT64 FenceValue = 0;
 };
@@ -61,7 +63,7 @@ protected:
 
 	SPerFrameContext	PerFrameContext[TotalFrameCount];
 
-	ComPtr<ID3D12GraphicsCommandList>	CommandList;
+	ComPtr<ID3D12GraphicsCommandList4>	CommandList;
 
 	void	BeginFrame();
 	void	EndFrame();
@@ -95,7 +97,7 @@ public:
 	UINT	ViewportWidth = 1280;
 	UINT	ViewportHeight = 720;
 
-	ComPtr<ID3D12Device>	D3dDevice;
+	ComPtr<ID3D12Device5>	D3dDevice;
 	ComPtr<ID3D12CommandQueue> D3DCommandQueue;
 
 	std::vector<CD3DX12_STATIC_SAMPLER_DESC> TextureSamplers;

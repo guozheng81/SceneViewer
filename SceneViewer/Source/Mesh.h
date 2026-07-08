@@ -27,6 +27,11 @@ public:
 	void	GetWorldMatrix(XMFLOAT4X4* OutMtx);
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
+
+	inline UINT GetVertexCount() const {	return VertexCount;	}
+	inline UINT GetIndicesCount() const {	return IndicesCount;	}
+
+	D3D12_GPU_VIRTUAL_ADDRESS GetVertexGPUAddress();
 };
 
 

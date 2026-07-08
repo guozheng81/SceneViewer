@@ -57,3 +57,11 @@ void	CMesh::GetWorldMatrix(XMFLOAT4X4* OutMtx)
 	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(WorldMatrix));
 }
 
+D3D12_GPU_VIRTUAL_ADDRESS CMesh::GetVertexGPUAddress()
+{
+	if (VertexBuffer)
+	{
+		return	VertexBuffer->GetGPUVirtualAddress();
+	}
+	return 0;
+}

@@ -305,7 +305,7 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
     InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InTex->SrvGPUDescriptor);
 }
 
-void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer)
+void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer)
 {
     if (InBuffer == nullptr || InBuffer->SrvGPUDescriptor.ptr == 0)
     {
@@ -321,7 +321,7 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
     InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InBuffer->SrvGPUDescriptor);
 }
 
-void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer)
+void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer)
 {
     if (InBuffer == nullptr)
     {

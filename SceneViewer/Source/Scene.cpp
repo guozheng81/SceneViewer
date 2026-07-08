@@ -156,7 +156,7 @@ void CScene::OnLoaded()
 		CurMesh->ResetUploadResource();
 	}
 
-	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(AllMeshes.size()));
+	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(AllMeshes.size()), true);
 	ModelBuffer.SetData(MeshInfoArray.data());
 	ModelBuffer.CreateShaderResourceView();
 }
@@ -210,4 +210,44 @@ void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 		InCommandList->SetGraphicsRoot32BitConstant(MeshIndexParam, i, 0);
 		CurMesh->OnRender(InCommandList);
 	}
+}
+
+void CScene::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
+{
+	UINT MeshNum = AllMeshes.size();
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> GeomDescArray(MeshNum);
+
+	for (UINT i = 0; i < MeshNum; ++i)
+	{
+		auto& CurMesh = AllMeshes[i];
+
+		GeomDescArray[i].Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+		GeomDescArray[i].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
+		// Configure Triangles
+		GeomDescArray[i].Triangles.VertexBuffer.StartAddress = CurMesh->GetVertexGPUAddress();
+		GeomDescArray[i].Triangles.VertexBuffer.StrideInBytes = sizeof(SSceneVertex);
+		GeomDescArray[i].Triangles.VertexCount = CurMesh->GetVertexCount();
+		GeomDescArray[i].Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+	}
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
+	BuildInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+	BuildInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	BuildInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+	BuildInputs.NumDescs = MeshNum;
+	BuildInputs.pGeometryDescs = GeomDescArray.data();
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PreBuildInfo = {};
+	CRenderer::GetInstance().D3dDevice->GetRaytracingAccelerationStructurePrebuildInfo(&BuildInputs, &PreBuildInfo);
+
+	BLAS_ScratchBuffer.Init(PreBuildInfo.ScratchDataSizeInBytes, 1, false);
+	BLAS_ResultBuffer.Init(PreBuildInfo.ResultDataMaxSizeInBytes, 1, false);
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC BuildDesc = {};
+	BuildDesc.Inputs = BuildInputs;
+	BuildDesc.DestAccelerationStructureData = BLAS_ResultBuffer.GetGPUAddress();
+	BuildDesc.ScratchAccelerationStructureData = BLAS_ScratchBuffer.GetGPUAddress();
+
+	InCommandList->BuildRaytracingAccelerationStructure(&BuildDesc, 0, nullptr);
 }

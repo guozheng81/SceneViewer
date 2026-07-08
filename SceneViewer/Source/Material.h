@@ -2,7 +2,7 @@
 
 #include "Utils.h"
 
-class CUniformBuffer;
+class CBuffer;
 
 class CTexture2D
 {
@@ -72,8 +72,8 @@ public:
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 
 	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex);
-	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer);
+	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
 
-	void SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CUniformBuffer* InBuffer);
+	void SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
 };
 

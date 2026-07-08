@@ -3,30 +3,37 @@
 #include "DDSTextureLoader12.h"
 #include "ScreenPass.h"
 
-CUniformBuffer::CUniformBuffer()
+CBuffer::CBuffer()
 {
 }
 
-void CUniformBuffer::Init(UINT InEleSize, UINT InEleCount)
+void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState, bool bNeedUAV)
 {
     ElementSize = InEleSize;
     ElementCount = InEleCount;
+    bUseForUpload = InForUpload;
 
     CD3DX12_HEAP_PROPERTIES HeapProps(D3D12_HEAP_TYPE_UPLOAD);
     CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InEleSize * InEleCount);
 
-    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &BufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&Buffer));
+    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &BufferDesc, InInitState, nullptr, IID_PPV_ARGS(&Buffer));
 
-    Buffer->Map(0, nullptr, reinterpret_cast<void**>(&MappedPtr));
+    if (bUseForUpload)
+    {
+        Buffer->Map(0, nullptr, reinterpret_cast<void**>(&MappedPtr));
+    }
 }
 
-CUniformBuffer::~CUniformBuffer()
+CBuffer::~CBuffer()
 {
-    Buffer->Unmap(0, nullptr);
-    MappedPtr = nullptr;
+    if (bUseForUpload && MappedPtr != nullptr)
+    {
+        Buffer->Unmap(0, nullptr);
+        MappedPtr = nullptr;
+    }
 }
 
-void CUniformBuffer::CreateShaderResourceView()
+void CBuffer::CreateShaderResourceView()
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
     SrvDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -43,12 +50,12 @@ void CUniformBuffer::CreateShaderResourceView()
     SrvGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS CUniformBuffer::GetGPUAddress()
+D3D12_GPU_VIRTUAL_ADDRESS CBuffer::GetGPUAddress()
 {
     return Buffer->GetGPUVirtualAddress();
 }
 
-void CUniformBuffer::SetData(void* InData)
+void CBuffer::SetData(void* InData)
 {
     if (InData == nullptr)
     {
@@ -193,7 +200,7 @@ bool	CRenderer::Init(HWND hWnd)
         RtvHandle.Offset(1, RtvDescriptorSize);
         CurrentRtvDescriptorIndex++;
 
-        PerFrameContext[i].ViewBuffer.Init((UINT)(sizeof(SViewBuffer)), 1);
+        PerFrameContext[i].ViewBuffer.Init((UINT)(sizeof(SViewBuffer)), 1, true);
     }
 
     ///////////////////////////////////////////////

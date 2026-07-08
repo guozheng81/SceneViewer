@@ -16,13 +16,18 @@ protected:
 
 	std::vector<SMeshInfo> MeshInfoArray;
 
-	CUniformBuffer ModelBuffer;
+	CBuffer ModelBuffer;
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesStartDspt = {};
 
 	CTexture2D* GBufferA = nullptr;
 	CTexture2D* GBufferB = nullptr;
 	CTexture2D* Depth = nullptr;
+
+	CBuffer BLAS_ScratchBuffer;
+	CBuffer BLAS_ResultBuffer;
+
+	void BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList);
 
 public:
 	XMVECTOR DirectionalLightDir;
