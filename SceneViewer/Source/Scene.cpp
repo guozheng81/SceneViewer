@@ -19,7 +19,7 @@ CScene::CScene()
 	//Material->PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 }
 
-void CScene::Load(const std::string& InSceneName)
+void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* InCommandList)
 {
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
@@ -112,6 +112,8 @@ void CScene::Load(const std::string& InSceneName)
 			AddMesh(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
 		}
 	}
+
+	BuildAccelerationStructures(InCommandList);
 }
 
 CMesh* CScene::AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName)
@@ -168,7 +170,7 @@ void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
 	DirectionalLightIntensity = Intensity;
 }
 
-void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
+void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
 	CRenderer::GetInstance().ResourceBarrier(GBufferA->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -212,42 +214,57 @@ void CScene::OnRender(ID3D12GraphicsCommandList* InCommandList)
 	}
 }
 
-void CScene::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
+void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList)
 {
 	UINT MeshNum = AllMeshes.size();
-	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> GeomDescArray(MeshNum);
+	if (MeshNum == 0)
+	{
+		return;
+	}
 
 	for (UINT i = 0; i < MeshNum; ++i)
 	{
 		auto& CurMesh = AllMeshes[i];
-
-		GeomDescArray[i].Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-		GeomDescArray[i].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
-
-		// Configure Triangles
-		GeomDescArray[i].Triangles.VertexBuffer.StartAddress = CurMesh->GetVertexGPUAddress();
-		GeomDescArray[i].Triangles.VertexBuffer.StrideInBytes = sizeof(SSceneVertex);
-		GeomDescArray[i].Triangles.VertexCount = CurMesh->GetVertexCount();
-		GeomDescArray[i].Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+		CurMesh->BuildBottomLevelAS(InCommandList);
 	}
 
-	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
-	BuildInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-	BuildInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	BuildInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
-	BuildInputs.NumDescs = MeshNum;
-	BuildInputs.pGeometryDescs = GeomDescArray.data();
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS Inputs = {};
+	Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	Inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+	Inputs.NumDescs = MeshNum;
+	Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PreBuildInfo = {};
-	CRenderer::GetInstance().D3dDevice->GetRaytracingAccelerationStructurePrebuildInfo(&BuildInputs, &PreBuildInfo);
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO Info;
+	CRenderer::GetInstance().D3dDevice->GetRaytracingAccelerationStructurePrebuildInfo(&Inputs, &Info);
 
-	BLAS_ScratchBuffer.Init(PreBuildInfo.ScratchDataSizeInBytes, 1, false);
-	BLAS_ResultBuffer.Init(PreBuildInfo.ResultDataMaxSizeInBytes, 1, false);
+	TLAS_Scratch.Init(Info.ScratchDataSizeInBytes, 1, false, D3D12_RESOURCE_STATE_COMMON, true);
+	TLAS.Init(Info.ResultDataMaxSizeInBytes, 1, false, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, true);
+	TLAS_Instances.Init(sizeof(D3D12_RAYTRACING_INSTANCE_DESC), MeshNum, true);
 
-	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC BuildDesc = {};
-	BuildDesc.Inputs = BuildInputs;
-	BuildDesc.DestAccelerationStructureData = BLAS_ResultBuffer.GetGPUAddress();
-	BuildDesc.ScratchAccelerationStructureData = BLAS_ScratchBuffer.GetGPUAddress();
+	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> InstancesDescArray(MeshNum);
+	for (UINT i = 0; i < MeshNum; ++i)
+	{
+		auto& CurMesh = AllMeshes[i];
 
-	InCommandList->BuildRaytracingAccelerationStructure(&BuildDesc, 0, nullptr);
+		InstancesDescArray[i].InstanceID = i;
+		InstancesDescArray[i].InstanceContributionToHitGroupIndex = 0;
+		InstancesDescArray[i].Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		InstancesDescArray[i].AccelerationStructure = CurMesh->BLAS.GetGPUAddress();
+		InstancesDescArray[i].InstanceMask = 0xFF;
+
+		XMFLOAT4X4 Mtx;
+		CurMesh->GetWorldMatrix(&Mtx);
+		memcpy(InstancesDescArray[i].Transform, &Mtx, sizeof(InstancesDescArray[i].Transform));
+	}
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC AsDesc = {};
+	AsDesc.Inputs = Inputs;
+	AsDesc.Inputs.InstanceDescs = TLAS_Instances.GetGPUAddress();
+	AsDesc.DestAccelerationStructureData = TLAS.GetGPUAddress();
+	AsDesc.ScratchAccelerationStructureData = TLAS_Scratch.GetGPUAddress();
+
+	InCommandList->BuildRaytracingAccelerationStructure(&AsDesc, 0, nullptr);
+
+	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(TLAS.GetResource());
+	InCommandList->ResourceBarrier(1, &UavBarrier);
 }

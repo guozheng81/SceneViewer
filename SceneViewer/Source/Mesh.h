@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.h"
+#include "Renderer.h"
 
 class CMesh
 {
@@ -32,6 +33,11 @@ public:
 	inline UINT GetIndicesCount() const {	return IndicesCount;	}
 
 	D3D12_GPU_VIRTUAL_ADDRESS GetVertexGPUAddress();
+
+	CBuffer BLAS_Scratch;
+	CBuffer BLAS;
+
+	void BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList);
 };
 
 

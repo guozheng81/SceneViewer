@@ -24,10 +24,11 @@ protected:
 	CTexture2D* GBufferB = nullptr;
 	CTexture2D* Depth = nullptr;
 
-	CBuffer BLAS_ScratchBuffer;
-	CBuffer BLAS_ResultBuffer;
+	CBuffer TLAS_Scratch;
+	CBuffer TLAS;
+	CBuffer TLAS_Instances;
 
-	void BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList);
+	void BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList);
 
 public:
 	XMVECTOR DirectionalLightDir;
@@ -36,7 +37,7 @@ public:
 	CScene();
 	~CScene();
 
-	void	Load(const std::string& InSceneName);
+	void	Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* InCommandList);
 
 	CMesh* AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName);
 	CMaterial* GetSceneMaterial();
@@ -48,7 +49,7 @@ public:
 		return &MainCamera;
 	}
 
-	void OnRender(ID3D12GraphicsCommandList* InCommandList);
+	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 
 	void OnLoaded();
 };

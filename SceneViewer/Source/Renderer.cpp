@@ -13,8 +13,12 @@ void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESO
     ElementCount = InEleCount;
     bUseForUpload = InForUpload;
 
-    CD3DX12_HEAP_PROPERTIES HeapProps(D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_HEAP_PROPERTIES HeapProps(bUseForUpload? D3D12_HEAP_TYPE_UPLOAD: D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InEleSize * InEleCount);
+    if (bNeedUAV)
+    {
+        BufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    }
 
     CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &BufferDesc, InInitState, nullptr, IID_PPV_ARGS(&Buffer));
 
@@ -248,7 +252,7 @@ void	CRenderer::LoadScene()
     GetCurrentFrameContext().CommandAllocator->Reset();
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
 
-    Scene->Load("sponza.obj");
+    Scene->Load("sponza.obj", CommandList.Get());
 
     ScreenQuad = std::make_unique<CMesh>();
 

@@ -65,3 +65,38 @@ D3D12_GPU_VIRTUAL_ADDRESS CMesh::GetVertexGPUAddress()
 	}
 	return 0;
 }
+
+void CMesh::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
+{
+	D3D12_RAYTRACING_GEOMETRY_DESC GeomDesc = {};
+
+	GeomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+	GeomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+	GeomDesc.Triangles.VertexBuffer.StartAddress = GetVertexGPUAddress();
+	GeomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(SSceneVertex);
+	GeomDesc.Triangles.VertexCount = VertexCount;
+	GeomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
+	BuildInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+	BuildInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	BuildInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+	BuildInputs.NumDescs = 1;
+	BuildInputs.pGeometryDescs = &GeomDesc;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO PreBuildInfo = {};
+	CRenderer::GetInstance().D3dDevice->GetRaytracingAccelerationStructurePrebuildInfo(&BuildInputs, &PreBuildInfo);
+
+	BLAS_Scratch.Init(PreBuildInfo.ScratchDataSizeInBytes, 1, false, D3D12_RESOURCE_STATE_COMMON, true);
+	BLAS.Init(PreBuildInfo.ResultDataMaxSizeInBytes, 1, false, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, true);
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC BuildDesc = {};
+	BuildDesc.Inputs = BuildInputs;
+	BuildDesc.DestAccelerationStructureData = BLAS.GetGPUAddress();
+	BuildDesc.ScratchAccelerationStructureData = BLAS_Scratch.GetGPUAddress();
+
+	InCommandList->BuildRaytracingAccelerationStructure(&BuildDesc, 0, nullptr);
+
+	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(BLAS.GetResource());
+	InCommandList->ResourceBarrier(1, &UavBarrier);
+}
