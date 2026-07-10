@@ -15,7 +15,7 @@ public:
 	}
 
 	virtual void Init();
-	virtual void OnRender(ID3D12GraphicsCommandList* InCommandList);
+	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 };
 
 class CLightPass : public CScreenPass
@@ -27,14 +27,15 @@ protected:
 
 public:
 	virtual void Init();
-	virtual void OnRender(ID3D12GraphicsCommandList* InCommandList);
+	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 };
 
 class CSimpleRTPass : public CScreenPass
 {
 protected:
+	CTexture2D* SimpleRT = nullptr;
 
 public:
 	virtual void Init();
-	virtual void OnRender(ID3D12GraphicsCommandList* InCommandList);
+	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 };

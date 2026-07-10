@@ -34,6 +34,8 @@ public:
 	XMVECTOR DirectionalLightDir;
 	float	 DirectionalLightIntensity = 4.0f;
 
+	D3D12_GPU_DESCRIPTOR_HANDLE TLASGPUDescriptor = {};
+
 	CScene();
 	~CScene();
 

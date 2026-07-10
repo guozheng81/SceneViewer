@@ -238,12 +238,19 @@ void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCo
     }
 }
 
-void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams)
+void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams, bool bInForRaytracing)
 {
+    bUsedForRaytracing = bInForRaytracing;
+
     auto& Samplers = CRenderer::GetInstance().TextureSamplers;
     CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc = {};
     RootSignatureDesc.Init((UINT)(InRootParams.size()), InRootParams.data(), (UINT)(Samplers.size()), Samplers.data(),
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
+
+    if (bInForRaytracing)
+    {
+        RootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+    }
 
     ComPtr<ID3DBlob> SignBlob;
     ComPtr<ID3DBlob> ErrorBlob;
@@ -302,10 +309,18 @@ void CMaterial::BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
     CRenderer::GetInstance().D3dDevice->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&PSO));
 }
 
-void CMaterial::OnRender(ID3D12GraphicsCommandList* InCommandList)
+void CMaterial::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
-    InCommandList->SetPipelineState(PSO.Get());
-    InCommandList->SetGraphicsRootSignature(RootSign.Get());
+    if (bUsedForRaytracing)
+    {
+        InCommandList->SetPipelineState1(RaytracingPSO.Get());
+        InCommandList->SetComputeRootSignature(RootSign.Get());
+    }
+    else
+    {
+        InCommandList->SetPipelineState(PSO.Get());
+        InCommandList->SetGraphicsRootSignature(RootSign.Get());
+    }
 }
 
 int CMaterial::FindSrvRootParameterIndex(UINT InRegister)
@@ -328,6 +343,39 @@ int CMaterial::FindConstantRootParameterIndex(UINT InRegister)
     return -1;
 }
 
+int CMaterial::FindUavRootParameterIndex(UINT InRegister)
+{
+    auto Iter = UavRegisterMap.find(InRegister);
+    if (Iter != UavRegisterMap.end())
+    {
+        return Iter->second;
+    }
+    return -1;
+}
+
+void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex)
+{
+    if (InTex == nullptr || InTex->UavGPUDescriptor.ptr == 0)
+    {
+        return;
+    }
+
+    int FoundRootParamIdx = FindUavRootParameterIndex(InRegister);
+    if (FoundRootParamIdx == -1)
+    {
+        return;
+    }
+
+    if (bUsedForRaytracing)
+    {
+        InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, InTex->UavGPUDescriptor);
+    }
+    else
+    {
+        InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InTex->UavGPUDescriptor);
+    }
+}
+
 void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex)
 {
     if (InTex == nullptr || InTex->SrvGPUDescriptor.ptr == 0)
@@ -341,7 +389,14 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InTex->SrvGPUDescriptor);
+    if (bUsedForRaytracing)
+    {
+        InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, InTex->SrvGPUDescriptor);
+    }
+    else
+    {
+        InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InTex->SrvGPUDescriptor);
+    }
 }
 
 void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer)
@@ -357,7 +412,14 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InBuffer->SrvGPUDescriptor);
+    if (bUsedForRaytracing)
+    {
+        InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, InBuffer->SrvGPUDescriptor);
+    }
+    else
+    {
+        InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InBuffer->SrvGPUDescriptor);
+    }
 }
 
 void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer)
@@ -373,7 +435,14 @@ void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    InCommandList->SetGraphicsRootConstantBufferView(FoundRootParamIdx, InBuffer->GetGPUAddress());
+    if (bUsedForRaytracing)
+    {
+        InCommandList->SetComputeRootConstantBufferView(FoundRootParamIdx, InBuffer->GetGPUAddress());
+    }
+    else
+    {
+        InCommandList->SetGraphicsRootConstantBufferView(FoundRootParamIdx, InBuffer->GetGPUAddress());
+    }
 }
 
 void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName)

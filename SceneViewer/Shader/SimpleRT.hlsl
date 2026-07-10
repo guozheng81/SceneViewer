@@ -1,3 +1,5 @@
+#include "Common.hlsli"
+
 RaytracingAccelerationStructure RtScene : register(t0);
 RWTexture2D<float4> OutTexture : register(u0);
 

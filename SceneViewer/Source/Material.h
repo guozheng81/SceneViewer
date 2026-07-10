@@ -63,25 +63,30 @@ protected:
 	std::map<UINT, int>	 ConstantRegisterMap;	//  constant buffer and constants
 	std::map<UINT, int>	 UavRegisterMap;
 
+	bool bUsedForRaytracing = false;
+
 public:
 	
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
 
 	int FindSrvRootParameterIndex(UINT InRegister);
 	int FindConstantRootParameterIndex(UINT InRegister);
+	int FindUavRootParameterIndex(UINT InRegister);
 
 	CMaterial();
 
 	static void IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges);
-	void BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams);
+	void BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams, bool bInForRaytracing);
 	void BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName);
 
 	void BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName);
 
-	void OnRender(ID3D12GraphicsCommandList* InCommandList);
+	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 
 	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex);
 	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
+
+	void SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex);
 
 	void SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
 };

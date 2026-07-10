@@ -36,7 +36,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	MeshIdxRootParam.InitAsConstants(1, 1);
 	RootParams.push_back(MeshIdxRootParam);
 
-	Material->BuildRootSignature(RootParams);
+	Material->BuildRootSignature(RootParams, false);
 	Material->BuildPSO(L"Scene_VSMain.cso", L"Scene_PSMain.cso");
 
 	CRenderer& RendererInst = CRenderer::GetInstance();
@@ -162,6 +162,17 @@ void CScene::OnLoaded()
 	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(AllMeshes.size()), true);
 	ModelBuffer.SetData(MeshInfoArray.data());
 	ModelBuffer.CreateShaderResourceView();
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC TLASSrvDesc = {};
+	TLASSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+	TLASSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	TLASSrvDesc.RaytracingAccelerationStructure.Location = TLAS.GetGPUAddress();
+
+	int		SrvDescriptorIndex = -1;
+	D3D12_CPU_DESCRIPTOR_HANDLE CPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
+	TLASGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
+
+	CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(nullptr, &TLASSrvDesc, CPUDescriptor);
 }
 
 void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
