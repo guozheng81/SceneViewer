@@ -24,7 +24,8 @@ void CLightPass::Init()
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
 	CMaterial::IntRootParameters(1, 3, 0, RootParams, SrvRanges);
-	Material.Build(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso", RootParams);
+	Material.BuildRootSignature(RootParams);
+	Material.BuildPSO(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso");
 
 	GBufferA = CRenderer::GetInstance().GetTexture("GBufferA");
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
@@ -51,6 +52,23 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList* InCommandList)
 	Material.SetShaderResource(InCommandList, 0, GBufferA);
 	Material.SetShaderResource(InCommandList, 1, GBufferB);
 	Material.SetShaderResource(InCommandList, 2, Depth);
+
+	CScreenPass::OnRender(InCommandList);
+}
+
+void CSimpleRTPass::Init()
+{
+	CScreenPass::Init();
+
+	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
+	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
+	CMaterial::IntRootParameters(1, 0, 1, RootParams, Ranges);
+	Material.BuildRootSignature(RootParams);
+	Material.BuildRaytracingPSO(L"SimpleRT.cso", L"PrimaryRayGen");
+}
+
+void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList* InCommandList)
+{
 
 	CScreenPass::OnRender(InCommandList);
 }

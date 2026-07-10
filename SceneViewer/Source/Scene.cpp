@@ -36,7 +36,8 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	MeshIdxRootParam.InitAsConstants(1, 1);
 	RootParams.push_back(MeshIdxRootParam);
 
-	Material->Build(L"Scene_VSMain.cso", L"Scene_PSMain.cso", RootParams);
+	Material->BuildRootSignature(RootParams);
+	Material->BuildPSO(L"Scene_VSMain.cso", L"Scene_PSMain.cso");
 
 	CRenderer& RendererInst = CRenderer::GetInstance();
 	GBufferA = RendererInst.CreateRenderTarget("GBufferA", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f));

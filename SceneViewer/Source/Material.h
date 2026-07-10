@@ -7,14 +7,15 @@ class CBuffer;
 class CTexture2D
 {
 protected:
-	bool bIsRenderTarget;
+	bool bNeedRtv;
+	bool bNeedUav;
 	bool bIsDepth;
 	bool bIsDiffuse;
 
 	XMFLOAT4 RTClearColor;
 
 public:
-	CTexture2D(bool InIsRenderTarget, bool InIsDepth, bool InIsDiffuse);
+	CTexture2D(bool InNeedRtv, bool InNeedUav, bool InIsDepth, bool InIsDiffuse);
 
 	ComPtr<ID3D12Resource> Texture;
 
@@ -28,6 +29,9 @@ public:
 	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvCPUDescriptor = {};
 	CD3DX12_CPU_DESCRIPTOR_HANDLE DsvCPUDescriptor = {};
 
+	CD3DX12_CPU_DESCRIPTOR_HANDLE UavCPUDescriptor = {};
+	CD3DX12_GPU_DESCRIPTOR_HANDLE UavGPUDescriptor = {};
+
 	UINT		Width = 0;
 	UINT		Height = 0;
 	
@@ -38,8 +42,8 @@ public:
 	void ResetUploadResource();
 
 	void CreateShaderResourceView(bool bIsResizing = false);
-
 	void CreateRenderTargetView(bool bIsResizing = false);
+	void CreateUnorderedAccessView(bool bIsResizing = false);
 
 	void CreateDepthTextureResource();
 	void CreateRenderTargetResource(DXGI_FORMAT InFormat, XMFLOAT4 InColor);
@@ -53,9 +57,11 @@ protected:
 	ComPtr<ID3D12RootSignature>		RootSign;
 	ComPtr<ID3D12PipelineState>		PSO;
 
+	ComPtr<ID3D12StateObject>		RaytracingPSO;
+
 	std::map<UINT, int>	 SrvRegisterMap;	// textures and structured buffer
 	std::map<UINT, int>	 ConstantRegisterMap;	//  constant buffer and constants
-	std::map<UINT, int>	 RtvRegisterMap;
+	std::map<UINT, int>	 UavRegisterMap;
 
 public:
 	
@@ -66,8 +72,11 @@ public:
 
 	CMaterial();
 
-	static void IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& SrvRanges);
-	void Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName, std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams);
+	static void IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges);
+	void BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams);
+	void BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName);
+
+	void BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName);
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 

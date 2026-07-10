@@ -23,8 +23,9 @@ DXGI_FORMAT ConvertUnormToSrgb(DXGI_FORMAT format)
     }
 }
 
-CTexture2D::CTexture2D(bool InIsRenderTarget, bool InIsDepth, bool InIsDiffuse)
-    :bIsRenderTarget(InIsRenderTarget),
+CTexture2D::CTexture2D(bool InNeedRtv, bool InNeedUav, bool InIsDepth, bool InIsDiffuse)
+    :bNeedRtv(InNeedRtv),
+    bNeedUav(InNeedUav),
     bIsDepth(InIsDepth),
     bIsDiffuse(InIsDiffuse)
 {
@@ -77,6 +78,18 @@ void CTexture2D::CreateRenderTargetView(bool bIsResizing)
     CRenderer::GetInstance().D3dDevice->CreateRenderTargetView(Texture.Get(), nullptr, RtvCPUDescriptor);
 }
 
+void CTexture2D::CreateUnorderedAccessView(bool bIsResizing)
+{
+    if (!bIsResizing)
+    {
+        int		DescriptorIndex = -1;
+        UavCPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(DescriptorIndex);
+        UavGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(DescriptorIndex);
+    }
+
+    CRenderer::GetInstance().D3dDevice->CreateUnorderedAccessView(Texture.Get(), nullptr, nullptr, UavCPUDescriptor);
+}
+
 void CTexture2D::OnResize(UINT InW, UINT InH)
 {
     if (bIsDepth)
@@ -95,7 +108,7 @@ void CTexture2D::OnResize(UINT InW, UINT InH)
 
         CreateShaderResourceView(true);
     }
-    else if (bIsRenderTarget)
+    else if (bNeedRtv || bNeedUav)
     {
         DXGI_FORMAT RTFormat = Texture->GetDesc().Format;
 
@@ -104,7 +117,14 @@ void CTexture2D::OnResize(UINT InW, UINT InH)
         Height = InH;
 
         CreateRenderTargetResource(RTFormat, RTClearColor);
-        CreateRenderTargetView(true);
+        if (bNeedRtv)
+        {
+            CreateRenderTargetView(true);
+        }
+        if (bNeedUav)
+        {
+            CreateUnorderedAccessView(true);
+        }
         CreateShaderResourceView(true);
     }
 }
@@ -145,7 +165,17 @@ void CTexture2D::CreateRenderTargetResource(DXGI_FORMAT InFormat, XMFLOAT4 InCol
     TextureDesc.SampleDesc.Count = 1;
     TextureDesc.SampleDesc.Quality = 0;
     TextureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+    D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_NONE;
+    if (bNeedRtv)
+    {
+        Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    }
+    if (bNeedUav)
+    {
+        Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    }
+    TextureDesc.Flags = Flags;
 
     D3D12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
@@ -177,37 +207,42 @@ CMaterial::CMaterial()
     PSODesc.SampleDesc.Count = 1;
 }
 
-void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InRtvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& SrvRanges)
+void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges)
 {
-    RootParams.resize(InCbvCount + InSrvCount + InRtvCount);
+    RootParams.resize(InCbvCount + InSrvCount + InUavCount);
     int RootIdx = 0;
     for (UINT CbvIdx = 0; CbvIdx < InCbvCount; ++CbvIdx, ++RootIdx)
     {
         RootParams[RootIdx].InitAsConstantBufferView(CbvIdx);
     }
 
-    for (UINT RtvIdx = 0; RtvIdx < InRtvCount; ++RtvIdx, ++RootIdx)
+    int RangeNum = (InSrvCount + InUavCount);
+    if (RangeNum > 0)
     {
-        RootParams[RootIdx].InitAsUnorderedAccessView(RtvIdx);
+        Ranges.resize(RangeNum);
     }
 
-    if (InSrvCount > 0)
+    for (UINT SrvIdx = 0; SrvIdx < InSrvCount; ++SrvIdx, ++RootIdx)
     {
-        SrvRanges.resize(InSrvCount);
-        for (UINT SrvIdx = 0; SrvIdx < InSrvCount; ++SrvIdx, ++RootIdx)
-        {
-            SrvRanges[SrvIdx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SrvIdx, 0);
+        Ranges[SrvIdx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, SrvIdx, 0);
 
-            RootParams[RootIdx].InitAsDescriptorTable(1, &(SrvRanges[SrvIdx]), D3D12_SHADER_VISIBILITY_ALL);
-        }
+        RootParams[RootIdx].InitAsDescriptorTable(1, &(Ranges[SrvIdx]), D3D12_SHADER_VISIBILITY_ALL);
+    }
+
+    for (UINT UavIdx = 0; UavIdx < InUavCount; ++UavIdx, ++RootIdx)
+    {
+        int Idx = InSrvCount + UavIdx;
+        Ranges[Idx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, UavIdx, 0);
+
+        RootParams[RootIdx].InitAsDescriptorTable(1, &(Ranges[Idx]), D3D12_SHADER_VISIBILITY_ALL);
     }
 }
 
-void CMaterial::Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName, std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams)
+void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams)
 {
     auto& Samplers = CRenderer::GetInstance().TextureSamplers;
     CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc = {};
-    RootSignatureDesc.Init((UINT)(InRootParams.size()), InRootParams.data(), (UINT)(Samplers.size()), Samplers.data(), 
+    RootSignatureDesc.Init((UINT)(InRootParams.size()), InRootParams.data(), (UINT)(Samplers.size()), Samplers.data(),
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
 
     ComPtr<ID3DBlob> SignBlob;
@@ -215,6 +250,36 @@ void CMaterial::Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName, std::vector<CD
     D3D12SerializeRootSignature(&RootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &SignBlob, &ErrorBlob);
     CRenderer::GetInstance().D3dDevice->CreateRootSignature(0, SignBlob->GetBufferPointer(), SignBlob->GetBufferSize(), IID_PPV_ARGS(&RootSign));
 
+    for (int i = 0; i < InRootParams.size(); ++i)
+    {
+        const D3D12_ROOT_PARAMETER& Param = InRootParams[i];
+        if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV)
+        {
+            ConstantRegisterMap[Param.Descriptor.ShaderRegister] = i;
+        }
+        else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
+        {
+            ConstantRegisterMap[Param.Constants.ShaderRegister] = i;
+        }
+        else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+        {
+            if (Param.DescriptorTable.NumDescriptorRanges > 0)
+            {
+                if (Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
+                {
+                    SrvRegisterMap[Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister] = i;
+                }
+                else if (Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
+                {
+                    UavRegisterMap[Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister] = i;
+                }
+            }
+        }
+    }
+}
+
+void CMaterial::BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
+{
 	std::vector<D3D12_INPUT_ELEMENT_DESC> InputDescArray =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -235,32 +300,6 @@ void CMaterial::Build(LPCWSTR InVSFileName, LPCWSTR InPSFileName, std::vector<CD
     PSODesc.VS = CD3DX12_SHADER_BYTECODE(VSBlob->GetBufferPointer(), VSBlob->GetBufferSize());
     PSODesc.PS = CD3DX12_SHADER_BYTECODE(PSBlob->GetBufferPointer(), PSBlob->GetBufferSize());
     CRenderer::GetInstance().D3dDevice->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&PSO));
-
-
-    for (int i = 0; i < InRootParams.size(); ++i)
-    {
-        const D3D12_ROOT_PARAMETER& Param = InRootParams[i];
-        if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV)
-        {
-            ConstantRegisterMap[Param.Descriptor.ShaderRegister] = i;
-        }
-        else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
-        {
-            ConstantRegisterMap[Param.Constants.ShaderRegister] = i;
-        }
-        else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
-        {
-            if (Param.DescriptorTable.NumDescriptorRanges > 0 && Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
-            {
-                SrvRegisterMap[Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister] = i;
-            }
-        }
-        else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_UAV)
-        {
-            RtvRegisterMap[Param.Descriptor.ShaderRegister] = i;
-        }
-    }
-
 }
 
 void CMaterial::OnRender(ID3D12GraphicsCommandList* InCommandList)
@@ -335,4 +374,41 @@ void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT
     }
 
     InCommandList->SetGraphicsRootConstantBufferView(FoundRootParamIdx, InBuffer->GetGPUAddress());
+}
+
+void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName)
+{
+    CD3DX12_STATE_OBJECT_DESC RtPSODesc(D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE);
+
+    auto DxilLib = RtPSODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+
+    ComPtr<ID3DBlob> ShaderBlob;
+    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
+
+    D3DReadFileToBlob((ExeDirectory / InFileName).c_str(), &ShaderBlob);
+    D3D12_SHADER_BYTECODE dxilBytecode = { ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize()};
+    DxilLib->SetDXILLibrary(&dxilBytecode);
+
+    DxilLib->DefineExport(InRayGenName);
+    DxilLib->DefineExport(L"PrimaryMiss");
+    DxilLib->DefineExport(L"PrimaryClosestHit");
+
+    auto HitGroup = RtPSODesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    HitGroup->SetHitGroupExport(L"PrimaryHitGroup");
+    HitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+    HitGroup->SetClosestHitShaderImport(L"PrimaryClosestHit");
+    // HitGroup->SetAnyHitShaderImport(L"PrimaryAnyHit"); // Optional
+
+    auto ShaderConfig = RtPSODesc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
+    ShaderConfig->Config(sizeof(float) * 4, sizeof(float) * 2);
+
+    auto GlobalRootSigSubobject = RtPSODesc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+    GlobalRootSigSubobject->SetRootSignature(RootSign.Get());
+
+    auto PipelineConfig = RtPSODesc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
+
+    UINT MaxRecursionDepth = 1;
+    PipelineConfig->Config(MaxRecursionDepth);
+
+    CRenderer::GetInstance().D3dDevice->CreateStateObject(RtPSODesc, IID_PPV_ARGS(&RaytracingPSO));
 }

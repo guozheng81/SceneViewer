@@ -29,3 +29,12 @@ public:
 	virtual void Init();
 	virtual void OnRender(ID3D12GraphicsCommandList* InCommandList);
 };
+
+class CSimpleRTPass : public CScreenPass
+{
+protected:
+
+public:
+	virtual void Init();
+	virtual void OnRender(ID3D12GraphicsCommandList* InCommandList);
+};

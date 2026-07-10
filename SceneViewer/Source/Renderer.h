@@ -130,7 +130,7 @@ public:
 	CTexture2D* LoadTexture(const std::string& InFileName, bool InIsDiffuse = false);
 	CTexture2D* GetTexture(const std::string& InFileName);
 	CTexture2D* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
-	CTexture2D* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0);
+	CTexture2D* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0, bool InNeedRtv = true, bool InNeedUav = false);
 
 	inline int GetCurrentSrvDescriptorIndex() const {	return CurrentSrvDescriptorIndex;	}
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);

@@ -433,7 +433,7 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
         return AllTextures[InName].get();
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, true, false);
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, true, false);
     NewTexture->Width = InW;
     NewTexture->Height = InH;
     NewTexture->CreateDepthTextureResource();
@@ -461,7 +461,7 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffu
         return AllTextures[InFileName].get();
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, InIsDiffuse);
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, false, InIsDiffuse);
 
     std::vector<D3D12_SUBRESOURCE_DATA> Subresources;
 
@@ -496,19 +496,26 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffu
     return ResTex;
 }
 
-CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW, UINT InH)
+CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW, UINT InH, bool InNeedRtv, bool InNeedUav)
 {
     if (AllTextures.find(InName) != AllTextures.end())
     {
         return AllTextures[InName].get();
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(true, false, false);
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(InNeedRtv, InNeedUav, false, false);
     NewTexture->Width = (InW != 0 ? InW : ViewportWidth);
     NewTexture->Height = (InH != 0 ? InH : ViewportHeight);
 
     NewTexture->CreateRenderTargetResource(InFormat, InColor);
-    NewTexture->CreateRenderTargetView();
+    if (InNeedRtv)
+    {
+        NewTexture->CreateRenderTargetView();
+    }
+    if (InNeedUav)
+    {
+        NewTexture->CreateUnorderedAccessView();
+    }
     NewTexture->CreateShaderResourceView();
 
     CTexture2D* ResTex = NewTexture.get();

@@ -83,4 +83,7 @@
     <CustomBuild Include="Shader\Scene.hlsl" />
     <CustomBuild Include="Shader\ScreenPass.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shader\SimpleRT.hlsl" />
+  </ItemGroup>
 </Project>
