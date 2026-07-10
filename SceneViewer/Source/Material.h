@@ -58,6 +58,7 @@ protected:
 	ComPtr<ID3D12PipelineState>		PSO;
 
 	ComPtr<ID3D12StateObject>		RaytracingPSO;
+	ComPtr<ID3D12StateObjectProperties> RtPSOProperties;
 
 	std::map<UINT, int>	 SrvRegisterMap;	// textures and structured buffer
 	std::map<UINT, int>	 ConstantRegisterMap;	//  constant buffer and constants
@@ -89,5 +90,7 @@ public:
 	void SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex);
 
 	void SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
+
+	void* GetRaytracingShaderIdentifier(LPCWSTR InName);
 };
 

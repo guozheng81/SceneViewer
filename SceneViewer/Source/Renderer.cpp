@@ -37,6 +37,18 @@ CBuffer::~CBuffer()
     }
 }
 
+void CBuffer::SetElementData(UINT Idx, void* InData, UINT InSize)
+{
+    if (InSize == 0)
+    {
+        InSize = ElementSize;
+    }
+    if (MappedPtr != nullptr)
+    {
+        memcpy(MappedPtr + ElementSize*Idx, InData, InSize);
+    }
+}
+
 void CBuffer::CreateShaderResourceView()
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
@@ -54,9 +66,9 @@ void CBuffer::CreateShaderResourceView()
     SrvGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS CBuffer::GetGPUAddress()
+D3D12_GPU_VIRTUAL_ADDRESS CBuffer::GetGPUAddress(UINT InIdx)
 {
-    return Buffer->GetGPUVirtualAddress();
+    return Buffer->GetGPUVirtualAddress() + InIdx*ElementSize;
 }
 
 void CBuffer::SetData(void* InData)
@@ -236,6 +248,7 @@ bool	CRenderer::Init(HWND hWnd)
 
     Scene->SetDirectionalLight(XMFLOAT3(-0.3f, -1.0f, -0.3f), 10.0f);
 
+    ScreenPasses.push_back(std::make_unique<CSimpleRTPass>());
     ScreenPasses.push_back(std::make_unique<CLightPass>());
 
     for (auto& Pass : ScreenPasses)

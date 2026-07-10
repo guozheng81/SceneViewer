@@ -2,6 +2,7 @@
 
 #include "Mesh.h"
 #include "Material.h"
+#include "Renderer.h"
 
 class CScreenPass
 {
@@ -25,6 +26,8 @@ protected:
 	CTexture2D* GBufferB = nullptr;
 	CTexture2D* Depth = nullptr;
 
+	CTexture2D* SimpleRT = nullptr;
+
 public:
 	virtual void Init();
 	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
@@ -34,6 +37,7 @@ class CSimpleRTPass : public CScreenPass
 {
 protected:
 	CTexture2D* SimpleRT = nullptr;
+	CBuffer ShaderBindingTable;
 
 public:
 	virtual void Init();

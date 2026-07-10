@@ -31,11 +31,14 @@ public:
 		return Buffer.Get();
 	}
 
-	D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress();
+	D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress(UINT InIdx = 0);
 
 	void CreateShaderResourceView();
 
 	void SetData(void* InData);
+
+	void SetElementData(UINT Idx, void* InData, UINT InSize);
+	inline UINT GetElementSize() const {	return ElementSize;	}
 };
 
 struct SPerFrameContext

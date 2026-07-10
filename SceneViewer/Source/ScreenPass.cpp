@@ -24,13 +24,15 @@ void CLightPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::IntRootParameters(1, 3, 0, RootParams, SrvRanges);
+	CMaterial::IntRootParameters(1, 4, 0, RootParams, SrvRanges);
 	Material.BuildRootSignature(RootParams, false);
 	Material.BuildPSO(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso");
 
 	GBufferA = CRenderer::GetInstance().GetTexture("GBufferA");
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
 	Depth = CRenderer::GetInstance().GetTexture("Depth");
+
+	SimpleRT = CRenderer::GetInstance().GetTexture("SimpleRT");
 }
 
 void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
@@ -54,6 +56,8 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	Material.SetShaderResource(InCommandList, 1, GBufferB);
 	Material.SetShaderResource(InCommandList, 2, Depth);
 
+	Material.SetShaderResource(InCommandList, 3, SimpleRT);
+
 	CScreenPass::OnRender(InCommandList);
 }
 
@@ -68,6 +72,12 @@ void CSimpleRTPass::Init()
 	Material.BuildRaytracingPSO(L"SimpleRT.cso", L"PrimaryRayGen");
 
 	SimpleRT = CRenderer::GetInstance().CreateRenderTarget("SimpleRT", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
+
+	// miss and hitgroup start address need to align with 64, so we have empty entry in the table buffer
+	ShaderBindingTable.Init(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, 3, true);
+	ShaderBindingTable.SetElementData(0, Material.GetRaytracingShaderIdentifier(L"PrimaryRayGen"), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+	ShaderBindingTable.SetElementData(1, Material.GetRaytracingShaderIdentifier(L"PrimaryMiss"), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+	ShaderBindingTable.SetElementData(2, Material.GetRaytracingShaderIdentifier(L"PrimaryHitGroup"), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 }
 
 void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
@@ -85,9 +95,24 @@ void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	Material.SetUav(InCommandList, 0, SimpleRT);
 
-	CScreenPass::OnRender(InCommandList);
-
 	// dispatch raytracing
+	D3D12_DISPATCH_RAYS_DESC RaytraceDesc = {};
+	RaytraceDesc.Width = CRenderer::GetInstance().ViewportWidth;
+	RaytraceDesc.Height = CRenderer::GetInstance().ViewportHeight;
+	RaytraceDesc.Depth = 1;
+
+	RaytraceDesc.RayGenerationShaderRecord.StartAddress = ShaderBindingTable.GetGPUAddress(0);
+	RaytraceDesc.RayGenerationShaderRecord.SizeInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+
+	RaytraceDesc.MissShaderTable.StartAddress = ShaderBindingTable.GetGPUAddress(1);
+	RaytraceDesc.MissShaderTable.StrideInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+	RaytraceDesc.MissShaderTable.SizeInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+
+	RaytraceDesc.HitGroupTable.StartAddress = ShaderBindingTable.GetGPUAddress(2);
+	RaytraceDesc.HitGroupTable.StrideInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+	RaytraceDesc.HitGroupTable.SizeInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+
+	InCommandList->DispatchRays(&RaytraceDesc);
 
 	CRenderer::GetInstance().ResourceBarrier(SimpleRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(SimpleRT->GetResource());

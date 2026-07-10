@@ -12,12 +12,17 @@ Texture2D GBufferA : register(t0);
 Texture2D GBufferB : register(t1);
 Texture2D DepthBuffer : register(t2);
 
+Texture2D SimpleRT : register(t3);
+
 SamplerState LinearSampler : register(s0);
 SamplerState PointSampler : register(s1);
 SamplerState AnisotropicSampler : register(s2);
 
 float4 PSLighting(QuadVS_Output Input) : SV_TARGET
 {
+    // test RT
+    //return SimpleRT.Sample(PointSampler, Input.Uv);
+    
     float4 Albedo = GBufferA.Sample(PointSampler, Input.Uv);
     float4 Normal = GBufferB.Sample(PointSampler, Input.Uv);
 

@@ -268,6 +268,7 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 		CurMesh->GetWorldMatrix(&Mtx);
 		memcpy(InstancesDescArray[i].Transform, &Mtx, sizeof(InstancesDescArray[i].Transform));
 	}
+	TLAS_Instances.SetData(InstancesDescArray.data());
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC AsDesc = {};
 	AsDesc.Inputs = Inputs;

@@ -187,7 +187,7 @@ void CTexture2D::CreateRenderTargetResource(DXGI_FORMAT InFormat, XMFLOAT4 InCol
     ClearValue.Color[2] = InColor.z;
     ClearValue.Color[3] = InColor.w;
 
-    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, IID_PPV_ARGS(Texture.GetAddressOf()));
+    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, (bNeedRtv? &ClearValue : nullptr), IID_PPV_ARGS(Texture.GetAddressOf()));
 
 }
 
@@ -480,4 +480,11 @@ void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName)
     PipelineConfig->Config(MaxRecursionDepth);
 
     CRenderer::GetInstance().D3dDevice->CreateStateObject(RtPSODesc, IID_PPV_ARGS(&RaytracingPSO));
+
+    RaytracingPSO->QueryInterface(IID_PPV_ARGS(&RtPSOProperties));
+}
+
+void* CMaterial::GetRaytracingShaderIdentifier(LPCWSTR InName)
+{
+    return RtPSOProperties->GetShaderIdentifier(InName);
 }
