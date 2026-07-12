@@ -60,9 +60,9 @@ protected:
 	ComPtr<ID3D12StateObject>		RaytracingPSO;
 	ComPtr<ID3D12StateObjectProperties> RtPSOProperties;
 
-	std::map<UINT, int>	 SrvRegisterMap;	// textures and structured buffer
-	std::map<UINT, int>	 ConstantRegisterMap;	//  constant buffer and constants
-	std::map<UINT, int>	 UavRegisterMap;
+	std::vector<std::map<UINT, int>>	 SrvRegisterMap;	// textures and structured buffer
+	std::vector<std::map<UINT, int>>	 ConstantRegisterMap;	//  constant buffer and constants
+	std::vector<std::map<UINT, int>>	 UavRegisterMap;
 
 	bool bUsedForRaytracing = false;
 
@@ -70,9 +70,9 @@ public:
 	
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
 
-	int FindSrvRootParameterIndex(UINT InRegister);
-	int FindConstantRootParameterIndex(UINT InRegister);
-	int FindUavRootParameterIndex(UINT InRegister);
+	int FindSrvRootParameterIndex(UINT InRegister, UINT InSpace = 0);
+	int FindConstantRootParameterIndex(UINT InRegister, UINT InSpace = 0);
+	int FindUavRootParameterIndex(UINT InRegister, UINT InSpace = 0);
 
 	CMaterial();
 

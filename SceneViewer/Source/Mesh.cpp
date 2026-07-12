@@ -100,3 +100,20 @@ void CMesh::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
 	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(BLAS.GetResource());
 	InCommandList->ResourceBarrier(1, &UavBarrier);
 }
+
+void CMesh::CreateVertexShaderResourceView()
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
+	SrvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	SrvDesc.Buffer.FirstElement = 0;
+	SrvDesc.Buffer.NumElements = VertexCount;
+	SrvDesc.Buffer.StructureByteStride = sizeof(SSceneVertex);
+	SrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+	int SrvDescriptorIndex = -1;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE CPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
+	CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(VertexBuffer.Get(), &SrvDesc, CPUDescriptor);
+	VertexSrvGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
+}

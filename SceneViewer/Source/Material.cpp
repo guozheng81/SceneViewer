@@ -262,11 +262,23 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
         const D3D12_ROOT_PARAMETER& Param = InRootParams[i];
         if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV)
         {
-            ConstantRegisterMap[Param.Descriptor.ShaderRegister] = i;
+            UINT Space = Param.Descriptor.RegisterSpace;
+            if (ConstantRegisterMap.size() >= Space)
+            {
+                ConstantRegisterMap.resize(Space + 1);
+            }
+
+            ConstantRegisterMap[Space][Param.Descriptor.ShaderRegister] = i;
         }
         else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
         {
-            ConstantRegisterMap[Param.Constants.ShaderRegister] = i;
+            UINT Space = Param.Constants.RegisterSpace;
+            if (ConstantRegisterMap.size() >= Space)
+            {
+                ConstantRegisterMap.resize(Space + 1);
+            }
+
+            ConstantRegisterMap[Space][Param.Constants.ShaderRegister] = i;
         }
         else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
         {
@@ -274,11 +286,23 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
             {
                 if (Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
                 {
-                    SrvRegisterMap[Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister] = i;
+                    UINT Space = Param.DescriptorTable.pDescriptorRanges[0].RegisterSpace;
+                    if (SrvRegisterMap.size() >= Space)
+                    {
+                        SrvRegisterMap.resize(Space + 1);
+                    }
+
+                    SrvRegisterMap[Space][Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister] = i;
                 }
                 else if (Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
                 {
-                    UavRegisterMap[Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister] = i;
+                    UINT Space = Param.DescriptorTable.pDescriptorRanges[0].RegisterSpace;
+                    if (UavRegisterMap.size() >= Space)
+                    {
+                        UavRegisterMap.resize(Space + 1);
+                    }
+
+                    UavRegisterMap[Space][Param.DescriptorTable.pDescriptorRanges[0].BaseShaderRegister] = i;
                 }
             }
         }
@@ -323,30 +347,45 @@ void CMaterial::OnRender(ID3D12GraphicsCommandList4* InCommandList)
     }
 }
 
-int CMaterial::FindSrvRootParameterIndex(UINT InRegister)
+int CMaterial::FindSrvRootParameterIndex(UINT InRegister, UINT InSpace)
 {
-    auto Iter = SrvRegisterMap.find(InRegister);
-    if (Iter != SrvRegisterMap.end())
+    if (InSpace >= SrvRegisterMap.size())
+    {
+        return -1;
+    }
+
+    auto Iter = SrvRegisterMap[InSpace].find(InRegister);
+    if (Iter != SrvRegisterMap[InSpace].end())
     {
         return Iter->second;
     }
     return -1;
 }
 
-int CMaterial::FindConstantRootParameterIndex(UINT InRegister)
+int CMaterial::FindConstantRootParameterIndex(UINT InRegister, UINT InSpace)
 {
-    auto Iter = ConstantRegisterMap.find(InRegister);
-    if (Iter != ConstantRegisterMap.end())
+    if (InSpace >= ConstantRegisterMap.size())
+    {
+        return -1;
+    }
+
+    auto Iter = ConstantRegisterMap[InSpace].find(InRegister);
+    if (Iter != ConstantRegisterMap[InSpace].end())
     {
         return Iter->second;
     }
     return -1;
 }
 
-int CMaterial::FindUavRootParameterIndex(UINT InRegister)
+int CMaterial::FindUavRootParameterIndex(UINT InRegister, UINT InSpace)
 {
-    auto Iter = UavRegisterMap.find(InRegister);
-    if (Iter != UavRegisterMap.end())
+    if (InSpace >= UavRegisterMap.size())
+    {
+        return -1;
+    }
+
+    auto Iter = UavRegisterMap[InSpace].find(InRegister);
+    if (Iter != UavRegisterMap[InSpace].end())
     {
         return Iter->second;
     }

@@ -18,8 +18,6 @@ protected:
 
 	CBuffer ModelBuffer;
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesStartDspt = {};
-
 	CTexture2D* GBufferA = nullptr;
 	CTexture2D* GBufferB = nullptr;
 	CTexture2D* Depth = nullptr;
@@ -34,6 +32,8 @@ public:
 	XMVECTOR DirectionalLightDir;
 	float	 DirectionalLightIntensity = 4.0f;
 
+	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesDescriptor = {};
+	CD3DX12_GPU_DESCRIPTOR_HANDLE VertexBuffersDescriptor = {};
 	D3D12_GPU_DESCRIPTOR_HANDLE TLASGPUDescriptor = {};
 
 	CScene();
@@ -50,6 +50,8 @@ public:
 	{
 		return &MainCamera;
 	}
+
+	CBuffer* GetModelBuffer() {	return &ModelBuffer;	}
 
 	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 

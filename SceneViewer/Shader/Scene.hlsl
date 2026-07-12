@@ -5,7 +5,7 @@ SamplerState PointSampler : register(s1);
 SamplerState AnisotropicSampler : register(s2);
 
 StructuredBuffer<MeshInfo> AllMeshes: register(t0);
-Texture2D MaterialTextures[] : register(t1);
+Texture2D MaterialTextures[] : register(t0, space1);
 
 cbuffer cbMeshIndex : register(b1)
 {

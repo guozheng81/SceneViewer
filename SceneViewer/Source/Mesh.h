@@ -21,6 +21,7 @@ protected:
 	XMMATRIX WorldMatrix = XMMatrixIdentity();
 
 public:
+	CD3DX12_GPU_DESCRIPTOR_HANDLE VertexSrvGPUDescriptor = {};
 
 	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices);
 	void ResetUploadResource();
@@ -38,6 +39,8 @@ public:
 	CBuffer BLAS;
 
 	void BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList);
+
+	void CreateVertexShaderResourceView();
 };
 
 

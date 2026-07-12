@@ -26,7 +26,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	CMaterial::IntRootParameters(1, 1, 0, RootParams, SrvRanges);
 
 	CD3DX12_DESCRIPTOR_RANGE DescRange;
-	DescRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 1, 0);
+	DescRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, 1);
 
 	CD3DX12_ROOT_PARAMETER TexturesRootParam;
 	TexturesRootParam.InitAsDescriptorTable(1, &DescRange, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -55,7 +55,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	std::vector<SSceneVertex> Verts;
 	std::vector<UINT32>	Indices;
 
-	MaterialTexturesStartDspt = RendererInst.GetSrvGPUDescriptor(RendererInst.GetCurrentSrvDescriptorIndex());
+	MaterialTexturesDescriptor = RendererInst.GetSrvGPUDescriptor(RendererInst.GetCurrentSrvDescriptorIndex());
 
 	if (TinyObjReader.ParseFromFile(AssetPath.string(), ReaderConfig))
 	{
@@ -132,7 +132,7 @@ CMesh* CScene::AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& In
 
 	CurMesh->Init(Verts, Indices);
 
-	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesStartDspt, DiffTexture->SrvGPUDescriptor);
+	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesDescriptor, DiffTexture->SrvGPUDescriptor);
 	SMeshInfo MeshInfo;
 	MeshInfo.TextureIdx = TextureIdx / 2;
 	CurMesh->GetWorldMatrix(&(MeshInfo.WorldMatrix));
@@ -154,9 +154,12 @@ CScene::~CScene()
 
 void CScene::OnLoaded()
 {
+	VertexBuffersDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(CRenderer::GetInstance().GetCurrentSrvDescriptorIndex());
 	for (auto& CurMesh : AllMeshes)
 	{
 		CurMesh->ResetUploadResource();
+		// for raytracing
+		CurMesh->CreateVertexShaderResourceView();
 	}
 
 	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(AllMeshes.size()), true);
@@ -206,10 +209,10 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	Material->SetShaderResource(InCommandList, 0, &ModelBuffer);
 
-	int TexturesParam = Material->FindSrvRootParameterIndex(1);
+	int TexturesParam = Material->FindSrvRootParameterIndex(0, 1);
 	if (TexturesParam >= 0)
 	{
-		InCommandList->SetGraphicsRootDescriptorTable(TexturesParam, MaterialTexturesStartDspt);
+		InCommandList->SetGraphicsRootDescriptorTable(TexturesParam, MaterialTexturesDescriptor);
 	}
 	
 	int MeshIndexParam = Material->FindConstantRootParameterIndex(1);
