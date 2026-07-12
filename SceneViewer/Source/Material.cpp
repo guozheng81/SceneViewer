@@ -339,6 +339,10 @@ void CMaterial::OnRender(ID3D12GraphicsCommandList4* InCommandList)
     {
         InCommandList->SetPipelineState1(RaytracingPSO.Get());
         InCommandList->SetComputeRootSignature(RootSign.Get());
+
+        RaytraceDesc.Width = CRenderer::GetInstance().ViewportWidth;
+        RaytraceDesc.Height = CRenderer::GetInstance().ViewportHeight;
+        RaytraceDesc.Depth = 1;
     }
     else
     {
@@ -484,7 +488,7 @@ void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT
     }
 }
 
-void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName)
+void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray)
 {
     CD3DX12_STATE_OBJECT_DESC RtPSODesc(D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE);
 
@@ -497,15 +501,29 @@ void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName)
     D3D12_SHADER_BYTECODE dxilBytecode = { ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize()};
     DxilLib->SetDXILLibrary(&dxilBytecode);
 
-    DxilLib->DefineExport(InRayGenName);
-    DxilLib->DefineExport(L"PrimaryMiss");
-    DxilLib->DefineExport(L"PrimaryClosestHit");
+    UINT RayTypeCount = InShaderInfoArray.size();
 
-    auto HitGroup = RtPSODesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
-    HitGroup->SetHitGroupExport(L"PrimaryHitGroup");
-    HitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
-    HitGroup->SetClosestHitShaderImport(L"PrimaryClosestHit");
-    // HitGroup->SetAnyHitShaderImport(L"PrimaryAnyHit"); // Optional
+    DxilLib->DefineExport(InRayGenName);
+
+    for (UINT TypeIdx = 0; TypeIdx < RayTypeCount; ++TypeIdx)
+    {
+        DxilLib->DefineExport(InShaderInfoArray[TypeIdx].MissShader.c_str());
+        DxilLib->DefineExport(InShaderInfoArray[TypeIdx].ClosestHitShader.c_str());
+        bool bHasAnyHit = (!InShaderInfoArray[TypeIdx].AnyHitShader.empty());
+        if (bHasAnyHit)
+        {
+            DxilLib->DefineExport(InShaderInfoArray[TypeIdx].AnyHitShader.c_str());
+        }
+
+        auto HitGroup = RtPSODesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+        HitGroup->SetHitGroupExport(InShaderInfoArray[TypeIdx].HitGroup.c_str());
+        HitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+        HitGroup->SetClosestHitShaderImport(InShaderInfoArray[TypeIdx].ClosestHitShader.c_str());
+        if (bHasAnyHit)
+        {
+            HitGroup->SetAnyHitShaderImport(InShaderInfoArray[TypeIdx].AnyHitShader.c_str()); // Optional
+        }
+    }
 
     auto ShaderConfig = RtPSODesc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
     ShaderConfig->Config(sizeof(float) * 4, sizeof(float) * 2);
@@ -521,6 +539,25 @@ void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName)
     CRenderer::GetInstance().D3dDevice->CreateStateObject(RtPSODesc, IID_PPV_ARGS(&RaytracingPSO));
 
     RaytracingPSO->QueryInterface(IID_PPV_ARGS(&RtPSOProperties));
+
+    ShaderBindingTable.Init(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, RayTypeCount*2 + 1, true);
+    ShaderBindingTable.SetElementData(0, RtPSOProperties->GetShaderIdentifier(InRayGenName), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+    for (UINT TypeIdx = 0; TypeIdx < RayTypeCount; ++TypeIdx)
+    {
+        ShaderBindingTable.SetElementData(TypeIdx + 1, RtPSOProperties->GetShaderIdentifier(InShaderInfoArray[TypeIdx].MissShader.c_str()), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+        ShaderBindingTable.SetElementData(TypeIdx + RayTypeCount +1 , RtPSOProperties->GetShaderIdentifier(InShaderInfoArray[TypeIdx].HitGroup.c_str()), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+    }
+
+    RaytraceDesc.RayGenerationShaderRecord.StartAddress = ShaderBindingTable.GetGPUAddress(0);
+    RaytraceDesc.RayGenerationShaderRecord.SizeInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+
+    RaytraceDesc.MissShaderTable.StartAddress = ShaderBindingTable.GetGPUAddress(1);
+    RaytraceDesc.MissShaderTable.StrideInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+    RaytraceDesc.MissShaderTable.SizeInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT*RayTypeCount;
+
+    RaytraceDesc.HitGroupTable.StartAddress = ShaderBindingTable.GetGPUAddress(RayTypeCount+1);
+    RaytraceDesc.HitGroupTable.StrideInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+    RaytraceDesc.HitGroupTable.SizeInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT*RayTypeCount;
 }
 
 void* CMaterial::GetRaytracingShaderIdentifier(LPCWSTR InName)

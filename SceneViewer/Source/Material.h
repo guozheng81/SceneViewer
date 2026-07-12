@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.h"
+#include "Renderer.h"
 
 class CBuffer;
 
@@ -51,6 +52,15 @@ public:
 	void OnResize(UINT InW, UINT InH);
 };
 
+struct SRaytracingShaderInfo
+{
+	std::wstring	MissShader;
+
+	std::wstring	HitGroup;
+	std::wstring	ClosestHitShader;
+	std::wstring	AnyHitShader;
+};
+
 class CMaterial
 {
 protected:
@@ -65,9 +75,11 @@ protected:
 	std::vector<std::map<UINT, int>>	 UavRegisterMap;
 
 	bool bUsedForRaytracing = false;
+	CBuffer ShaderBindingTable;
 
 public:
-	
+	D3D12_DISPATCH_RAYS_DESC RaytraceDesc = {};
+
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
 
 	int FindSrvRootParameterIndex(UINT InRegister, UINT InSpace = 0);
@@ -80,7 +92,7 @@ public:
 	void BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams, bool bInForRaytracing);
 	void BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName);
 
-	void BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName);
+	void BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray);
 
 	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 

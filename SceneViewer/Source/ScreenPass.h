@@ -37,7 +37,6 @@ class CSimpleRTPass : public CScreenPass
 {
 protected:
 	CTexture2D* SimpleRT = nullptr;
-	CBuffer ShaderBindingTable;
 
 public:
 	virtual void Init();
