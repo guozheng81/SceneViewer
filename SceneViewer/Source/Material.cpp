@@ -2,6 +2,7 @@
 #include <filesystem>
 #include "Material.h"
 #include "Renderer.h"
+#include "Scene.h"
 
 DXGI_FORMAT ConvertUnormToSrgb(DXGI_FORMAT format)
 {
@@ -560,7 +561,24 @@ void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, con
     RaytraceDesc.HitGroupTable.SizeInBytes = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT*RayTypeCount;
 }
 
-void* CMaterial::GetRaytracingShaderIdentifier(LPCWSTR InName)
+void CMaterial::SetSceneForRaytracing(ID3D12GraphicsCommandList* InCommandList, CScene* InScene)
 {
-    return RtPSOProperties->GetShaderIdentifier(InName);
+    SetShaderResource(InCommandList, 0, InScene->GetModelBuffer());
+    int TLASParam = FindSrvRootParameterIndex(1);
+    if (TLASParam >= 0)
+    {
+        InCommandList->SetComputeRootDescriptorTable(TLASParam, InScene->TLASGPUDescriptor);
+    }
+
+    int TexturesParam = FindSrvRootParameterIndex(0, 1);
+    if (TexturesParam >= 0)
+    {
+        InCommandList->SetComputeRootDescriptorTable(TexturesParam, InScene->MaterialTexturesDescriptor);
+    }
+
+    int VertexBufferParam = FindSrvRootParameterIndex(0, 2);
+    if (VertexBufferParam >= 0)
+    {
+        InCommandList->SetComputeRootDescriptorTable(VertexBufferParam, InScene->VertexBuffersDescriptor);
+    }
 }

@@ -20,10 +20,12 @@ protected:
 
 	XMMATRIX WorldMatrix = XMMatrixIdentity();
 
+	bool bNeedsAlphaTest = false;
+
 public:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE VertexSrvGPUDescriptor = {};
 
-	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices);
+	void Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, bool bAlphaTest = false);
 	void ResetUploadResource();
 
 	void	GetWorldMatrix(XMFLOAT4X4* OutMtx);

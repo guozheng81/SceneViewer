@@ -1,8 +1,10 @@
 #include "Mesh.h"
 #include "Renderer.h"
 
-void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices)
+void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, bool bAlphaTest)
 {
+	bNeedsAlphaTest = bAlphaTest;
+
 	VertexCount = Verts.size();
 	UINT TotalSize = sizeof(SSceneVertex) * VertexCount;
 	VertexBuffer = CRenderer::GetInstance().CreateDefaultBuffer(Verts.data(), TotalSize, VertexUploadBuffer);
@@ -71,7 +73,7 @@ void CMesh::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
 	D3D12_RAYTRACING_GEOMETRY_DESC GeomDesc = {};
 
 	GeomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-	GeomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+	GeomDesc.Flags = (bNeedsAlphaTest? D3D12_RAYTRACING_GEOMETRY_FLAG_NONE : D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE);
 	GeomDesc.Triangles.VertexBuffer.StartAddress = GetVertexGPUAddress();
 	GeomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(SSceneVertex);
 	GeomDesc.Triangles.VertexCount = VertexCount;

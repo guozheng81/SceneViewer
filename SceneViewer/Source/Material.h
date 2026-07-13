@@ -103,6 +103,6 @@ public:
 
 	void SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
 
-	void* GetRaytracingShaderIdentifier(LPCWSTR InName);
+	void SetSceneForRaytracing(ID3D12GraphicsCommandList* InCommandList, class CScene* InScene);
 };
 

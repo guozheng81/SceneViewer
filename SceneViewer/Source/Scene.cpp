@@ -130,7 +130,9 @@ CMesh* CScene::AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& In
 	CTexture2D* DiffTexture = CRenderer::GetInstance().LoadTexture(InDiffTexName, true);
 	CRenderer::GetInstance().LoadTexture(NormalTextureName);
 
-	CurMesh->Init(Verts, Indices);
+	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
+
+	CurMesh->Init(Verts, Indices, bAlphaTest);
 
 	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesDescriptor, DiffTexture->SrvGPUDescriptor);
 	SMeshInfo MeshInfo;

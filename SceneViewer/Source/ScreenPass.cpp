@@ -86,6 +86,7 @@ void CSimpleRTPass::Init()
 	ShaderInfoArray[0].MissShader = L"PrimaryMiss";
 	ShaderInfoArray[0].HitGroup = L"PrimaryHitGroup";
 	ShaderInfoArray[0].ClosestHitShader = L"PrimaryClosestHit";
+	ShaderInfoArray[0].AnyHitShader = L"PrimaryAnyHit";
 
 	Material.BuildRaytracingPSO(L"SimpleRT.cso", L"PrimaryRayGen", ShaderInfoArray);
 
@@ -100,24 +101,7 @@ void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	Material.OnRender(InCommandList);
 	InCommandList->SetComputeRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
 
-	Material.SetShaderResource(InCommandList, 0, CRenderer::GetInstance().GetScene()->GetModelBuffer());
-	int TLASParam = Material.FindSrvRootParameterIndex(1);
-	if (TLASParam >= 0)
-	{
-		InCommandList->SetComputeRootDescriptorTable(TLASParam, CRenderer::GetInstance().GetScene()->TLASGPUDescriptor);
-	}
-
-	int TexturesParam = Material.FindSrvRootParameterIndex(0, 1);
-	if (TexturesParam >= 0)
-	{
-		InCommandList->SetComputeRootDescriptorTable(TexturesParam, CRenderer::GetInstance().GetScene()->MaterialTexturesDescriptor);
-	}
-
-	int VertexBufferParam = Material.FindSrvRootParameterIndex(0, 2);
-	if (VertexBufferParam >= 0)
-	{
-		InCommandList->SetComputeRootDescriptorTable(VertexBufferParam, CRenderer::GetInstance().GetScene()->VertexBuffersDescriptor);
-	}
+	Material.SetSceneForRaytracing(InCommandList, CRenderer::GetInstance().GetScene());
 
 	Material.SetUav(InCommandList, 0, SimpleRT);
 

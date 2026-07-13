@@ -131,6 +131,7 @@
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="Shader\Common.hlsli" />
+    <None Include="Shader\RaytracingCommon.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SceneViewer.cpp" />
