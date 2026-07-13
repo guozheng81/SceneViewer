@@ -7,6 +7,10 @@ int         g_LastMousePositionX = 0;
 int         g_LastMousePositionY = 0;
 bool        g_InSizeMove = false;
 
+float       g_DirLightX = -0.3f;
+float       g_DirLightZ = -0.15f;
+float       g_DirLightInensity = 10.0f;
+
 static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -57,6 +61,19 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
             if (Scene)
             {
                 Scene->GetMainCamera()->OnInputMouse(X - g_LastMousePositionX, Y - g_LastMousePositionY);
+            }
+        }
+        else if (MK_RBUTTON & wParam)
+        {
+            CScene* Scene = CRenderer::GetInstance().GetScene();
+            if (Scene)
+            {
+                g_DirLightX += (Y - g_LastMousePositionY) * 0.01f;
+                g_DirLightX = std::clamp(g_DirLightX, -2.0f, 2.0f);
+                g_DirLightZ += (X - g_LastMousePositionX) * 0.01f;
+                g_DirLightZ = std::clamp(g_DirLightZ, -2.0f, 2.0f);
+
+                Scene->SetDirectionalLight(XMFLOAT3(g_DirLightX, -1.0f, g_DirLightZ), g_DirLightInensity);
             }
         }
 

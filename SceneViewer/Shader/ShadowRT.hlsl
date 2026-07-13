@@ -17,7 +17,7 @@ void ShadowRayGen()
     uint3 Dimensions = DispatchRaysDimensions();
     float2 ScreenUv = float2(launchIndex.x / (float) Dimensions.x, launchIndex.y / (float) Dimensions.y);
     
-    float4 Normal = GBufferB.SampleLevel(PointSampler, ScreenUv, 0);
+    float4 Normal = GBufferB.Load(launchIndex);
     
     float3 N = Normal.xyz * 2.0f - 1.0f;
     if (length(N) < 0.01f)
@@ -27,7 +27,7 @@ void ShadowRayGen()
     }
     N = normalize(N);
 
-    float Depth = DepthBuffer.SampleLevel(PointSampler, ScreenUv, 0).r;
+    float Depth = DepthBuffer.Load(launchIndex).r;
     float3 WldPos = GetWorldPositionFromDepth(Depth, ScreenUv).xyz + N*1.5f;
     
     RayDesc Ray;
