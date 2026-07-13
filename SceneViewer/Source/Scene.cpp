@@ -229,6 +229,9 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 		InCommandList->SetGraphicsRoot32BitConstant(MeshIndexParam, i, 0);
 		CurMesh->OnRender(InCommandList);
 	}
+
+	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	CRenderer::GetInstance().ResourceBarrier(Depth->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList)

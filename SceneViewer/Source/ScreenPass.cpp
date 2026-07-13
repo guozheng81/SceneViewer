@@ -24,13 +24,15 @@ void CLightPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::IntRootParameters(1, 4, 0, RootParams, SrvRanges);
+	CMaterial::IntRootParameters(1, 5, 0, RootParams, SrvRanges);
 	Material.BuildRootSignature(RootParams, false);
 	Material.BuildPSO(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso");
 
 	GBufferA = CRenderer::GetInstance().GetTexture("GBufferA");
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
 	Depth = CRenderer::GetInstance().GetTexture("Depth");
+
+	ShadowRT = CRenderer::GetInstance().GetTexture("ShadowRT");
 
 	SimpleRT = CRenderer::GetInstance().GetTexture("SimpleRT");
 }
@@ -40,8 +42,6 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	CRenderer::GetInstance().ResourceBarrier(CRenderer::GetInstance().GetCurrentFrameContext().FrameBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	CRenderer::GetInstance().ResourceBarrier(GBufferA->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	CRenderer::GetInstance().ResourceBarrier(Depth->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 	Material.OnRender(InCommandList);
 
@@ -56,7 +56,8 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	Material.SetShaderResource(InCommandList, 1, GBufferB);
 	Material.SetShaderResource(InCommandList, 2, Depth);
 
-	Material.SetShaderResource(InCommandList, 3, SimpleRT);
+	Material.SetShaderResource(InCommandList, 3, ShadowRT);
+	Material.SetShaderResource(InCommandList, 4, SimpleRT);
 
 	CScreenPass::OnRender(InCommandList);
 }
@@ -110,5 +111,60 @@ void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	CRenderer::GetInstance().ResourceBarrier(SimpleRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(SimpleRT->GetResource());
+	InCommandList->ResourceBarrier(1, &UavBarrier);
+}
+
+void CShadowRTPass::Init()
+{
+	CScreenPass::Init();
+
+	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
+	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
+	CMaterial::IntRootParameters(1, 4, 1, RootParams, Ranges);
+
+	CD3DX12_DESCRIPTOR_RANGE DescRange1;
+	DescRange1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, 1);
+	CD3DX12_ROOT_PARAMETER TexturesRootParam;
+	TexturesRootParam.InitAsDescriptorTable(1, &DescRange1, D3D12_SHADER_VISIBILITY_ALL);
+	RootParams.push_back(TexturesRootParam);
+
+	CD3DX12_DESCRIPTOR_RANGE DescRange2;
+	DescRange2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, 2);
+	CD3DX12_ROOT_PARAMETER VertBuffersRootParam;
+	VertBuffersRootParam.InitAsDescriptorTable(1, &DescRange2, D3D12_SHADER_VISIBILITY_ALL);
+	RootParams.push_back(VertBuffersRootParam);
+
+	Material.BuildRootSignature(RootParams, true);
+	std::vector<SRaytracingShaderInfo> ShaderInfoArray(1);
+	ShaderInfoArray[0].MissShader = L"ShadowMiss";
+	ShaderInfoArray[0].HitGroup = L"ShadowHitGroup";
+	ShaderInfoArray[0].ClosestHitShader = L"ShadowClosestHit";
+	ShaderInfoArray[0].AnyHitShader = L"ShadowAnyHit";
+
+	Material.BuildRaytracingPSO(L"ShadowRT.cso", L"ShadowRayGen", ShaderInfoArray);
+
+	ShadowRT = CRenderer::GetInstance().CreateRenderTarget("ShadowRT", DXGI_FORMAT_R8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
+	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
+	Depth = CRenderer::GetInstance().GetTexture("Depth");
+}
+
+void CShadowRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
+{
+	CRenderer::GetInstance().ResourceBarrier(ShadowRT->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	Material.OnRender(InCommandList);
+	InCommandList->SetComputeRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
+
+	Material.SetShaderResource(InCommandList, 2, GBufferB);
+	Material.SetShaderResource(InCommandList, 3, Depth);
+	Material.SetSceneForRaytracing(InCommandList, CRenderer::GetInstance().GetScene());
+
+	Material.SetUav(InCommandList, 0, ShadowRT);
+
+	// dispatch raytracing
+	InCommandList->DispatchRays(&(Material.RaytraceDesc));
+
+	CRenderer::GetInstance().ResourceBarrier(ShadowRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(ShadowRT->GetResource());
 	InCommandList->ResourceBarrier(1, &UavBarrier);
 }

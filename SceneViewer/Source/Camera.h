@@ -9,7 +9,7 @@ protected:
 	float		FOV = 0.3f;		// radians
 
 	float		NearPlane = 1.0f;
-	float		FarPlane = 10000.0f;
+	float		FarPlane = 5000.0f;
 
 	float		Yaw = 0.0f;
 	float		YawScale = 0.002f;

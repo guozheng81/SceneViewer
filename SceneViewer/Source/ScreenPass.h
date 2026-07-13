@@ -26,6 +26,7 @@ protected:
 	CTexture2D* GBufferB = nullptr;
 	CTexture2D* Depth = nullptr;
 
+	CTexture2D* ShadowRT = nullptr;
 	CTexture2D* SimpleRT = nullptr;
 
 public:
@@ -37,6 +38,18 @@ class CSimpleRTPass : public CScreenPass
 {
 protected:
 	CTexture2D* SimpleRT = nullptr;
+
+public:
+	virtual void Init();
+	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
+};
+
+class CShadowRTPass : public CScreenPass
+{
+protected:
+	CTexture2D* GBufferB = nullptr;
+	CTexture2D* ShadowRT = nullptr;
+	CTexture2D* Depth = nullptr;
 
 public:
 	virtual void Init();

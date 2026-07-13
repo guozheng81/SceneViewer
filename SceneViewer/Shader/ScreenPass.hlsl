@@ -12,7 +12,8 @@ Texture2D GBufferA : register(t0);
 Texture2D GBufferB : register(t1);
 Texture2D DepthBuffer : register(t2);
 
-Texture2D SimpleRT : register(t3);
+Texture2D ShadowRT : register(t3);
+Texture2D SimpleRT : register(t4);
 
 SamplerState LinearSampler : register(s0);
 SamplerState PointSampler : register(s1);
@@ -43,7 +44,9 @@ float4 PSLighting(QuadVS_Output Input) : SV_TARGET
     float roughness = Albedo.a;
     float metal = Normal.a;
 
-    float3 Color = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) + Albedo.rgb * 0.02f;
+    float Shadow = ShadowRT.Sample(LinearSampler, Input.Uv).r;
+
+    float3 Color = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w)*Shadow + Albedo.rgb * 0.02f;
     
     Color.rgb = ACESFitted(Color.rgb);
 

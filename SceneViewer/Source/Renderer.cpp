@@ -246,9 +246,10 @@ bool	CRenderer::Init(HWND hWnd)
         CurTexture.second->ResetUploadResource();
     }
 
-    Scene->SetDirectionalLight(XMFLOAT3(-0.3f, -1.0f, -0.3f), 10.0f);
+    Scene->SetDirectionalLight(XMFLOAT3(-0.3f, -1.0f, -0.15f), 10.0f);
 
     ScreenPasses.push_back(std::make_unique<CSimpleRTPass>());
+    ScreenPasses.push_back(std::make_unique<CShadowRTPass>());
     ScreenPasses.push_back(std::make_unique<CLightPass>());
 
     for (auto& Pass : ScreenPasses)
