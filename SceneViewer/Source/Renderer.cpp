@@ -30,10 +30,25 @@ void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESO
 
 CBuffer::~CBuffer()
 {
+    ResetMappedData();
+}
+
+void CBuffer::ResetMappedData()
+{
     if (bUseForUpload && MappedPtr != nullptr)
     {
         Buffer->Unmap(0, nullptr);
         MappedPtr = nullptr;
+    }
+}
+
+void CBuffer::Reset()
+{
+    ResetMappedData();
+
+    if (Buffer)
+    {
+        Buffer.Reset();
     }
 }
 

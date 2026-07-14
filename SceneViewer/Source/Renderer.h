@@ -39,6 +39,9 @@ public:
 
 	void SetElementData(UINT Idx, void* InData, UINT InSize);
 	inline UINT GetElementSize() const {	return ElementSize;	}
+
+	void ResetMappedData();
+	void Reset();
 };
 
 struct SPerFrameContext

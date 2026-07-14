@@ -36,6 +36,7 @@ void CMesh::ResetUploadResource()
 		IndexUploadBuffer.Reset();
 	}
 
+	BLAS_Scratch.Reset();
 }
 
 void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
@@ -82,7 +83,7 @@ void CMesh::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
 	BuildInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
 	BuildInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	BuildInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+	BuildInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 	BuildInputs.NumDescs = 1;
 	BuildInputs.pGeometryDescs = &GeomDesc;
 
