@@ -83,9 +83,9 @@ protected:
 	ComPtr<ID3D12DescriptorHeap>	DsvDescriptorHeap;
 	UINT	DsvDescriptorSize = 0;
 
-	ComPtr<ID3D12DescriptorHeap>	SrvDescriptorHeap;
-	UINT	SrvDescriptorSize = 0;
-	int		CurrentSrvDescriptorIndex = 0;
+	ComPtr<ID3D12DescriptorHeap>	SrvUavDescriptorHeap;
+	UINT	SrvUavDescriptorSize = 0;
+	int		CurrentSrvUavDescriptorIndex = 0;
 
 	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 
@@ -135,9 +135,9 @@ public:
 	CTexture2D* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
 	CTexture2D* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0, bool InNeedRtv = true, bool InNeedUav = false);
 
-	inline int GetCurrentSrvDescriptorIndex() const {	return CurrentSrvDescriptorIndex;	}
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvGPUDescriptor(UINT Idx);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvDescriptor(int& OutDescriptorIdx);
+	inline int GetCurrentSrvUavDescriptorIndex() const {	return CurrentSrvUavDescriptorIndex;	}
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvUavGPUDescriptor(UINT Idx);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvUavDescriptor(int& OutDescriptorIdx);
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor(int& OutDescriptorIdx);

@@ -23,14 +23,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 {
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::IntRootParameters(1, 1, 0, RootParams, SrvRanges);
-
-	CD3DX12_DESCRIPTOR_RANGE DescRange;
-	DescRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, 1);
-
-	CD3DX12_ROOT_PARAMETER TexturesRootParam;
-	TexturesRootParam.InitAsDescriptorTable(1, &DescRange, D3D12_SHADER_VISIBILITY_PIXEL);
-	RootParams.push_back(TexturesRootParam);
+	CMaterial::IntRootParameters(1, 1, 0, 1, RootParams, SrvRanges);
 
 	CD3DX12_ROOT_PARAMETER MeshIdxRootParam;
 	MeshIdxRootParam.InitAsConstants(1, 1);
@@ -55,7 +48,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	std::vector<SSceneVertex> Verts;
 	std::vector<UINT32>	Indices;
 
-	MaterialTexturesDescriptor = RendererInst.GetSrvGPUDescriptor(RendererInst.GetCurrentSrvDescriptorIndex());
+	MaterialTexturesDescriptor = RendererInst.GetSrvUavGPUDescriptor(RendererInst.GetCurrentSrvUavDescriptorIndex());
 
 	if (TinyObjReader.ParseFromFile(AssetPath.string(), ReaderConfig))
 	{
@@ -156,7 +149,7 @@ CScene::~CScene()
 
 void CScene::OnLoaded()
 {
-	VertexBuffersDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(CRenderer::GetInstance().GetCurrentSrvDescriptorIndex());
+	VertexBuffersDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(CRenderer::GetInstance().GetCurrentSrvUavDescriptorIndex());
 	for (auto& CurMesh : AllMeshes)
 	{
 		CurMesh->ResetUploadResource();
@@ -174,8 +167,8 @@ void CScene::OnLoaded()
 	TLASSrvDesc.RaytracingAccelerationStructure.Location = TLAS.GetGPUAddress();
 
 	int		SrvDescriptorIndex = -1;
-	D3D12_CPU_DESCRIPTOR_HANDLE CPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
-	TLASGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
+	D3D12_CPU_DESCRIPTOR_HANDLE CPUDescriptor = CRenderer::GetInstance().AllocSrvUavDescriptor(SrvDescriptorIndex);
+	TLASGPUDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(SrvDescriptorIndex);
 
 	CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(nullptr, &TLASSrvDesc, CPUDescriptor);
 }

@@ -24,7 +24,7 @@ void CLightPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::IntRootParameters(1, 5, 0, RootParams, SrvRanges);
+	CMaterial::IntRootParameters(1, 5, 0, 0, RootParams, SrvRanges);
 	Material.BuildRootSignature(RootParams, false);
 	Material.BuildPSO(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso");
 
@@ -68,19 +68,7 @@ void CSimpleRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::IntRootParameters(1, 2, 1, RootParams, Ranges);
-
-	CD3DX12_DESCRIPTOR_RANGE DescRange1;
-	DescRange1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, 1);
-	CD3DX12_ROOT_PARAMETER TexturesRootParam;
-	TexturesRootParam.InitAsDescriptorTable(1, &DescRange1, D3D12_SHADER_VISIBILITY_ALL);
-	RootParams.push_back(TexturesRootParam);
-
-	CD3DX12_DESCRIPTOR_RANGE DescRange2;
-	DescRange2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, 2);
-	CD3DX12_ROOT_PARAMETER VertBuffersRootParam;
-	VertBuffersRootParam.InitAsDescriptorTable(1, &DescRange2, D3D12_SHADER_VISIBILITY_ALL);
-	RootParams.push_back(VertBuffersRootParam);
+	CMaterial::IntRootParameters(1, 2, 1, 2, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(1);
@@ -120,19 +108,7 @@ void CShadowRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::IntRootParameters(1, 4, 1, RootParams, Ranges);
-
-	CD3DX12_DESCRIPTOR_RANGE DescRange1;
-	DescRange1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, 1);
-	CD3DX12_ROOT_PARAMETER TexturesRootParam;
-	TexturesRootParam.InitAsDescriptorTable(1, &DescRange1, D3D12_SHADER_VISIBILITY_ALL);
-	RootParams.push_back(TexturesRootParam);
-
-	CD3DX12_DESCRIPTOR_RANGE DescRange2;
-	DescRange2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, 2);
-	CD3DX12_ROOT_PARAMETER VertBuffersRootParam;
-	VertBuffersRootParam.InitAsDescriptorTable(1, &DescRange2, D3D12_SHADER_VISIBILITY_ALL);
-	RootParams.push_back(VertBuffersRootParam);
+	CMaterial::IntRootParameters(1, 4, 1, 2, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(1);

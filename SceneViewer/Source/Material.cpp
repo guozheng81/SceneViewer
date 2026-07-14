@@ -62,8 +62,8 @@ void CTexture2D::CreateShaderResourceView(bool bIsResizing)
     if (!bIsResizing)
     {
         int		SrvDescriptorIndex = -1;
-        SrvCPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(SrvDescriptorIndex);
-        SrvGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(SrvDescriptorIndex);
+        SrvCPUDescriptor = CRenderer::GetInstance().AllocSrvUavDescriptor(SrvDescriptorIndex);
+        SrvGPUDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(SrvDescriptorIndex);
     }
         
     CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, SrvCPUDescriptor);
@@ -84,8 +84,8 @@ void CTexture2D::CreateUnorderedAccessView(bool bIsResizing)
     if (!bIsResizing)
     {
         int		DescriptorIndex = -1;
-        UavCPUDescriptor = CRenderer::GetInstance().AllocSrvDescriptor(DescriptorIndex);
-        UavGPUDescriptor = CRenderer::GetInstance().GetSrvGPUDescriptor(DescriptorIndex);
+        UavCPUDescriptor = CRenderer::GetInstance().AllocSrvUavDescriptor(DescriptorIndex);
+        UavGPUDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(DescriptorIndex);
     }
 
     CRenderer::GetInstance().D3dDevice->CreateUnorderedAccessView(Texture.Get(), nullptr, nullptr, UavCPUDescriptor);
@@ -208,16 +208,16 @@ CMaterial::CMaterial()
     PSODesc.SampleDesc.Count = 1;
 }
 
-void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges)
+void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, UINT InUnboundSrvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges)
 {
-    RootParams.resize(InCbvCount + InSrvCount + InUavCount);
+    RootParams.resize(InCbvCount + InSrvCount + InUavCount + InUnboundSrvCount);
     int RootIdx = 0;
     for (UINT CbvIdx = 0; CbvIdx < InCbvCount; ++CbvIdx, ++RootIdx)
     {
         RootParams[RootIdx].InitAsConstantBufferView(CbvIdx);
     }
 
-    int RangeNum = (InSrvCount + InUavCount);
+    int RangeNum = (InSrvCount + InUavCount + InUnboundSrvCount);
     if (RangeNum > 0)
     {
         Ranges.resize(RangeNum);
@@ -235,6 +235,13 @@ void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCo
         int Idx = InSrvCount + UavIdx;
         Ranges[Idx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, UavIdx, 0);
 
+        RootParams[RootIdx].InitAsDescriptorTable(1, &(Ranges[Idx]), D3D12_SHADER_VISIBILITY_ALL);
+    }
+
+    for (UINT UnboundIdx = 0; UnboundIdx < InUnboundSrvCount; ++UnboundIdx, ++RootIdx)
+    {
+        int Idx = InSrvCount + InUavCount + UnboundIdx;
+        Ranges[Idx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, UnboundIdx + 1);
         RootParams[RootIdx].InitAsDescriptorTable(1, &(Ranges[Idx]), D3D12_SHADER_VISIBILITY_ALL);
     }
 }
