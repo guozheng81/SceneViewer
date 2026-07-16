@@ -18,8 +18,9 @@ struct SViewBuffer
 	XMFLOAT4X4	InvViewProjectionMatrix;
 	XMFLOAT4	CameraOrigin;
 	XMFLOAT4	DirectionalLight;
+	UINT		FrameNumber;
 
-	float padding[24];
+	float padding[23];
 };
 
 struct SMeshInfo

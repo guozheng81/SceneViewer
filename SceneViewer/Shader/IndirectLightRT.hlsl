@@ -30,7 +30,7 @@ void IndirectRayGen()
     float Depth = DepthBuffer.Load(launchIndex).r;
     float3 WldPos = GetWorldPositionFromDepth(Depth, ScreenUv).xyz + N * 1.5f;
     
-    uint RandSeed = HashInitialize(launchIndex.x + launchIndex.y * Dimensions.x);
+    uint RandSeed = HashInitialize(launchIndex.x + launchIndex.y * Dimensions.x + FrameNumber * 1664525u);
     
     uint SampleCount = 2;
     float3 FinalColor = float3(0.0f, 0.0f, 0.0f);

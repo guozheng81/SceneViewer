@@ -4,6 +4,7 @@ cbuffer cbView : register(b0)
     matrix mInvViewProjection;
     float4 CameraOrigin;
     float4 DirectionalLight;
+    uint FrameNumber;
 };
 
 struct MeshInfo

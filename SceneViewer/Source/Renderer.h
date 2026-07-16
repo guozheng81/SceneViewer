@@ -79,6 +79,8 @@ protected:
 
 	SViewBuffer	 ViewBuffer;
 
+	UINT	AccumulatedFrameNumber = 0;
+
 	ComPtr<ID3D12DescriptorHeap>	RtvDescriptorHeap;
 	UINT	RtvDescriptorSize = 0;
 	int		CurrentRtvDescriptorIndex = 0;

@@ -343,6 +343,8 @@ void	CRenderer::UpdateViewBuffer()
         return;
     }
 
+    AccumulatedFrameNumber++;
+
     CCamera* Cam = Scene->GetMainCamera();
     Cam->OnUpdate();
 
@@ -352,6 +354,7 @@ void	CRenderer::UpdateViewBuffer()
     XMFLOAT3 LightDir;
     XMStoreFloat3(&LightDir, Scene->DirectionalLightDir);
     ViewBuffer.DirectionalLight = XMFLOAT4(-LightDir.x, -LightDir.y, -LightDir.z, Scene->DirectionalLightIntensity);
+    ViewBuffer.FrameNumber = AccumulatedFrameNumber;
 
     GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
 }
