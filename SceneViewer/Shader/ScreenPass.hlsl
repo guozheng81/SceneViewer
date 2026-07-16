@@ -13,7 +13,7 @@ Texture2D GBufferB : register(t1);
 Texture2D DepthBuffer : register(t2);
 
 Texture2D ShadowRT : register(t3);
-Texture2D SimpleRT : register(t4);
+Texture2D IndirectLightRT : register(t4);
 
 SamplerState LinearSampler : register(s0);
 SamplerState PointSampler : register(s1);
@@ -21,8 +21,8 @@ SamplerState AnisotropicSampler : register(s2);
 
 float4 PSLighting(QuadVS_Output Input) : SV_TARGET
 {
-    // test RT
-    //return SimpleRT.Sample(PointSampler, Input.Uv);
+    // test indirect lihghting
+    //return IndirectLightRT.Sample(PointSampler, Input.Uv);
     
     float4 Albedo = GBufferA.Sample(PointSampler, Input.Uv);
     float4 Normal = GBufferB.Sample(PointSampler, Input.Uv);
@@ -46,7 +46,8 @@ float4 PSLighting(QuadVS_Output Input) : SV_TARGET
 
     float Shadow = ShadowRT.Sample(LinearSampler, Input.Uv).r;
 
-    float3 Color = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w)*Shadow + Albedo.rgb * 0.02f;
+    float3 IndirectLighting = IndirectLightRT.Sample(LinearSampler, Input.Uv).rgb;
+    float3 Color = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) * Shadow + Albedo.rgb * 0.02f;// * IndirectLighting;
     
     Color.rgb = ACESFitted(Color.rgb);
 

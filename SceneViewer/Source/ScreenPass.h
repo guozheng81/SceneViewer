@@ -27,7 +27,7 @@ protected:
 	CTexture2D* Depth = nullptr;
 
 	CTexture2D* ShadowRT = nullptr;
-	CTexture2D* SimpleRT = nullptr;
+	CTexture2D* IndirectLightRT = nullptr;
 
 public:
 	virtual void Init();
@@ -49,6 +49,18 @@ class CShadowRTPass : public CScreenPass
 protected:
 	CTexture2D* GBufferB = nullptr;
 	CTexture2D* ShadowRT = nullptr;
+	CTexture2D* Depth = nullptr;
+
+public:
+	virtual void Init();
+	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
+};
+
+class CIndirectLightRTPass : public CScreenPass
+{
+protected:
+	CTexture2D* GBufferB = nullptr;
+	CTexture2D* IndirectLightRT = nullptr;
 	CTexture2D* Depth = nullptr;
 
 public:

@@ -87,5 +87,6 @@
   <ItemGroup>
     <FxCompile Include="Shader\SimpleRT.hlsl" />
     <FxCompile Include="Shader\ShadowRT.hlsl" />
+    <FxCompile Include="Shader\IndirectLightRT.hlsl" />
   </ItemGroup>
 </Project>

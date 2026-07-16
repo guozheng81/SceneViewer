@@ -41,3 +41,32 @@ SHitVertexAttributes GetHitVertexAttributes(float2 BarycentricXY)
 
     return Result;
 }
+
+uint HashInitialize(uint x)
+{
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return x;
+}
+
+float PCG_rand(inout uint seed)
+{
+    // LCG step to advance the internal state
+    seed = seed * 747796405u + 2891336453u;
+    
+    // PCG permutation step
+    uint word = ((seed >> ((seed >> 28u) + 4u)) ^ seed) * 277803737u;
+    uint result = (word >> 22u) ^ word;
+    
+    // Map the 32-bit integer to a float range [0.0, 1.0)
+    return float(result) / 4294967296.0;
+}
+
+float3 hemisphereSample_cos(float u, float v)
+{
+    float phi = v * 2.0f * 3.1415926f;
+    float cosTheta = sqrt(1.0f - u);
+    float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
+    return float3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+}
