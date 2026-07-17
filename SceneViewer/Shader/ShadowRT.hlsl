@@ -70,4 +70,9 @@ void ShadowAnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttribute
     {
         IgnoreHit();
     }
+    else
+    {
+        payload.Shadow = 0.05f;
+        AcceptHitAndEndSearch();
+    }
 }

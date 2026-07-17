@@ -154,15 +154,20 @@ void CIndirectLightRTPass::Init()
 	CMaterial::IntRootParameters(1, 4, 1, 2, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
-	std::vector<SRaytracingShaderInfo> ShaderInfoArray(1);
+	std::vector<SRaytracingShaderInfo> ShaderInfoArray(2);
 	ShaderInfoArray[0].MissShader = L"IndirectMiss";
 	ShaderInfoArray[0].HitGroup = L"IndirectHitGroup";
 	ShaderInfoArray[0].ClosestHitShader = L"IndirectClosestHit";
 	ShaderInfoArray[0].AnyHitShader = L"IndirectAnyHit";
 
-	Material.BuildRaytracingPSO(L"IndirectLightRT.cso", L"IndirectRayGen", ShaderInfoArray);
+	ShaderInfoArray[1].MissShader = L"ShadowMiss";
+	ShaderInfoArray[1].HitGroup = L"ShadowHitGroup";
+	ShaderInfoArray[1].ClosestHitShader = L"ShadowClosestHit";
+	ShaderInfoArray[1].AnyHitShader = L"ShadowAnyHit";
 
-	IndirectLightRT = CRenderer::GetInstance().CreateRenderTarget("IndirectLightRT", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
+	Material.BuildRaytracingPSO(L"IndirectLightRT.cso", L"IndirectRayGen", ShaderInfoArray, 2);
+
+	IndirectLightRT = CRenderer::GetInstance().CreateRenderTarget("IndirectLightRT", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
 	Depth = CRenderer::GetInstance().GetTexture("Depth");
 }

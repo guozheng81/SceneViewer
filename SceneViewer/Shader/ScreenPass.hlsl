@@ -20,10 +20,7 @@ SamplerState PointSampler : register(s1);
 SamplerState AnisotropicSampler : register(s2);
 
 float4 PSLighting(QuadVS_Output Input) : SV_TARGET
-{
-    // test indirect lihghting
-    //return IndirectLightRT.Sample(PointSampler, Input.Uv);
-    
+{    
     float4 Albedo = GBufferA.Sample(PointSampler, Input.Uv);
     float4 Normal = GBufferB.Sample(PointSampler, Input.Uv);
 
@@ -48,6 +45,9 @@ float4 PSLighting(QuadVS_Output Input) : SV_TARGET
 
     float3 IndirectLighting = IndirectLightRT.Sample(LinearSampler, Input.Uv).rgb;
     float3 Color = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) * Shadow + Albedo.rgb * 0.02f;// * IndirectLighting;
+    
+    // test indirect lihghting
+    //float3 Color = IndirectLighting;
     
     Color.rgb = ACESFitted(Color.rgb);
 

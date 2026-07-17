@@ -93,7 +93,7 @@ public:
 	void BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams, bool bInForRaytracing);
 	void BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName);
 
-	void BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray);
+	void BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray, UINT MaxRecursionDepth = 1);
 
 	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 

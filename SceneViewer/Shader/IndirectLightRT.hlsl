@@ -5,6 +5,11 @@ Texture2D DepthBuffer : register(t3);
 
 RWTexture2D<float4> OutTexture : register(u0);
 
+struct ShadowPayload
+{
+    float Shadow;
+};
+
 struct IndirectPayload
 {
     float3 Color;
@@ -30,7 +35,7 @@ void IndirectRayGen()
     float Depth = DepthBuffer.Load(launchIndex).r;
     float3 WldPos = GetWorldPositionFromDepth(Depth, ScreenUv).xyz + N * 1.5f;
     
-    uint RandSeed = HashInitialize(launchIndex.x + launchIndex.y * Dimensions.x + FrameNumber * 1664525u);
+    uint RandSeed = initRand(launchIndex.x + launchIndex.y * Dimensions.x, FrameNumber);
     
     uint SampleCount = 2;
     float3 FinalColor = float3(0.0f, 0.0f, 0.0f);
@@ -51,13 +56,16 @@ void IndirectRayGen()
         Ray.Direction = WldSampleDir;
 
         Ray.TMin = 1.5f;
-        Ray.TMax = 500;
+        Ray.TMax = 5000;
 
         IndirectPayload Payload;
         TraceRay(RtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, Ray, Payload);
         FinalColor += Payload.Color;
     }
 
+    //float3 PreColor = OutTexture[launchIndex.xy].rgb;
+    //float3 BlendColor = lerp(PreColor, FinalColor.rgb / (float) SampleCount, 0.05f);
+    //OutTexture[launchIndex.xy] = float4(BlendColor, 1.0f);
     OutTexture[launchIndex.xy] = float4(FinalColor.rgb / (float) SampleCount, 1.0f);
 }
 
@@ -78,8 +86,20 @@ void IndirectClosestHit(inout IndirectPayload Payload, in BuiltInTriangleInterse
     float3 Albedo = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).rgb;
     float3 N = HitVertex.Normal;
     
+    float3 WldPos = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+    WldPos += N * 1.5f;
+    RayDesc Ray;
+    Ray.Origin = WldPos;
+    Ray.Direction = DirectionalLight.xyz;
+
+    Ray.TMin = 1.5f;
+    Ray.TMax = 5000;
+    
+    ShadowPayload ShadowRes;
+    TraceRay(RtScene, 0 /*rayFlags*/, 0xFF, 1 /* ray index*/, 0, 1, Ray, ShadowRes);
+    
     float3 L = DirectionalLight.xyz;
-    Payload.Color = Albedo;// * max(dot(N, L), 0.0f) * DirectionalLight.w;
+    Payload.Color = Albedo * max(dot(N, L), 0.0f) * ShadowRes.Shadow * DirectionalLight.w; //
 }
 
 [shader("anyhit")]
@@ -96,5 +116,41 @@ void IndirectAnyHit(inout IndirectPayload Payload, in BuiltInTriangleIntersectio
     if (Alpha < 0.5f)
     {
         IgnoreHit();
+    }
+}
+
+
+[shader("miss")]
+void ShadowMiss(inout ShadowPayload payload)
+{
+    payload.Shadow = 1.0f;
+}
+
+[shader("closesthit")]
+void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
+{
+    payload.Shadow = 0.05f;
+}
+
+[shader("anyhit")]
+void ShadowAnyHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
+{
+    uint MeshIdx = InstanceID();
+    SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
+
+    int TexIdx = AllMeshes[MeshIdx].TextureIdx;
+    Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
+    
+    float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
+    
+    if (Alpha < 0.5f)
+    {
+        IgnoreHit();
+    }
+    else
+    {
+        payload.Shadow = 0.05f;
+        AcceptHitAndEndSearch();
+
     }
 }
