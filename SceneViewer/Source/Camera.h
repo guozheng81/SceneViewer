@@ -37,6 +37,9 @@ public:
 	void	UpdateViewBuffer(struct SViewBuffer* OutViewBuffer);
 	void	GetCameraPosition(XMFLOAT4* OutPos);
 
+	inline float	GetNearPlane() const {	return NearPlane;	}
+	inline float	GetFarPlane() const { return FarPlane; }
+
 	void	OnInputMouse(int InDeltaX, int InDeltaY);
 	void	OnUpdate();
 };

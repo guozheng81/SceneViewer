@@ -77,6 +77,8 @@ protected:
 	bool bUsedForRaytracing = false;
 	CBuffer ShaderBindingTable;
 
+	bool bUsedForCompute = false;
+
 public:
 	D3D12_DISPATCH_RAYS_DESC RaytraceDesc = {};
 
@@ -94,6 +96,8 @@ public:
 	void BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName);
 
 	void BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray, UINT MaxRecursionDepth = 1);
+
+	void BuildComputePSO(LPCWSTR InComputeName);
 
 	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 

@@ -317,6 +317,25 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
     }
 }
 
+void CMaterial::BuildComputePSO(LPCWSTR InComputeName)
+{
+    D3D12_COMPUTE_PIPELINE_STATE_DESC ComputePsoDesc = {};
+
+    ComPtr<ID3DBlob> CSBlob;
+    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
+    D3DReadFileToBlob((ExeDirectory / InComputeName).c_str(), &CSBlob);
+
+    ComputePsoDesc.pRootSignature = RootSign.Get();
+    ComputePsoDesc.CS = { CSBlob->GetBufferPointer(), CSBlob->GetBufferSize() };
+    ComputePsoDesc.NodeMask = 0;
+    ComputePsoDesc.CachedPSO = {};
+    ComputePsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+    CRenderer::GetInstance().D3dDevice->CreateComputePipelineState(&ComputePsoDesc, IID_PPV_ARGS(&PSO));
+
+    bUsedForCompute = true;
+}
+
 void CMaterial::BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
 {
 	std::vector<D3D12_INPUT_ELEMENT_DESC> InputDescArray =
@@ -351,6 +370,11 @@ void CMaterial::OnRender(ID3D12GraphicsCommandList4* InCommandList)
         RaytraceDesc.Width = CRenderer::GetInstance().ViewportWidth;
         RaytraceDesc.Height = CRenderer::GetInstance().ViewportHeight;
         RaytraceDesc.Depth = 1;
+    }
+    else if (bUsedForCompute)
+    {
+        InCommandList->SetPipelineState(PSO.Get());
+        InCommandList->SetComputeRootSignature(RootSign.Get());
     }
     else
     {
@@ -417,7 +441,7 @@ void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister
         return;
     }
 
-    if (bUsedForRaytracing)
+    if (bUsedForRaytracing || bUsedForCompute)
     {
         InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, InTex->UavGPUDescriptor);
     }
@@ -440,7 +464,7 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    if (bUsedForRaytracing)
+    if (bUsedForRaytracing || bUsedForCompute)
     {
         InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, InTex->SrvGPUDescriptor);
     }
@@ -463,7 +487,7 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    if (bUsedForRaytracing)
+    if (bUsedForRaytracing || bUsedForCompute)
     {
         InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, InBuffer->SrvGPUDescriptor);
     }
@@ -486,7 +510,7 @@ void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
-    if (bUsedForRaytracing)
+    if (bUsedForRaytracing || bUsedForCompute)
     {
         InCommandList->SetComputeRootConstantBufferView(FoundRootParamIdx, InBuffer->GetGPUAddress());
     }

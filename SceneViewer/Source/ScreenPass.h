@@ -56,12 +56,27 @@ public:
 	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 };
 
+struct SATrousConstants
+{
+	int	g_StepSize = 1;
+	float g_PhiColor = 20.0f;
+	float g_PhiNormal = 8.0f;
+	float g_PhiDepth = 0.03f;
+	float Proj_m32;
+	float Proj_m22;
+};
+
 class CIndirectLightRTPass : public CScreenPass
 {
 protected:
 	CTexture2D* GBufferB = nullptr;
 	CTexture2D* IndirectLightRT = nullptr;
 	CTexture2D* Depth = nullptr;
+
+	SATrousConstants ATrousConstants;
+	CMaterial	ATrousMaterial;
+	CTexture2D* ATrous0 = nullptr;
+	CTexture2D* ATrous1 = nullptr;
 
 public:
 	virtual void Init();
