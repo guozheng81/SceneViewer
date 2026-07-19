@@ -52,7 +52,7 @@ void ShadowMiss(inout Payload payload)
 [shader("closesthit")]
 void ShadowClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attribs)
 {
-    payload.Shadow = 0.05f;
+    payload.Shadow = 0.01f;
 }
 
 [shader("anyhit")]
@@ -72,7 +72,7 @@ void ShadowAnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttribute
     }
     else
     {
-        payload.Shadow = 0.05f;
+        payload.Shadow = 0.01f;
         AcceptHitAndEndSearch();
     }
 }

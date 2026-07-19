@@ -16,11 +16,13 @@ struct SViewBuffer
 {
 	XMFLOAT4X4	ViewProjectionMatrix;
 	XMFLOAT4X4	InvViewProjectionMatrix;
+	XMFLOAT4X4	PrevViewProjectionMatrix;
 	XMFLOAT4	CameraOrigin;
 	XMFLOAT4	DirectionalLight;
+	XMFLOAT4	ViewportSize;
 	UINT		FrameNumber;
 
-	float padding[23];
+	float padding[3];
 };
 
 struct SMeshInfo

@@ -75,6 +75,11 @@ protected:
 	CTexture2D* IndirectLightRT = nullptr;
 	CTexture2D* Depth = nullptr;
 
+	CMaterial TemporalAccumulate;
+	CTexture2D* TA0 = nullptr;
+	CTexture2D* TA1 = nullptr;
+	bool bIsTA1Target = true;
+
 	SATrousConstants ATrousConstants;
 	CMaterial	ATrousMaterial;
 	CTexture2D* ATrous0 = nullptr;

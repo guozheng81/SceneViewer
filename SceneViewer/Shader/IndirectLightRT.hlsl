@@ -37,7 +37,7 @@ void IndirectRayGen()
     
     uint RandSeed = initRand(launchIndex.x + launchIndex.y * Dimensions.x, FrameNumber);
     
-    uint SampleCount = 1;
+    uint SampleCount = 2;
     float3 FinalColor = float3(0.0f, 0.0f, 0.0f);
     for (uint i = 0; i < SampleCount; ++i)
     {
@@ -56,17 +56,17 @@ void IndirectRayGen()
         Ray.Direction = WldSampleDir;
 
         Ray.TMin = 1.5f;
-        Ray.TMax = 1000;
+        Ray.TMax = 5000;
 
         IndirectPayload Payload;
         TraceRay(RtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, Ray, Payload);
         FinalColor += Payload.Color;
     }
 
-    float3 PreColor = OutTexture[launchIndex.xy].rgb;
-    float3 BlendColor = lerp(PreColor, FinalColor.rgb / (float) SampleCount, 0.05f);
-    OutTexture[launchIndex.xy] = float4(BlendColor, 1.0f);
-    //OutTexture[launchIndex.xy] = float4(FinalColor.rgb / (float) SampleCount, 1.0f);
+    //float3 PreColor = OutTexture[launchIndex.xy].rgb;
+    //float3 BlendColor = lerp(PreColor, FinalColor.rgb / (float) SampleCount, 0.05f);
+    //OutTexture[launchIndex.xy] = float4(BlendColor, 1.0f);
+    OutTexture[launchIndex.xy] = float4(FinalColor.rgb / (float) SampleCount, 1.0f);
 }
 
 [shader("miss")]
@@ -129,7 +129,7 @@ void ShadowMiss(inout ShadowPayload payload)
 [shader("closesthit")]
 void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
 {
-    payload.Shadow = 0.05f;
+    payload.Shadow = 0.025f;
 }
 
 [shader("anyhit")]
@@ -149,7 +149,7 @@ void ShadowAnyHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAtt
     }
     else
     {
-        payload.Shadow = 0.05f;
+        payload.Shadow = 0.025f;
         AcceptHitAndEndSearch();
 
     }

@@ -79,6 +79,7 @@ protected:
 
 	SViewBuffer	 ViewBuffer;
 
+	bool	bIsFirstFrame = true;
 	UINT	AccumulatedFrameNumber = 0;
 
 	ComPtr<ID3D12DescriptorHeap>	RtvDescriptorHeap;
@@ -126,6 +127,7 @@ public:
 
 	void	LoadScene();
 
+	inline bool IsFristFrame() const {	return bIsFirstFrame;	}
 	void	UpdateViewBuffer();
 
 	void ResourceBarrier(ID3D12Resource* InResource, D3D12_RESOURCE_STATES InBefore, D3D12_RESOURCE_STATES InAfter);

@@ -44,7 +44,7 @@ float4 PSLighting(QuadVS_Output Input) : SV_TARGET
     float Shadow = ShadowRT.Sample(LinearSampler, Input.Uv).r;
 
     float3 IndirectLighting = IndirectLightRT.Sample(LinearSampler, Input.Uv).rgb;
-    float3 Color = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) * Shadow + Albedo.rgb * 0.02f;// * IndirectLighting;
+    float3 Color = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) * Shadow + Albedo.rgb * IndirectLighting;
     
     // test indirect lihghting
     //float3 Color = IndirectLighting;

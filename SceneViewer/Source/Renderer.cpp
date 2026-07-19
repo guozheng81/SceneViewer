@@ -313,6 +313,11 @@ void	CRenderer::BeginFrame()
 
 void	CRenderer::EndFrame()
 {
+    if (bIsFirstFrame)
+    {
+        bIsFirstFrame = false;
+    }
+
     ResourceBarrier(GetCurrentFrameContext().FrameBuffer.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
     CommandList->Close();
@@ -345,16 +350,24 @@ void	CRenderer::UpdateViewBuffer()
 
     AccumulatedFrameNumber++;
 
+    ViewBuffer.PrevViewProjectionMatrix = ViewBuffer.ViewProjectionMatrix;
+
     CCamera* Cam = Scene->GetMainCamera();
     Cam->OnUpdate();
 
     Cam->GetCameraPosition(&(ViewBuffer.CameraOrigin));
     Cam->UpdateViewBuffer(&ViewBuffer);
 
+    if (bIsFirstFrame)
+    {
+        ViewBuffer.PrevViewProjectionMatrix = ViewBuffer.ViewProjectionMatrix;
+    }
+
     XMFLOAT3 LightDir;
     XMStoreFloat3(&LightDir, Scene->DirectionalLightDir);
     ViewBuffer.DirectionalLight = XMFLOAT4(-LightDir.x, -LightDir.y, -LightDir.z, Scene->DirectionalLightIntensity);
     ViewBuffer.FrameNumber = AccumulatedFrameNumber;
+    ViewBuffer.ViewportSize = XMFLOAT4(ViewportWidth, ViewportHeight, 1.0f / (float)ViewportWidth, 1.0f / (float)ViewportHeight);
 
     GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
 }

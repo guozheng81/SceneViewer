@@ -171,6 +171,18 @@ void CIndirectLightRTPass::Init()
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
 	Depth = CRenderer::GetInstance().GetTexture("Depth");
 
+	///////////////////
+
+	std::vector<CD3DX12_ROOT_PARAMETER>	TARootParams;
+	std::vector<CD3DX12_DESCRIPTOR_RANGE> TARanges;
+	CMaterial::IntRootParameters(1, 3, 1, 0, TARootParams, TARanges);
+
+	TemporalAccumulate.BuildRootSignature(TARootParams, false);
+	TemporalAccumulate.BuildComputePSO(L"TemporalAccumulate.cso");
+	TA0 = CRenderer::GetInstance().CreateRenderTarget("TA0", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
+	TA1 = CRenderer::GetInstance().CreateRenderTarget("TA1", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
+
+	//////////////////
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	ATrousRootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> ATrousRanges;
@@ -206,6 +218,36 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(IndirectLightRT->GetResource());
 	InCommandList->ResourceBarrier(1, &UavBarrier);
 
+	////////////// Temporal accumulate
+
+	CTexture2D* TATarget = (bIsTA1Target? TA1 : TA0);
+	CTexture2D* TASource = (bIsTA1Target ? TA0 : TA1);
+
+	{
+		if (CRenderer::GetInstance().IsFristFrame())
+		{
+			TASource = IndirectLightRT;
+		}
+
+		TemporalAccumulate.OnRender(InCommandList);
+
+		CRenderer::GetInstance().ResourceBarrier(TATarget->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		InCommandList->SetComputeRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
+		TemporalAccumulate.SetShaderResource(InCommandList, 0, IndirectLightRT);
+		TemporalAccumulate.SetShaderResource(InCommandList, 1, TASource);
+		TemporalAccumulate.SetShaderResource(InCommandList, 2, Depth);
+		TemporalAccumulate.SetUav(InCommandList, 0, TATarget);
+
+		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 8) / 8, (CRenderer::GetInstance().ViewportHeight + 8) / 8, 1);
+
+		CRenderer::GetInstance().ResourceBarrier(TATarget->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(TATarget->GetResource());
+		InCommandList->ResourceBarrier(1, &UavBarrier);
+	}
+
+	bIsTA1Target = !bIsTA1Target;
+
 	////////////// ATrous ///////
 
 	CCamera* Cam = CRenderer::GetInstance().GetScene()->GetMainCamera();
@@ -228,7 +270,7 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 		CTexture2D* SrcTexture = (bUse0AsTarget ? ATrous1 : ATrous0);
 		if (ATrousIdx == 0)
 		{
-			SrcTexture = IndirectLightRT;
+			SrcTexture = TATarget;
 		}
 
 		CRenderer::GetInstance().ResourceBarrier(TargetTexture->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

@@ -2,8 +2,10 @@ cbuffer cbView : register(b0)
 {
     matrix mViewProjection;
     matrix mInvViewProjection;
+    matrix mPrevViewProjection;
     float4 CameraOrigin;
     float4 DirectionalLight;
+    float4 ViewportSize;
     uint FrameNumber;
 };
 

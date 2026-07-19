@@ -89,5 +89,6 @@
     <FxCompile Include="Shader\ShadowRT.hlsl" />
     <FxCompile Include="Shader\IndirectLightRT.hlsl" />
     <FxCompile Include="Shader\EdgeAvoidATrous.hlsl" />
+    <FxCompile Include="Shader\TemporalAccumulate.hlsl" />
   </ItemGroup>
 </Project>
