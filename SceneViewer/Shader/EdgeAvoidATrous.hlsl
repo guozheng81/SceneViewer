@@ -8,6 +8,8 @@ cbuffer AtrousBuffer : register(b0)
     float g_PhiDepth; // 0.01 to 0.05
     float Proj_m32;
     float Proj_m22;
+    uint ViewportW;
+    uint ViewportH;
 };
 
 Texture2D<float4> ColorTexture : register(t0); // RGB = Indirect Diffuse
@@ -77,8 +79,10 @@ void main(uint3 dtID : SV_DispatchThreadID)
 
             // Combine edge weights with structural B3-Spline weight
             float kernelWeight = g_KernelWeights[x + 2] * g_KernelWeights[y + 2];
-            float weight = wColor * wDepth * wNormal * kernelWeight;
-
+            float isInBounds = (sampleCoord.x >= 0 && sampleCoord.x < ViewportW &&
+                    sampleCoord.y >= 0 && sampleCoord.y < ViewportH) ? 1.0f : 0.0f;
+            float weight = wColor * wDepth * wNormal * kernelWeight * isInBounds;
+            
             totalColor += sampleColor * weight;
             totalWeight += weight;
         }

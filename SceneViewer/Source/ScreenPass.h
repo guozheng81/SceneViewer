@@ -61,9 +61,11 @@ struct SATrousConstants
 	int	g_StepSize = 1;
 	float g_PhiColor = 20.0f;
 	float g_PhiNormal = 8.0f;
-	float g_PhiDepth = 0.03f;
+	float g_PhiDepth = 0.05f;
 	float Proj_m32;
 	float Proj_m22;
+	UINT ViewportWidth;
+	UINT ViewportHeight;
 };
 
 class CIndirectLightRTPass : public CScreenPass

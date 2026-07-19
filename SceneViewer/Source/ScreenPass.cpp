@@ -176,7 +176,7 @@ void CIndirectLightRTPass::Init()
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> ATrousRanges;
 	CMaterial::IntRootParameters(0, 3, 1, 0, ATrousRootParams, ATrousRanges);
 	CD3DX12_ROOT_PARAMETER RootParam;
-	RootParam.InitAsConstants(6, 0);
+	RootParam.InitAsConstants(sizeof(SATrousConstants)/4, 0);
 	ATrousRootParams.push_back(RootParam);
 
 	ATrousMaterial.BuildRootSignature(ATrousRootParams, false);
@@ -214,6 +214,12 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	ATrousConstants.Proj_m22 = Far / (Far - Near);
 	ATrousConstants.Proj_m32 = (-Far) * Near / (Far - Near);
+	ATrousConstants.ViewportWidth = CRenderer::GetInstance().ViewportWidth;
+	ATrousConstants.ViewportHeight = CRenderer::GetInstance().ViewportHeight;
+
+	ATrousMaterial.OnRender(InCommandList);
+	ATrousMaterial.SetShaderResource(InCommandList, 1, GBufferB);
+	ATrousMaterial.SetShaderResource(InCommandList, 2, Depth);
 
 	for(int ATrousIdx = 0; ATrousIdx < 5; ++ATrousIdx)
 	{
@@ -227,15 +233,10 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 		CRenderer::GetInstance().ResourceBarrier(TargetTexture->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		ATrousMaterial.OnRender(InCommandList);
-
 		ATrousConstants.g_StepSize = pow(2, ATrousIdx);
-		InCommandList->SetComputeRoot32BitConstants(ATrousMaterial.FindConstantRootParameterIndex(0), 6, &ATrousConstants, 0);
+		InCommandList->SetComputeRoot32BitConstants(ATrousMaterial.FindConstantRootParameterIndex(0), sizeof(SATrousConstants) / 4, &ATrousConstants, 0);
 
 		ATrousMaterial.SetShaderResource(InCommandList, 0, SrcTexture);
-		ATrousMaterial.SetShaderResource(InCommandList, 1, GBufferB);
-		ATrousMaterial.SetShaderResource(InCommandList, 2, Depth);
-
 		ATrousMaterial.SetUav(InCommandList, 0, TargetTexture);
 
 		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 15) / 16, (CRenderer::GetInstance().ViewportHeight + 15) / 16, 1);
