@@ -52,7 +52,7 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	float ClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	InCommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
 
-	InCommandList->SetGraphicsRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
+	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 	Material.SetShaderResource(InCommandList, 0, GBufferA);
 	Material.SetShaderResource(InCommandList, 1, GBufferB);
 	Material.SetShaderResource(InCommandList, 2, Depth);
@@ -89,7 +89,7 @@ void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	CRenderer::GetInstance().ResourceBarrier(SimpleRT->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	Material.OnRender(InCommandList);
-	InCommandList->SetComputeRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
+	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 
 	Material.SetSceneForRaytracing(InCommandList, CRenderer::GetInstance().GetScene());
 
@@ -131,7 +131,7 @@ void CShadowRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	CRenderer::GetInstance().ResourceBarrier(ShadowRT->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	Material.OnRender(InCommandList);
-	InCommandList->SetComputeRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
+	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 
 	Material.SetShaderResource(InCommandList, 2, GBufferB);
 	Material.SetShaderResource(InCommandList, 3, Depth);
@@ -206,7 +206,7 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	CRenderer::GetInstance().ResourceBarrier(IndirectLightRT->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	Material.OnRender(InCommandList);
-	InCommandList->SetComputeRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
+	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 
 	Material.SetShaderResource(InCommandList, 2, GBufferB);
 	Material.SetShaderResource(InCommandList, 3, Depth);
@@ -236,7 +236,7 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 		CRenderer::GetInstance().ResourceBarrier(TATarget->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		InCommandList->SetComputeRootConstantBufferView(0, CRenderer::GetInstance().GetCurrentFrameContext().ViewBuffer.GetGPUAddress());
+		TemporalAccumulate.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 		TemporalAccumulate.SetShaderResource(InCommandList, 0, IndirectLightRT);
 		TemporalAccumulate.SetShaderResource(InCommandList, 1, TASource);
 		TemporalAccumulate.SetShaderResource(InCommandList, 2, Depth);

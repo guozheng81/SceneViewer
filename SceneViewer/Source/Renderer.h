@@ -117,6 +117,11 @@ public:
 		return PerFrameContext[CurrentFrameIndex];
 	}
 
+	inline CBuffer* GetCurrentViewBuffer()
+	{
+		return &(PerFrameContext[CurrentFrameIndex].ViewBuffer);
+	}
+
 	static CRenderer& GetInstance();
 
 	bool	Init(HWND hWnd);
