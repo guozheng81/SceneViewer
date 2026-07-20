@@ -35,7 +35,8 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	CRenderer& RendererInst = CRenderer::GetInstance();
 	GBufferA = RendererInst.CreateRenderTarget("GBufferA", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f));
 	GBufferB = RendererInst.CreateRenderTarget("GBufferB", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.5f, 0.5f, 0.5f, 0.0f));
-	Depth = RendererInst.CreateDepthTexture("Depth", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
+	Depth0 = RendererInst.CreateDepthTexture("Depth0", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
+	Depth1 = RendererInst.CreateDepthTexture("Depth1", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
 
 	std::filesystem::path AssetPath = CRenderer::GetAssetDirectory();
 	AssetPath /= InSceneName;
@@ -184,14 +185,16 @@ void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
 
 void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
+	bIsUsingDepth0 = (!bIsUsingDepth0);
+
 	CRenderer::GetInstance().ResourceBarrier(GBufferA->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	CRenderer::GetInstance().ResourceBarrier(Depth->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	CRenderer::GetInstance().ResourceBarrier(GetDepthTexture()->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 	Material->OnRender(InCommandList);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandles[2] = { GBufferA->RtvCPUDescriptor, GBufferB->RtvCPUDescriptor };
-	CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle = CRenderer::GetInstance().GetTexture("Depth")->DsvCPUDescriptor;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle = GetDepthTexture()->DsvCPUDescriptor;
 	InCommandList->OMSetRenderTargets(2, RtvHandles, true, &DsvHandle);
 
 	float ClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -226,7 +229,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	}
 
 	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	CRenderer::GetInstance().ResourceBarrier(Depth->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	CRenderer::GetInstance().ResourceBarrier(GetDepthTexture()->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList)

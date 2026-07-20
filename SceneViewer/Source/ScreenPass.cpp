@@ -30,7 +30,6 @@ void CLightPass::Init()
 
 	GBufferA = CRenderer::GetInstance().GetTexture("GBufferA");
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
-	Depth = CRenderer::GetInstance().GetTexture("Depth");
 
 	ShadowRT = CRenderer::GetInstance().GetTexture("ShadowRT");
 
@@ -39,6 +38,8 @@ void CLightPass::Init()
 
 void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
+	Depth = CRenderer::GetInstance().GetScene()->GetDepthTexture();
+
 	CRenderer::GetInstance().ResourceBarrier(CRenderer::GetInstance().GetCurrentFrameContext().FrameBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	CRenderer::GetInstance().ResourceBarrier(GBufferA->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -121,11 +122,12 @@ void CShadowRTPass::Init()
 
 	ShadowRT = CRenderer::GetInstance().CreateRenderTarget("ShadowRT", DXGI_FORMAT_R8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
-	Depth = CRenderer::GetInstance().GetTexture("Depth");
 }
 
 void CShadowRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
+	Depth = CRenderer::GetInstance().GetScene()->GetDepthTexture();
+
 	CRenderer::GetInstance().ResourceBarrier(ShadowRT->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	Material.OnRender(InCommandList);
@@ -169,7 +171,6 @@ void CIndirectLightRTPass::Init()
 
 	IndirectLightRT = CRenderer::GetInstance().CreateRenderTarget("IndirectLightRT", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
-	Depth = CRenderer::GetInstance().GetTexture("Depth");
 
 	///////////////////
 
@@ -200,6 +201,8 @@ void CIndirectLightRTPass::Init()
 
 void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
+	Depth = CRenderer::GetInstance().GetScene()->GetDepthTexture();
+
 	CRenderer::GetInstance().ResourceBarrier(IndirectLightRT->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	Material.OnRender(InCommandList);

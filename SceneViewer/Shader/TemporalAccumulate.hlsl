@@ -2,7 +2,7 @@
 
 Texture2D<float3> CurrentLighting : register(t0);
 Texture2D<float3> HistoryLighting : register(t1);
-Texture2D DepthBuffer : register(t2);
+Texture2D<float> DepthBuffer : register(t2);
 
 RWTexture2D<float3> AccumulatedLighting : register(u0);
 
@@ -17,27 +17,8 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID)
 
     float3 currentLighting = CurrentLighting[texCoord];
 
-    /*
-    float3 colorMin = currentLighting;
-    float3 colorMax = currentLighting;
 
-    [unroll]
-    for (int y = -1; y <= 1; ++y)
-    {
-        [unroll]
-        for (int x = -1; x <= 1; ++x)
-        {
-            if (x == 0 && y == 0)
-                continue;
-
-            float3 neighborColor = CurrentLighting[texCoord + int2(x, y)];
-            colorMin = min(colorMin, neighborColor);
-            colorMax = max(colorMax, neighborColor);
-        }
-    }
-    */    
-
-    float centerDepth = DepthBuffer.Load(int3(texCoord, 0)).r;
+    float centerDepth = DepthBuffer[texCoord];
     float2 ScreenUv = float2(texCoord.x / ViewportSize.x, texCoord.y / ViewportSize.y);
     float4 WldPos = GetWorldPositionFromDepth(centerDepth, ScreenUv);
 
@@ -56,7 +37,6 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID)
 
     float3 historyColor = HistoryLighting.SampleLevel(LinearSampler, historyUV, 0);
     
-    //historyColor = clamp(historyColor, colorMin, colorMax);
 
     float alpha = 0.05f;
     float3 accumulatedColor = lerp(historyColor, currentLighting, alpha);

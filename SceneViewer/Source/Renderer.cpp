@@ -199,7 +199,7 @@ bool	CRenderer::Init(HWND hWnd)
     RtvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     D3D12_DESCRIPTOR_HEAP_DESC DsvHeapDesc = {};
-    DsvHeapDesc.NumDescriptors = 1;
+    DsvHeapDesc.NumDescriptors = 2;
     DsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     DsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     DsvHeapDesc.NodeMask = 0;
@@ -489,7 +489,9 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
     DsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     DsvDesc.Texture2D.MipSlice = 0;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE DsvHandle = DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle(DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    DsvHandle.Offset(CurrentDsvDescriptorIdx, DsvDescriptorSize);
+    CurrentDsvDescriptorIdx++;
     D3dDevice->CreateDepthStencilView(NewTexture->GetResource(), &DsvDesc, DsvHandle);
     NewTexture->DsvCPUDescriptor = DsvHandle;
 

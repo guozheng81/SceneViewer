@@ -20,7 +20,9 @@ protected:
 
 	CTexture2D* GBufferA = nullptr;
 	CTexture2D* GBufferB = nullptr;
-	CTexture2D* Depth = nullptr;
+	CTexture2D* Depth0 = nullptr;
+	CTexture2D* Depth1 = nullptr;
+	bool bIsUsingDepth0 = false;
 
 	CBuffer TLAS_Scratch;
 	CBuffer TLAS;
@@ -52,6 +54,14 @@ public:
 	}
 
 	CBuffer* GetModelBuffer() {	return &ModelBuffer;	}
+
+	inline CTexture2D* GetDepthTexture() {
+		return (bIsUsingDepth0 ? Depth0 : Depth1);
+	}
+
+	inline CTexture2D* GetHistoryDepthTexture() {
+		return (bIsUsingDepth0 ? Depth1 : Depth0);
+	}
 
 	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 

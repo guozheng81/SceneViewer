@@ -88,6 +88,7 @@ protected:
 
 	ComPtr<ID3D12DescriptorHeap>	DsvDescriptorHeap;
 	UINT	DsvDescriptorSize = 0;
+	int		CurrentDsvDescriptorIdx = 0;
 
 	ComPtr<ID3D12DescriptorHeap>	SrvUavDescriptorHeap;
 	UINT	SrvUavDescriptorSize = 0;
