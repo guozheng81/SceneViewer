@@ -73,6 +73,7 @@ void main(uint3 dtID : SV_DispatchThreadID)
 
             float normalDiff = max(0.0f, dot(centerN, sampleN));
             float wNormal = pow(normalDiff, g_PhiNormal);
+            //float wNormal = exp(-(1.0f - normalDiff) / g_PhiNormal);//0.2f
 
             float3 colorDiff = abs(centerColor - sampleColor);
             float wColor = exp(-dot(colorDiff, colorDiff) / g_PhiColor);
