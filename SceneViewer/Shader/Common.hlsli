@@ -6,6 +6,8 @@ cbuffer cbView : register(b0)
     float4 CameraOrigin;
     float4 DirectionalLight;
     float4 ViewportSize;
+    float Proj_m32;
+    float Proj_m22;
     uint FrameNumber;
 };
 

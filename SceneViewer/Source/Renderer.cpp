@@ -369,6 +369,11 @@ void	CRenderer::UpdateViewBuffer()
     ViewBuffer.FrameNumber = AccumulatedFrameNumber;
     ViewBuffer.ViewportSize = XMFLOAT4(ViewportWidth, ViewportHeight, 1.0f / (float)ViewportWidth, 1.0f / (float)ViewportHeight);
 
+    float Near = Cam->GetNearPlane();
+    float Far = Cam->GetFarPlane();
+    ViewBuffer.Proj_m22 = Far / (Far - Near);
+    ViewBuffer.Proj_m32 = (-Far) * Near / (Far - Near);
+
     GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
 }
 

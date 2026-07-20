@@ -37,7 +37,7 @@ void IndirectRayGen()
     
     uint RandSeed = initRand(launchIndex.x + launchIndex.y * Dimensions.x, FrameNumber);
     
-    uint SampleCount = 2;
+    uint SampleCount = 1;
     float3 FinalColor = float3(0.0f, 0.0f, 0.0f);
     for (uint i = 0; i < SampleCount; ++i)
     {

@@ -20,9 +20,11 @@ struct SViewBuffer
 	XMFLOAT4	CameraOrigin;
 	XMFLOAT4	DirectionalLight;
 	XMFLOAT4	ViewportSize;
+	float		Proj_m32;
+	float		Proj_m22;
 	UINT		FrameNumber;
 
-	float padding[3];
+	float padding[1];
 };
 
 struct SMeshInfo

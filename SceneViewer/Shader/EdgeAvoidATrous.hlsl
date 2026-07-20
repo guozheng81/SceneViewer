@@ -44,7 +44,7 @@ void main(uint3 dtID : SV_DispatchThreadID)
     
     float3 centerN = normalize(centerNormal.xyz * 2.0f - 1.0f);
     
-    if (centerDepth >= 1.0f || centerDepth <= 0.0f || length(centerN) < 0.01f)
+    if (length(centerN) < 0.01f)
     {
         OutputColor[centerCoord] = float4(centerColor, 1.0f);
         return;

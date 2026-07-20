@@ -176,7 +176,7 @@ void CIndirectLightRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	TARootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> TARanges;
-	CMaterial::IntRootParameters(1, 3, 1, 0, TARootParams, TARanges);
+	CMaterial::IntRootParameters(1, 4, 1, 0, TARootParams, TARanges);
 
 	TemporalAccumulate.BuildRootSignature(TARootParams, false);
 	TemporalAccumulate.BuildComputePSO(L"TemporalAccumulate.cso");
@@ -240,6 +240,7 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 		TemporalAccumulate.SetShaderResource(InCommandList, 0, IndirectLightRT);
 		TemporalAccumulate.SetShaderResource(InCommandList, 1, TASource);
 		TemporalAccumulate.SetShaderResource(InCommandList, 2, Depth);
+		TemporalAccumulate.SetShaderResource(InCommandList, 3, CRenderer::GetInstance().GetScene()->GetHistoryDepthTexture());
 		TemporalAccumulate.SetUav(InCommandList, 0, TATarget);
 
 		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 8) / 8, (CRenderer::GetInstance().ViewportHeight + 8) / 8, 1);
