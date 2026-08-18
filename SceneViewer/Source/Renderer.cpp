@@ -76,10 +76,11 @@ void CBuffer::CreateShaderResourceView()
     SrvDesc.Buffer.StructureByteStride = ElementSize;
     SrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-    int SrvDescriptorIndex = -1;
-    SrvCPUDescriptor = CRenderer::GetInstance().AllocSrvUavDescriptor(SrvDescriptorIndex);
+    SDescriptorHandle DescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+    SrvCPUDescriptor = DescriptorHandle.CpuHandle;
+    SrvGPUDescriptor = DescriptorHandle.GpuHandle;
+
     CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Buffer.Get(), &SrvDesc, SrvCPUDescriptor);
-    SrvGPUDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(SrvDescriptorIndex);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS CBuffer::GetGPUAddress(UINT InIdx)
@@ -190,13 +191,7 @@ bool	CRenderer::Init(HWND hWnd)
 
     //////////// descriptor heaps /////////////////
 
-    D3D12_DESCRIPTOR_HEAP_DESC SrvHeapDesc = {};
-    SrvHeapDesc.NumDescriptors = 1024;
-    SrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    SrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    SrvHeapDesc.NodeMask = 0;
-    D3dDevice->CreateDescriptorHeap(&SrvHeapDesc, IID_PPV_ARGS(&SrvUavDescriptorHeap));
-    SrvUavDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	SrvUavDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024);
 
     D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc = {};
     RtvHeapDesc.NumDescriptors = 32;
@@ -347,6 +342,8 @@ void	CRenderer::EndFrame()
         WaitForSingleObjectEx(FrameFenceEvent, INFINITE, FALSE);
     }
 
+	SrvUavDescriptorAllocator.CleanUp(FrameFence->GetCompletedValue());
+
     GetCurrentFrameContext().FenceValue = (FenceValue + 1);
 }
 
@@ -393,7 +390,7 @@ void	CRenderer::Render()
     CommandList->RSSetViewports(1, &Viewport);
     CommandList->RSSetScissorRects(1, &ScissorRect);
 
-    ID3D12DescriptorHeap* Heaps[] = { SrvUavDescriptorHeap.Get() };
+    ID3D12DescriptorHeap* Heaps[] = { SrvUavDescriptorAllocator.GetHeap()};
     CommandList->SetDescriptorHeaps(1, Heaps);
 
     UpdateViewBuffer();
@@ -587,34 +584,17 @@ CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT
     return ResTex;
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::AllocRtvDescriptor(int& OutDescriptorIdx)
+CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::AllocRtvDescriptor()
 {
-    OutDescriptorIdx = CurrentRtvDescriptorIndex;
     CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     Descriptor.Offset(CurrentRtvDescriptorIndex, RtvDescriptorSize);
     CurrentRtvDescriptorIndex++;
     return Descriptor;
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::AllocSrvUavDescriptor(int& OutDescriptorIdx)
-{
-    OutDescriptorIdx = CurrentSrvUavDescriptorIndex;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(SrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    Descriptor.Offset(CurrentSrvUavDescriptorIndex, SrvUavDescriptorSize);
-    CurrentSrvUavDescriptorIndex++;
-    return Descriptor;
-}
-
 int	CRenderer::GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd)
 {
-    return (int)(InEnd.ptr - InStart.ptr) / (int)SrvUavDescriptorSize;
-}
-
-CD3DX12_GPU_DESCRIPTOR_HANDLE CRenderer::GetSrvUavGPUDescriptor(UINT Idx)
-{
-    CD3DX12_GPU_DESCRIPTOR_HANDLE Descriptor(SrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-    Descriptor.Offset(Idx, SrvUavDescriptorSize);
-    return Descriptor;
+    return (int)(InEnd.ptr - InStart.ptr) / (int)SrvUavDescriptorAllocator.GetDescriptorSize();
 }
 
 void	CRenderer::OnResize(int InW, int InH)

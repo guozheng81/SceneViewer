@@ -61,9 +61,9 @@ void CTexture2D::CreateShaderResourceView(bool bIsResizing)
 
     if (!bIsResizing)
     {
-        int		SrvDescriptorIndex = -1;
-        SrvCPUDescriptor = CRenderer::GetInstance().AllocSrvUavDescriptor(SrvDescriptorIndex);
-        SrvGPUDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(SrvDescriptorIndex);
+		SDescriptorHandle SrvDescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+		SrvCPUDescriptor = SrvDescriptorHandle.CpuHandle;
+		SrvGPUDescriptor = SrvDescriptorHandle.GpuHandle;
     }
         
     CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, SrvCPUDescriptor);
@@ -73,8 +73,7 @@ void CTexture2D::CreateRenderTargetView(bool bIsResizing)
 {
     if (!bIsResizing)
     {
-        int RtvDescriptorIndex = -1;
-        RtvCPUDescriptor = CRenderer::GetInstance().AllocRtvDescriptor(RtvDescriptorIndex);
+        RtvCPUDescriptor = CRenderer::GetInstance().AllocRtvDescriptor();
     }
     CRenderer::GetInstance().D3dDevice->CreateRenderTargetView(Texture.Get(), nullptr, RtvCPUDescriptor);
 }
@@ -83,9 +82,9 @@ void CTexture2D::CreateUnorderedAccessView(bool bIsResizing)
 {
     if (!bIsResizing)
     {
-        int		DescriptorIndex = -1;
-        UavCPUDescriptor = CRenderer::GetInstance().AllocSrvUavDescriptor(DescriptorIndex);
-        UavGPUDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(DescriptorIndex);
+        SDescriptorHandle DescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+        UavCPUDescriptor = DescriptorHandle.CpuHandle;
+        UavGPUDescriptor = DescriptorHandle.GpuHandle;
     }
 
     CRenderer::GetInstance().D3dDevice->CreateUnorderedAccessView(Texture.Get(), nullptr, nullptr, UavCPUDescriptor);

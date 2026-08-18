@@ -115,8 +115,7 @@ void CMesh::CreateVertexShaderResourceView()
 	SrvDesc.Buffer.StructureByteStride = sizeof(SSceneVertex);
 	SrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-	int SrvDescriptorIndex = -1;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE CPUDescriptor = CRenderer::GetInstance().AllocSrvUavDescriptor(SrvDescriptorIndex);
-	CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(VertexBuffer.Get(), &SrvDesc, CPUDescriptor);
-	VertexSrvGPUDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(SrvDescriptorIndex);
+	SDescriptorHandle DescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+	CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(VertexBuffer.Get(), &SrvDesc, DescriptorHandle.CpuHandle);
+	VertexSrvGPUDescriptor = DescriptorHandle.GpuHandle;
 }

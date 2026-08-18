@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.h"
+#include "DescriptorAllocator.h"
 #include <filesystem>
 
 class CScene;
@@ -90,10 +91,6 @@ protected:
 	UINT	DsvDescriptorSize = 0;
 	int		CurrentDsvDescriptorIdx = 0;
 
-	ComPtr<ID3D12DescriptorHeap>	SrvUavDescriptorHeap;
-	UINT	SrvUavDescriptorSize = 0;
-	int		CurrentSrvUavDescriptorIndex = 0;
-
 	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 
 	std::unique_ptr<CScene>	Scene;
@@ -111,6 +108,8 @@ public:
 	ComPtr<ID3D12CommandQueue> D3DCommandQueue;
 
 	std::vector<CD3DX12_STATIC_SAMPLER_DESC> TextureSamplers;
+
+	CDescriptorAllocator SrvUavDescriptorAllocator;
 
 	inline SPerFrameContext& GetCurrentFrameContext()
 	{
@@ -148,12 +147,9 @@ public:
 	CTexture2D* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
 	CTexture2D* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0, bool InNeedRtv = true, bool InNeedUav = false);
 
-	inline int GetCurrentSrvUavDescriptorIndex() const {	return CurrentSrvUavDescriptorIndex;	}
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSrvUavGPUDescriptor(UINT Idx);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocSrvUavDescriptor(int& OutDescriptorIdx);
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor(int& OutDescriptorIdx);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor();
 
 	void	OnResize(int InW, int InH);
 };

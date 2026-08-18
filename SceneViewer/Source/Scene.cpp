@@ -49,7 +49,8 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	std::vector<SSceneVertex> Verts;
 	std::vector<UINT32>	Indices;
 
-	MaterialTexturesDescriptor = RendererInst.GetSrvUavGPUDescriptor(RendererInst.GetCurrentSrvUavDescriptorIndex());
+	// all textures will be allocated in a single block, so we can use a single descriptor for all of them
+	MaterialTexturesDescriptor = RendererInst.SrvUavDescriptorAllocator.BeginBlockAllocation();
 
 	if (TinyObjReader.ParseFromFile(AssetPath.string(), ReaderConfig))
 	{
@@ -108,6 +109,8 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 		}
 	}
 
+	RendererInst.SrvUavDescriptorAllocator.EndBlockAllocation();
+
 	BuildAccelerationStructures(InCommandList);
 }
 
@@ -150,13 +153,14 @@ CScene::~CScene()
 
 void CScene::OnLoaded()
 {
-	VertexBuffersDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(CRenderer::GetInstance().GetCurrentSrvUavDescriptorIndex());
+	VertexBuffersDescriptor = CRenderer::GetInstance().SrvUavDescriptorAllocator.BeginBlockAllocation();
 	for (auto& CurMesh : AllMeshes)
 	{
 		CurMesh->ResetUploadResource();
 		// for raytracing
 		CurMesh->CreateVertexShaderResourceView();
 	}
+	CRenderer::GetInstance().SrvUavDescriptorAllocator.EndBlockAllocation();
 
 	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(AllMeshes.size()), true);
 	ModelBuffer.SetData(MeshInfoArray.data());
@@ -169,11 +173,10 @@ void CScene::OnLoaded()
 	TLASSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	TLASSrvDesc.RaytracingAccelerationStructure.Location = TLAS.GetGPUAddress();
 
-	int		SrvDescriptorIndex = -1;
-	D3D12_CPU_DESCRIPTOR_HANDLE CPUDescriptor = CRenderer::GetInstance().AllocSrvUavDescriptor(SrvDescriptorIndex);
-	TLASGPUDescriptor = CRenderer::GetInstance().GetSrvUavGPUDescriptor(SrvDescriptorIndex);
+	SDescriptorHandle SrvDescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+	TLASGPUDescriptor = SrvDescriptorHandle.GpuHandle;
 
-	CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(nullptr, &TLASSrvDesc, CPUDescriptor);
+	CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(nullptr, &TLASSrvDesc, SrvDescriptorHandle.CpuHandle);
 }
 
 void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
