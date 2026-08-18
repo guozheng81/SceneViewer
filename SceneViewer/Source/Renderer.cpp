@@ -2,6 +2,7 @@
 #include "Scene.h"
 #include "DDSTextureLoader12.h"
 #include "ScreenPass.h"
+#include "Logger.h"
 
 CBuffer::CBuffer()
 {
@@ -104,6 +105,9 @@ CRenderer& CRenderer::GetInstance()
 
 bool	CRenderer::Init(HWND hWnd)
 {
+	CLogger::GetInstance().Init((GetExeDirectory()/"Log.txt").string());
+	LOG_INFO("Initializing renderer (Viewport %u %u)", ViewportWidth, ViewportHeight);
+
     UINT DXgiFactoryFlags = 0;
 
 #if defined _DEBUG
@@ -119,6 +123,7 @@ bool	CRenderer::Init(HWND hWnd)
     ComPtr<IDXGIFactory4> DXgiFactory;
     if (FAILED(CreateDXGIFactory2(DXgiFactoryFlags, IID_PPV_ARGS(&DXgiFactory))))
     {
+        LOG_ERROR("CreateDXGIFactory failed");
         return false;
     }
 
@@ -140,6 +145,7 @@ bool	CRenderer::Init(HWND hWnd)
 
     if (D3dDevice.Get() == nullptr)
     {
+        LOG_ERROR("No suitable D3D12 device found");
         return false;
     }
 
@@ -151,6 +157,7 @@ bool	CRenderer::Init(HWND hWnd)
 
     if (FAILED(D3dDevice->CreateCommandQueue(&QueueDesc, IID_PPV_ARGS(&D3DCommandQueue))))
     {
+        LOG_ERROR("CreateCommandQueue failed");
         return false;
     }
 
@@ -168,6 +175,7 @@ bool	CRenderer::Init(HWND hWnd)
     ComPtr< IDXGISwapChain1> SwapChain1;
     if (FAILED(DXgiFactory->CreateSwapChainForHwnd(D3DCommandQueue.Get(), hWnd, &SwapChainDesc, nullptr, nullptr, &SwapChain1)))
     {
+		LOG_ERROR("CreateSwapChainForHwnd failed");
         return false;
     }
 
@@ -273,6 +281,7 @@ bool	CRenderer::Init(HWND hWnd)
         Pass->Init();
     }
 
+    LOG_INFO("Renderer initialization complete");
     return true;
 }
 
@@ -424,6 +433,8 @@ void	CRenderer::Shutdown()
 {
     FlushCommandQueue();
     CloseHandle(FrameFenceEvent);
+
+    LOG_INFO("Renderer Shutdown");
 }
 
 ComPtr<ID3D12Resource> CRenderer::CreateDefaultBuffer(const void* InData, UINT InTotalByteSize, ComPtr<ID3D12Resource>& OutUploadBuffer)
