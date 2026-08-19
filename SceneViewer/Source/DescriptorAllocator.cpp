@@ -3,7 +3,7 @@
 #include "Renderer.h"
 
 
-void CDescriptorAllocator::Init(ID3D12Device* Device, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t NumDescriptors)
+void CDescriptorAllocator::Init(ID3D12Device* Device, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t NumDescriptors, bool ShaderVisible)
 {
     NumDescriptors_ = NumDescriptors;
     DescriptorSize = Device->GetDescriptorHandleIncrementSize(Type);
@@ -11,14 +11,19 @@ void CDescriptorAllocator::Init(ID3D12Device* Device, D3D12_DESCRIPTOR_HEAP_TYPE
     D3D12_DESCRIPTOR_HEAP_DESC Desc = {};
     Desc.Type = Type;
     Desc.NumDescriptors = NumDescriptors;
-    Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    Desc.Flags = ShaderVisible? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     Desc.NodeMask = 0;
 
     HRESULT Hr = Device->CreateDescriptorHeap(&Desc, IID_PPV_ARGS(&Heap));
     assert(SUCCEEDED(Hr));
 
     HeapCpuStart = Heap->GetCPUDescriptorHandleForHeapStart();
-    HeapGpuStart = Heap->GetGPUDescriptorHandleForHeapStart();
+
+	bIsShaderVisible = ShaderVisible;
+    if (ShaderVisible)
+    {
+        HeapGpuStart = Heap->GetGPUDescriptorHandleForHeapStart();
+    }
     NextFreeIndex = 0;
 }
 
@@ -58,8 +63,11 @@ SDescriptorHandle CDescriptorAllocator::Allocate()
     Handle.CpuHandle = HeapCpuStart;
     Handle.CpuHandle.ptr += Index * DescriptorSize;
 
-    Handle.GpuHandle = HeapGpuStart;
-    Handle.GpuHandle.ptr += Index * DescriptorSize;
+    if (bIsShaderVisible)
+    {
+        Handle.GpuHandle = HeapGpuStart;
+        Handle.GpuHandle.ptr += Index * DescriptorSize;
+    }
 
     return Handle;
 }

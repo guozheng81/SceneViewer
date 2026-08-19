@@ -83,14 +83,6 @@ protected:
 	bool	bIsFirstFrame = true;
 	UINT	AccumulatedFrameNumber = 0;
 
-	ComPtr<ID3D12DescriptorHeap>	RtvDescriptorHeap;
-	UINT	RtvDescriptorSize = 0;
-	int		CurrentRtvDescriptorIndex = 0;
-
-	ComPtr<ID3D12DescriptorHeap>	DsvDescriptorHeap;
-	UINT	DsvDescriptorSize = 0;
-	int		CurrentDsvDescriptorIdx = 0;
-
 	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 
 	std::unique_ptr<CScene>	Scene;
@@ -110,6 +102,8 @@ public:
 	std::vector<CD3DX12_STATIC_SAMPLER_DESC> TextureSamplers;
 
 	CDescriptorAllocator SrvUavDescriptorAllocator;
+	CDescriptorAllocator RtvDescriptorAllocator;
+	CDescriptorAllocator DsvDescriptorAllocator;
 
 	inline SPerFrameContext& GetCurrentFrameContext()
 	{
@@ -149,7 +143,6 @@ public:
 
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE AllocRtvDescriptor();
 
 	void	OnResize(int InW, int InH);
 };

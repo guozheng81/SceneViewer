@@ -9,8 +9,8 @@
 
 struct SDescriptorHandle
 {
-    D3D12_CPU_DESCRIPTOR_HANDLE CpuHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE GpuHandle;
+    D3D12_CPU_DESCRIPTOR_HANDLE CpuHandle = { 0 };
+    D3D12_GPU_DESCRIPTOR_HANDLE GpuHandle = { 0 };
 };
 
 class CDescriptorAllocator 
@@ -23,9 +23,10 @@ private:
     };
 
 	bool bIsBlockAllocating = false;
+	bool bIsShaderVisible = false;
 
 public:
-    void Init(ID3D12Device* Device, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t NumDescriptors);
+    void Init(ID3D12Device* Device, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t NumDescriptors, bool ShaderVisible);
     SDescriptorHandle Allocate();
 
 	D3D12_GPU_DESCRIPTOR_HANDLE BeginBlockAllocation();

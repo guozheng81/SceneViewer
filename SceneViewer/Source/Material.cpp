@@ -73,7 +73,7 @@ void CTexture2D::CreateRenderTargetView(bool bIsResizing)
 {
     if (!bIsResizing)
     {
-        RtvCPUDescriptor = CRenderer::GetInstance().AllocRtvDescriptor();
+		RtvCPUDescriptor = CRenderer::GetInstance().RtvDescriptorAllocator.Allocate().CpuHandle;
     }
     CRenderer::GetInstance().D3dDevice->CreateRenderTargetView(Texture.Get(), nullptr, RtvCPUDescriptor);
 }

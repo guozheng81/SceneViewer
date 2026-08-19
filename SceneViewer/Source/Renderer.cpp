@@ -191,23 +191,10 @@ bool	CRenderer::Init(HWND hWnd)
 
     //////////// descriptor heaps /////////////////
 
-	SrvUavDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024);
+	SrvUavDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, true);
 
-    D3D12_DESCRIPTOR_HEAP_DESC RtvHeapDesc = {};
-    RtvHeapDesc.NumDescriptors = 32;
-    RtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    RtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    RtvHeapDesc.NodeMask = 0;
-    D3dDevice->CreateDescriptorHeap(&RtvHeapDesc, IID_PPV_ARGS(&RtvDescriptorHeap));
-    RtvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-    D3D12_DESCRIPTOR_HEAP_DESC DsvHeapDesc = {};
-    DsvHeapDesc.NumDescriptors = 2;
-    DsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-    DsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    DsvHeapDesc.NodeMask = 0;
-    D3dDevice->CreateDescriptorHeap(&DsvHeapDesc, IID_PPV_ARGS(&DsvDescriptorHeap));
-    DsvDescriptorSize = D3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	RtvDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 32, false);
+	DsvDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4, false);
 
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
     TextureSamplers.push_back(CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP));
@@ -223,16 +210,15 @@ bool	CRenderer::Init(HWND hWnd)
     FrameBufferRtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // Apply gamma correction
     FrameBufferRtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     for (UINT i = 0; i < TotalFrameCount; ++i)
     {
         D3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&(PerFrameContext[i].CommandAllocator)));
 
         SwapChain->GetBuffer(i, IID_PPV_ARGS(&(PerFrameContext[i].FrameBuffer)));
+
+		D3D12_CPU_DESCRIPTOR_HANDLE RtvHandle = RtvDescriptorAllocator.Allocate().CpuHandle;
         D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), &FrameBufferRtvDesc, RtvHandle);
         PerFrameContext[i].FrameBufferRtvDescriptor = RtvHandle;
-        RtvHandle.Offset(1, RtvDescriptorSize);
-        CurrentRtvDescriptorIndex++;
 
         PerFrameContext[i].ViewBuffer.Init((UINT)(sizeof(SViewBuffer)), 1, true);
     }
@@ -502,9 +488,7 @@ CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, U
     DsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     DsvDesc.Texture2D.MipSlice = 0;
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle(DsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    DsvHandle.Offset(CurrentDsvDescriptorIdx, DsvDescriptorSize);
-    CurrentDsvDescriptorIdx++;
+	D3D12_CPU_DESCRIPTOR_HANDLE DsvHandle = DsvDescriptorAllocator.Allocate().CpuHandle;
     D3dDevice->CreateDepthStencilView(NewTexture->GetResource(), &DsvDesc, DsvHandle);
     NewTexture->DsvCPUDescriptor = DsvHandle;
 
@@ -582,14 +566,6 @@ CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT
     CTexture2D* ResTex = NewTexture.get();
     AllTextures[InName] = std::move(NewTexture);
     return ResTex;
-}
-
-CD3DX12_CPU_DESCRIPTOR_HANDLE CRenderer::AllocRtvDescriptor()
-{
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Descriptor(RtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    Descriptor.Offset(CurrentRtvDescriptorIndex, RtvDescriptorSize);
-    CurrentRtvDescriptorIndex++;
-    return Descriptor;
 }
 
 int	CRenderer::GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd)
