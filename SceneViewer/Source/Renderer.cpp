@@ -3,6 +3,7 @@
 #include "DDSTextureLoader12.h"
 #include "ScreenPass.h"
 #include "Logger.h"
+#include "Texture.h"
 
 CBuffer::CBuffer()
 {
@@ -508,8 +509,6 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffu
 
     std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, false, InIsDiffuse);
 
-    std::vector<D3D12_SUBRESOURCE_DATA> Subresources;
-
     std::filesystem::path AssetDir = CRenderer::GetAssetDirectory();
     std::filesystem::path TexFileName = AssetDir / InFileName;
     if (!std::filesystem::exists(TexFileName))
@@ -517,23 +516,7 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffu
         TexFileName = AssetDir / "default_n.dds";
     }
 
-    if (FAILED(LoadDDSTextureFromFile(D3dDevice.Get(), TexFileName.c_str(), NewTexture->Texture.GetAddressOf(), NewTexture->DDSData, Subresources)))
-    {
-        return nullptr;
-    }
-
-    UINT64 ReqSize = GetRequiredIntermediateSize(NewTexture->GetResource(), 0, static_cast<UINT>(Subresources.size()));
-
-    CD3DX12_HEAP_PROPERTIES UploadHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    CD3DX12_RESOURCE_DESC ResDesc = CD3DX12_RESOURCE_DESC::Buffer(ReqSize);
-
-    D3dDevice->CreateCommittedResource(&UploadHeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(NewTexture->UploadTexture.GetAddressOf()));
-
-    UpdateSubresources(CommandList.Get(), NewTexture->GetResource(), NewTexture->UploadTexture.Get(), 0, 0, static_cast<UINT>(Subresources.size()), Subresources.data());
-    ResourceBarrier(NewTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    NewTexture->Width = NewTexture->Texture->GetDesc().Width;
-    NewTexture->Height = NewTexture->Texture->GetDesc().Height;
+	NewTexture->Init(TexFileName.c_str(), CommandList.Get());
     NewTexture->CreateShaderResourceView();
 
     CTexture2D* ResTex = NewTexture.get();

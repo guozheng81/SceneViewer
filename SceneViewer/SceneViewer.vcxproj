@@ -144,6 +144,7 @@
     <ClCompile Include="Source\Renderer.cpp" />
     <ClCompile Include="Source\Scene.cpp" />
     <ClCompile Include="Source\ScreenPass.cpp" />
+    <ClCompile Include="Source\Texture.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -156,6 +157,7 @@
     <ClInclude Include="Source\Renderer.h" />
     <ClInclude Include="Source\Scene.h" />
     <ClInclude Include="Source\ScreenPass.h" />
+    <ClInclude Include="Source\Texture.h" />
     <ClInclude Include="Source\tiny_obj_loader.h" />
     <ClInclude Include="Source\Utils.h" />
     <ClInclude Include="stdafx.h" />
