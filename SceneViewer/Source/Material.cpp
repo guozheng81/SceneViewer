@@ -201,6 +201,12 @@ void CMaterial::BuildComputePSO(LPCWSTR InComputeName)
 
 void CMaterial::BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
 {
+    if (!RootSign.Get())
+    {
+        LOG_ERROR("BuildPSO: Root signature is not initialized. Call BuildRootSignature first.");
+        return;
+    }
+
 	std::vector<D3D12_INPUT_ELEMENT_DESC> InputDescArray =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -213,14 +219,42 @@ void CMaterial::BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
 
     std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
 
-    D3DReadFileToBlob((ExeDirectory/InVSFileName).c_str(), &VSBlob);
-    D3DReadFileToBlob((ExeDirectory/InPSFileName).c_str(), &PSBlob);
+    HRESULT HrVS = D3DReadFileToBlob((ExeDirectory/InVSFileName).c_str(), &VSBlob);
+    if (FAILED(HrVS))
+    {
+        LOG_ERROR("BuildPSO: Failed to load vertex shader (0x%08X).", HrVS);
+        return;
+    }
+
+    if (!VSBlob || VSBlob->GetBufferSize() == 0)
+    {
+        LOG_ERROR("BuildPSO: Vertex shader blob is invalid or empty.");
+        return;
+    }
+
+    HRESULT HrPS = D3DReadFileToBlob((ExeDirectory/InPSFileName).c_str(), &PSBlob);
+    if (FAILED(HrPS))
+    {
+        LOG_ERROR("BuildPSO: Failed to load pixel shader (0x%08X).", HrPS);
+        return;
+    }
+
+    if (!PSBlob || PSBlob->GetBufferSize() == 0)
+    {
+        LOG_ERROR("BuildPSO: Pixel shader blob is invalid or empty.");
+        return;
+    }
 
     PSODesc.InputLayout = { InputDescArray.data(), (UINT)(InputDescArray.size())};
     PSODesc.pRootSignature = RootSign.Get();
     PSODesc.VS = CD3DX12_SHADER_BYTECODE(VSBlob->GetBufferPointer(), VSBlob->GetBufferSize());
     PSODesc.PS = CD3DX12_SHADER_BYTECODE(PSBlob->GetBufferPointer(), PSBlob->GetBufferSize());
-    CRenderer::GetInstance().D3dDevice->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&PSO));
+    HRESULT HrCreatePSO = CRenderer::GetInstance().D3dDevice->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&PSO));
+    if (FAILED(HrCreatePSO))
+    {
+        LOG_ERROR("BuildPSO: CreateGraphicsPipelineState failed (0x%08X).", HrCreatePSO);
+        PSO.Reset();
+    }
 }
 
 void CMaterial::OnRender(ID3D12GraphicsCommandList4* InCommandList)

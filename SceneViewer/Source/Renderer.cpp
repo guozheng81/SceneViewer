@@ -11,34 +11,57 @@ CBuffer::CBuffer()
 
 void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState, bool bNeedUAV, bool bConstantBuffer)
 {
+    if (InEleSize == 0 || InEleCount == 0)
+    {
+        LOG_ERROR("CBuffer::Init: Invalid element size (%u) or count (%u).", InEleSize, InEleCount);
+        return;
+    }
+
     ElementSize = InEleSize;
     ElementCount = InEleCount;
     bUseForUpload = InForUpload;
-	bIsConstantBuffer = bConstantBuffer;
+    bIsConstantBuffer = bConstantBuffer;
 
     if (bIsConstantBuffer)
     {
-		UINT AlignedElementSize = (ElementSize + 255) & ~255;
-        if(AlignedElementSize != ElementSize)
+        UINT AlignedElementSize = (ElementSize + 255) & ~255;
+        if (AlignedElementSize != ElementSize)
         {
-            LOG_WARN("Constant buffer size %u is not aligned to 256 bytes, aligned to %u", ElementSize, AlignedElementSize);
+            LOG_WARN("CBuffer::Init: Constant buffer size %u aligned to %u bytes.", ElementSize, AlignedElementSize);
             ElementSize = AlignedElementSize;
-		}
+        }
     }
 
-    CD3DX12_HEAP_PROPERTIES HeapProps(bUseForUpload? D3D12_HEAP_TYPE_UPLOAD: D3D12_HEAP_TYPE_DEFAULT);
+    CD3DX12_HEAP_PROPERTIES HeapProps(bUseForUpload ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InEleSize * InEleCount);
+
     if (bNeedUAV)
     {
         BufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
     }
 
-    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &BufferDesc, InInitState, nullptr, IID_PPV_ARGS(&Buffer));
+    HRESULT HrCreateResource = CRenderer::GetInstance().D3dDevice->CreateCommittedResource(
+        &HeapProps, D3D12_HEAP_FLAG_NONE, &BufferDesc, InInitState, nullptr, IID_PPV_ARGS(&Buffer));
+
+    if (FAILED(HrCreateResource))
+    {
+        LOG_ERROR("CBuffer::Init: CreateCommittedResource failed (0x%08X).", HrCreateResource);
+        return;
+    }
 
     if (bUseForUpload)
     {
-        Buffer->Map(0, nullptr, reinterpret_cast<void**>(&MappedPtr));
+        HRESULT HrMap = Buffer->Map(0, nullptr, reinterpret_cast<void**>(&MappedPtr));
+        if (FAILED(HrMap))
+        {
+            LOG_ERROR("CBuffer::Init: Failed to map buffer (0x%08X).", HrMap);
+            Buffer.Reset();
+            return;
+        }
     }
+
+    LOG_INFO("CBuffer::Init: Buffer created (Size: %u bytes, Elements: %u, Upload: %s).",
+        InEleSize * InEleCount, InEleCount, bUseForUpload ? "true" : "false");
 }
 
 CBuffer::~CBuffer()
@@ -67,18 +90,42 @@ void CBuffer::Reset()
 
 void CBuffer::SetElementData(UINT Idx, void* InData, UINT InSize)
 {
-    if (InSize == 0)
+    if (InData == nullptr)
     {
-        InSize = ElementSize;
+        LOG_ERROR("CBuffer::SetElementData: Input data is null.");
+        return;
     }
-    if (MappedPtr != nullptr)
+
+    if (Idx >= ElementCount)
     {
-        memcpy(MappedPtr + ElementSize*Idx, InData, InSize);
+        LOG_ERROR("CBuffer::SetElementData: Index %u exceeds element count %u.", Idx, ElementCount);
+        return;
     }
+
+    if (MappedPtr == nullptr)
+    {
+        LOG_ERROR("CBuffer::SetElementData: Buffer is not mapped (not an upload buffer).");
+        return;
+    }
+
+    UINT ActualSize = (InSize == 0) ? ElementSize : InSize;
+    if (ActualSize > ElementSize)
+    {
+        LOG_WARN("CBuffer::SetElementData: Input size %u exceeds element size %u, truncating.", ActualSize, ElementSize);
+        ActualSize = ElementSize;
+    }
+
+    memcpy(MappedPtr + ElementSize * Idx, InData, ActualSize);
 }
 
 void CBuffer::CreateShaderResourceView()
 {
+    if (!Buffer.Get())
+    {
+        LOG_ERROR("CBuffer::CreateShaderResourceView: Buffer resource is null.");
+        return;
+    }
+
     D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
     SrvDesc.Format = DXGI_FORMAT_UNKNOWN;
     SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -97,7 +144,19 @@ void CBuffer::CreateShaderResourceView()
 
 D3D12_GPU_VIRTUAL_ADDRESS CBuffer::GetGPUAddress(UINT InIdx)
 {
-    return Buffer->GetGPUVirtualAddress() + InIdx*ElementSize;
+    if (InIdx >= ElementCount)
+    {
+        LOG_ERROR("CBuffer::GetGPUAddress: Index %u exceeds element count %u.", InIdx, ElementCount);
+        return 0;
+    }
+
+    if (!Buffer.Get())
+    {
+        LOG_ERROR("CBuffer::GetGPUAddress: Buffer resource is null.");
+        return 0;
+    }
+
+    return Buffer->GetGPUVirtualAddress() + InIdx * ElementSize;
 }
 
 void CBuffer::SetData(void* InData)
