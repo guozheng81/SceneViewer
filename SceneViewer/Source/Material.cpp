@@ -3,6 +3,7 @@
 #include "Material.h"
 #include "Renderer.h"
 #include "Scene.h"
+#include "Logger.h"
 
 
 CMaterial::CMaterial()
@@ -19,10 +20,41 @@ CMaterial::CMaterial()
     PSODesc.SampleDesc.Count = 1;
 }
 
-void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, UINT InUnboundSrvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges)
+/// <summary>
+/// Initializes root parameters and descriptor ranges for the root signature.
+/// 
+/// This method constructs the root signature parameter layout by organizing constant buffer views (CBVs),
+/// shader resource views (SRVs), unordered access views (UAVs), and unbound SRVs into descriptor tables
+/// and root parameters. The resulting structures are used when building the root signature for graphics
+/// or compute pipelines.
+/// </summary>
+/// <param name="InCbvCount">Number of constant buffer view parameters to create. Each CBV is added as
+/// a direct root parameter (not in a descriptor table).</param>
+/// <param name="InSrvCount">Number of bound shader resource view parameters to create. Each SRV is
+/// placed in its own descriptor table with a single descriptor range.</param>
+/// <param name="InUavCount">Number of unordered access view parameters to create. Each UAV is placed
+/// in its own descriptor table with a single descriptor range.</param>
+/// <param name="InUnboundSrvCount">Number of unbound shader resource view parameters to create. Unbound
+/// SRVs allow access to an unbounded range of resources (descriptor range with count -1).</param>
+/// <param name="RootParams">Output vector that will be resized and populated with root parameters.
+/// The order is: CBVs, then SRVs, then UAVs, then unbound SRVs.</param>
+/// <param name="Ranges">Output vector that will be resized and populated with descriptor ranges for
+/// all SRVs, UAVs, and unbound SRVs. CBVs do not use descriptor ranges.</param>
+void CMaterial::InitRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, UINT InUnboundSrvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges)
 {
-    RootParams.resize(InCbvCount + InSrvCount + InUavCount + InUnboundSrvCount);
+    const UINT MAX_ROOT_PARAMETERS = 64; // D3D12 limit is 64 DWORD slots; conservative estimate
+    UINT TotalParams = InCbvCount + InSrvCount + InUavCount + InUnboundSrvCount;
+
+    if (TotalParams > MAX_ROOT_PARAMETERS)
+    {
+		LOG_ERROR("Total root parameters (%u) exceed the maximum allowed (%u).", TotalParams, MAX_ROOT_PARAMETERS);
+        return;
+	}
+
+    RootParams.resize(TotalParams);
     int RootIdx = 0;
+
+    // Initialize CBVs as direct root parameters (most efficient)
     for (UINT CbvIdx = 0; CbvIdx < InCbvCount; ++CbvIdx, ++RootIdx)
     {
         RootParams[RootIdx].InitAsConstantBufferView(CbvIdx);
@@ -49,6 +81,8 @@ void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCo
         RootParams[RootIdx].InitAsDescriptorTable(1, &(Ranges[Idx]), D3D12_SHADER_VISIBILITY_ALL);
     }
 
+    // Initialize unbound SRVs (unbounded arrays) in descriptor tables
+    // These use register space 1+ to avoid conflicts with other bindings
     for (UINT UnboundIdx = 0; UnboundIdx < InUnboundSrvCount; ++UnboundIdx, ++RootIdx)
     {
         int Idx = InSrvCount + InUavCount + UnboundIdx;
@@ -59,6 +93,12 @@ void CMaterial::IntRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCo
 
 void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams, bool bInForRaytracing)
 {
+    if (InRootParams.empty())
+    {
+        LOG_ERROR("BuildRootSignature called with empty root parameters.");
+        return;
+    }
+
     bUsedForRaytracing = bInForRaytracing;
 
     auto& Samplers = CRenderer::GetInstance().TextureSamplers;
@@ -73,8 +113,20 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
 
     ComPtr<ID3DBlob> SignBlob;
     ComPtr<ID3DBlob> ErrorBlob;
-    D3D12SerializeRootSignature(&RootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &SignBlob, &ErrorBlob);
-    CRenderer::GetInstance().D3dDevice->CreateRootSignature(0, SignBlob->GetBufferPointer(), SignBlob->GetBufferSize(), IID_PPV_ARGS(&RootSign));
+    HRESULT HrSerialize = D3D12SerializeRootSignature(&RootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &SignBlob, &ErrorBlob);
+    if (FAILED(HrSerialize))
+    {
+        const char* ErrorMsg = ErrorBlob ? (const char*)ErrorBlob->GetBufferPointer() : "Unknown error";
+        LOG_ERROR("D3D12SerializeRootSignature failed (0x%08X): %s", HrSerialize, ErrorMsg);
+        return;
+    }
+
+    HRESULT HrCreateSig = CRenderer::GetInstance().D3dDevice->CreateRootSignature(0, SignBlob->GetBufferPointer(), SignBlob->GetBufferSize(), IID_PPV_ARGS(&RootSign));
+    if (FAILED(HrCreateSig))
+    {
+        LOG_ERROR("CreateRootSignature failed (0x%08X).", HrCreateSig);
+        return;
+    }
 
     for (int i = 0; i < InRootParams.size(); ++i)
     {
@@ -206,6 +258,8 @@ int CMaterial::FindSrvRootParameterIndex(UINT InRegister, UINT InSpace)
     {
         return Iter->second;
     }
+
+	LOG_ERROR("FindSrvRootParameterIndex: No root parameter found for SRV register %u in space %u.", InRegister, InSpace);
     return -1;
 }
 
@@ -221,6 +275,8 @@ int CMaterial::FindConstantRootParameterIndex(UINT InRegister, UINT InSpace)
     {
         return Iter->second;
     }
+
+	LOG_ERROR("FindConstantRootParameterIndex: No root parameter found for constant buffer register %u in space %u.", InRegister, InSpace);
     return -1;
 }
 
@@ -236,6 +292,8 @@ int CMaterial::FindUavRootParameterIndex(UINT InRegister, UINT InSpace)
     {
         return Iter->second;
     }
+
+	LOG_ERROR("FindUavRootParameterIndex: No root parameter found for UAV register %u in space %u.", InRegister, InSpace);
     return -1;
 }
 
@@ -292,6 +350,12 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
         return;
     }
 
+    if (InBuffer->IsConstantBuffer())
+    {
+        LOG_ERROR("SetShaderResource: The provided buffer is a constant buffer. Use SetConstantBuffer instead.");
+		return;
+    }
+
     int FoundRootParamIdx = FindSrvRootParameterIndex(InRegister);
     if (FoundRootParamIdx == -1)
     {
@@ -314,6 +378,12 @@ void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT
     {
         return;
     }
+
+    if(!(InBuffer->IsConstantBuffer()))
+    {
+        LOG_ERROR("SetConstantBuffer: The provided buffer is not a constant buffer.");
+        return;
+	}
 
     int FoundRootParamIdx = FindConstantRootParameterIndex(InRegister);
     if (FoundRootParamIdx == -1)

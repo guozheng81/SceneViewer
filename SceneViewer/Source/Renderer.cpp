@@ -9,11 +9,22 @@ CBuffer::CBuffer()
 {
 }
 
-void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState, bool bNeedUAV)
+void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState, bool bNeedUAV, bool bConstantBuffer)
 {
     ElementSize = InEleSize;
     ElementCount = InEleCount;
     bUseForUpload = InForUpload;
+	bIsConstantBuffer = bConstantBuffer;
+
+    if (bIsConstantBuffer)
+    {
+		UINT AlignedElementSize = (ElementSize + 255) & ~255;
+        if(AlignedElementSize != ElementSize)
+        {
+            LOG_WARN("Constant buffer size %u is not aligned to 256 bytes, aligned to %u", ElementSize, AlignedElementSize);
+            ElementSize = AlignedElementSize;
+		}
+    }
 
     CD3DX12_HEAP_PROPERTIES HeapProps(bUseForUpload? D3D12_HEAP_TYPE_UPLOAD: D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InEleSize * InEleCount);
@@ -221,7 +232,7 @@ bool	CRenderer::Init(HWND hWnd)
         D3dDevice->CreateRenderTargetView(PerFrameContext[i].FrameBuffer.Get(), &FrameBufferRtvDesc, RtvHandle);
         PerFrameContext[i].FrameBufferRtvDescriptor = RtvHandle;
 
-        PerFrameContext[i].ViewBuffer.Init((UINT)(sizeof(SViewBuffer)), 1, true);
+        PerFrameContext[i].ViewBuffer.Init((UINT)(sizeof(SViewBuffer)), 1, true, D3D12_RESOURCE_STATE_GENERIC_READ, false, true);
     }
 
     ///////////////////////////////////////////////

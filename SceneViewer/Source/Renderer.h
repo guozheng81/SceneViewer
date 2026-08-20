@@ -23,14 +23,18 @@ protected:
 
 	bool bUseForUpload = false;
 
+	bool bIsConstantBuffer = false;
+
 public:
 	CBuffer();
 	~CBuffer();
 
+	inline bool IsConstantBuffer() const { return bIsConstantBuffer; }
+
 	CD3DX12_CPU_DESCRIPTOR_HANDLE SrvCPUDescriptor = {};
 	CD3DX12_GPU_DESCRIPTOR_HANDLE SrvGPUDescriptor = {};
 
-	void Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState = D3D12_RESOURCE_STATE_GENERIC_READ, bool bNeedUAV = false);
+	void Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState = D3D12_RESOURCE_STATE_GENERIC_READ, bool bNeedUAV = false, bool bConstantBuffer = false);
 	inline ID3D12Resource* GetResource() {
 		return Buffer.Get();
 	}

@@ -23,7 +23,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 {
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::IntRootParameters(1, 1, 0, 1, RootParams, SrvRanges);
+	CMaterial::InitRootParameters(1, 1, 0, 1, RootParams, SrvRanges);
 
 	CD3DX12_ROOT_PARAMETER MeshIdxRootParam;
 	MeshIdxRootParam.InitAsConstants(1, 1);

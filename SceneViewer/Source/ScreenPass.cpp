@@ -25,7 +25,7 @@ void CLightPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::IntRootParameters(1, 5, 0, 0, RootParams, SrvRanges);
+	CMaterial::InitRootParameters(1, 5, 0, 0, RootParams, SrvRanges);
 	Material.BuildRootSignature(RootParams, false);
 	Material.BuildPSO(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso");
 
@@ -70,7 +70,7 @@ void CSimpleRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::IntRootParameters(1, 2, 1, 2, RootParams, Ranges);
+	CMaterial::InitRootParameters(1, 2, 1, 2, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(1);
@@ -110,7 +110,7 @@ void CShadowRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::IntRootParameters(1, 4, 1, 2, RootParams, Ranges);
+	CMaterial::InitRootParameters(1, 4, 1, 2, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(1);
@@ -154,7 +154,7 @@ void CIndirectLightRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::IntRootParameters(1, 4, 1, 2, RootParams, Ranges);
+	CMaterial::InitRootParameters(1, 4, 1, 2, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(2);
@@ -177,7 +177,7 @@ void CIndirectLightRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	TARootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> TARanges;
-	CMaterial::IntRootParameters(1, 4, 1, 0, TARootParams, TARanges);
+	CMaterial::InitRootParameters(1, 4, 1, 0, TARootParams, TARanges);
 
 	TemporalAccumulate.BuildRootSignature(TARootParams, false);
 	TemporalAccumulate.BuildComputePSO(L"TemporalAccumulate.cso");
@@ -188,7 +188,7 @@ void CIndirectLightRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	ATrousRootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> ATrousRanges;
-	CMaterial::IntRootParameters(0, 3, 1, 0, ATrousRootParams, ATrousRanges);
+	CMaterial::InitRootParameters(0, 3, 1, 0, ATrousRootParams, ATrousRanges);
 	CD3DX12_ROOT_PARAMETER RootParam;
 	RootParam.InitAsConstants(sizeof(SATrousConstants)/4, 0);
 	ATrousRootParams.push_back(RootParam);
