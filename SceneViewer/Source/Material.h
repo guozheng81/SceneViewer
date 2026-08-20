@@ -54,10 +54,10 @@ public:
 
 	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 
-	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex);
+	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture* InTex);
 	void SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
 
-	void SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex);
+	void SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTextureRenderTarget* InTex);
 
 	void SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
 

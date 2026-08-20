@@ -22,12 +22,12 @@ public:
 class CLightPass : public CScreenPass
 {
 protected:
-	CTexture2D* GBufferA = nullptr;
-	CTexture2D* GBufferB = nullptr;
-	CTexture2D* Depth = nullptr;
+	CTextureRenderTarget* GBufferA = nullptr;
+	CTextureRenderTarget* GBufferB = nullptr;
+	CTextureDepthStencil* Depth = nullptr;
 
-	CTexture2D* ShadowRT = nullptr;
-	CTexture2D* IndirectLightRT = nullptr;
+	CTextureRenderTarget* ShadowRT = nullptr;
+	CTextureRenderTarget* IndirectLightRT = nullptr;
 
 public:
 	virtual void Init();
@@ -37,7 +37,7 @@ public:
 class CSimpleRTPass : public CScreenPass
 {
 protected:
-	CTexture2D* SimpleRT = nullptr;
+	CTextureRenderTarget* SimpleRT = nullptr;
 
 public:
 	virtual void Init();
@@ -47,9 +47,9 @@ public:
 class CShadowRTPass : public CScreenPass
 {
 protected:
-	CTexture2D* GBufferB = nullptr;
-	CTexture2D* ShadowRT = nullptr;
-	CTexture2D* Depth = nullptr;
+	CTextureRenderTarget* GBufferB = nullptr;
+	CTextureRenderTarget* ShadowRT = nullptr;
+	CTextureDepthStencil* Depth = nullptr;
 
 public:
 	virtual void Init();
@@ -71,19 +71,19 @@ struct SATrousConstants
 class CIndirectLightRTPass : public CScreenPass
 {
 protected:
-	CTexture2D* GBufferB = nullptr;
-	CTexture2D* IndirectLightRT = nullptr;
-	CTexture2D* Depth = nullptr;
+	CTextureRenderTarget* GBufferB = nullptr;
+	CTextureRenderTarget* IndirectLightRT = nullptr;
+	CTextureDepthStencil* Depth = nullptr;
 
 	CMaterial TemporalAccumulate;
-	CTexture2D* TA0 = nullptr;
-	CTexture2D* TA1 = nullptr;
+	CTextureRenderTarget* TA0 = nullptr;
+	CTextureRenderTarget* TA1 = nullptr;
 	bool bIsTA1Target = true;
 
 	SATrousConstants ATrousConstants;
 	CMaterial	ATrousMaterial;
-	CTexture2D* ATrous0 = nullptr;
-	CTexture2D* ATrous1 = nullptr;
+	CTextureRenderTarget* ATrous0 = nullptr;
+	CTextureRenderTarget* ATrous1 = nullptr;
 
 public:
 	virtual void Init();

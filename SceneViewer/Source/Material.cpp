@@ -239,7 +239,7 @@ int CMaterial::FindUavRootParameterIndex(UINT InRegister, UINT InSpace)
     return -1;
 }
 
-void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex)
+void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTextureRenderTarget* InTex)
 {
     if (InTex == nullptr || InTex->UavGPUDescriptor.ptr == 0)
     {
@@ -262,7 +262,7 @@ void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister
     }
 }
 
-void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture2D* InTex)
+void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture* InTex)
 {
     if (InTex == nullptr || InTex->SrvGPUDescriptor.ptr == 0)
     {

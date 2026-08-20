@@ -18,10 +18,10 @@ protected:
 
 	CBuffer ModelBuffer;
 
-	CTexture2D* GBufferA = nullptr;
-	CTexture2D* GBufferB = nullptr;
-	CTexture2D* Depth0 = nullptr;
-	CTexture2D* Depth1 = nullptr;
+	CTextureRenderTarget* GBufferA = nullptr;
+	CTextureRenderTarget* GBufferB = nullptr;
+	CTextureDepthStencil* Depth0 = nullptr;
+	CTextureDepthStencil* Depth1 = nullptr;
 	bool bIsUsingDepth0 = false;
 
 	CBuffer TLAS_Scratch;
@@ -55,11 +55,11 @@ public:
 
 	CBuffer* GetModelBuffer() {	return &ModelBuffer;	}
 
-	inline CTexture2D* GetDepthTexture() {
+	inline CTextureDepthStencil* GetDepthTexture() {
 		return (bIsUsingDepth0 ? Depth0 : Depth1);
 	}
 
-	inline CTexture2D* GetHistoryDepthTexture() {
+	inline CTextureDepthStencil* GetHistoryDepthTexture() {
 		return (bIsUsingDepth0 ? Depth1 : Depth0);
 	}
 

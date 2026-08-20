@@ -23,16 +23,38 @@ DXGI_FORMAT ConvertUnormToSrgb(DXGI_FORMAT format)
     }
 }
 
-CTexture2D::CTexture2D(bool InNeedRtv, bool InNeedUav, bool InIsDepth, bool InIsDiffuse)
-    :bNeedRtv(InNeedRtv),
-    bNeedUav(InNeedUav),
-    bIsDepth(InIsDepth),
-    bIsDiffuse(InIsDiffuse)
+void CTexture::CreateShaderResourceView(bool bIsResizing)
 {
+    if(Texture == nullptr)
+    {
+        LOG_ERROR("Texture resource is null. Cannot create Shader Resource View.");
+        return;
+	}
 
+    D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
+    SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    SrvDesc.Format = SrvFormat;
+    SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    SrvDesc.Texture2D.MostDetailedMip = 0;
+    SrvDesc.Texture2D.MipLevels = Texture->GetDesc().MipLevels;
+    SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    if (!bIsResizing)
+    {
+        SDescriptorHandle SrvDescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+        SrvCPUDescriptor = SrvDescriptorHandle.CpuHandle;
+        SrvGPUDescriptor = SrvDescriptorHandle.GpuHandle;
+    }
+
+    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, SrvCPUDescriptor);
 }
 
-void CTexture2D::Init(LPCWSTR InFileName, ID3D12GraphicsCommandList4* InCommandList)
+CTexture2D::CTexture2D(bool InIsDiffuse)
+    : bIsDiffuse(InIsDiffuse)
+{
+}
+
+void CTexture2D::LoadResource(LPCWSTR InFileName, ID3D12GraphicsCommandList4* InCommandList)
 {
     std::vector<D3D12_SUBRESOURCE_DATA> Subresources;
     std::unique_ptr<uint8_t[]> DDSData;
@@ -60,6 +82,16 @@ void CTexture2D::Init(LPCWSTR InFileName, ID3D12GraphicsCommandList4* InCommandL
 
     Width = Texture->GetDesc().Width;
     Height = Texture->GetDesc().Height;
+	Format = Texture->GetDesc().Format;
+
+    if (bIsDiffuse)
+    {
+        SrvFormat = ConvertUnormToSrgb(Format);
+    }
+    else
+    {
+		SrvFormat = Format;
+    }
 }
 
 void CTexture2D::ResetUploadResource()
@@ -70,99 +102,49 @@ void CTexture2D::ResetUploadResource()
     }
 }
 
-void CTexture2D::CreateShaderResourceView(bool bIsResizing)
+void CTextureDepthStencil::OnResize(UINT InW, UINT InH)
 {
-    D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
-    SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    SrvDesc.Format = Texture->GetDesc().Format;
-    if (bIsDepth)
+    Texture.Reset();
+    Width = InW;
+    Height = InH;
+
+    CreateResource();
+
+	CreateDepthStencilView(true);
+    CreateShaderResourceView(true);
+}
+
+void CTextureDepthStencil::CreateDepthStencilView(bool bIsResizing)
+{
+    if (Texture == nullptr)
     {
-        SrvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+        LOG_ERROR("Texture resource is null. Cannot create Depth Stencil View.");
+        return;
     }
-    else if (bIsDiffuse)
-    {
-        SrvDesc.Format = ConvertUnormToSrgb(SrvDesc.Format);
-    }
-    SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    SrvDesc.Texture2D.MostDetailedMip = 0;
-    SrvDesc.Texture2D.MipLevels = Texture->GetDesc().MipLevels;
-    SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    D3D12_DEPTH_STENCIL_VIEW_DESC DsvDesc = {};
+    DsvDesc.Format = DXGI_FORMAT_D32_FLOAT; // Cast from R32_TYPELESS
+    DsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    DsvDesc.Texture2D.MipSlice = 0;
 
     if (!bIsResizing)
     {
-        SDescriptorHandle SrvDescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
-        SrvCPUDescriptor = SrvDescriptorHandle.CpuHandle;
-        SrvGPUDescriptor = SrvDescriptorHandle.GpuHandle;
+        DsvCPUDescriptor = CRenderer::GetInstance().DsvDescriptorAllocator.Allocate().CpuHandle;
     }
-
-    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, SrvCPUDescriptor);
+    CRenderer::GetInstance().D3dDevice->CreateDepthStencilView(GetResource(), &DsvDesc, DsvCPUDescriptor);
 }
 
-void CTexture2D::CreateRenderTargetView(bool bIsResizing)
+CTextureDepthStencil::CTextureDepthStencil(DXGI_FORMAT InFormat, UINT InW, UINT InH)
+    : CTexture(InFormat, InW, InH)
 {
-    if (!bIsResizing)
-    {
-        RtvCPUDescriptor = CRenderer::GetInstance().RtvDescriptorAllocator.Allocate().CpuHandle;
-    }
-    CRenderer::GetInstance().D3dDevice->CreateRenderTargetView(Texture.Get(), nullptr, RtvCPUDescriptor);
+	SrvFormat = DXGI_FORMAT_R32_FLOAT; // Use a compatible format for shader resource view
 }
 
-void CTexture2D::CreateUnorderedAccessView(bool bIsResizing)
-{
-    if (!bIsResizing)
-    {
-        SDescriptorHandle DescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
-        UavCPUDescriptor = DescriptorHandle.CpuHandle;
-        UavGPUDescriptor = DescriptorHandle.GpuHandle;
-    }
-
-    CRenderer::GetInstance().D3dDevice->CreateUnorderedAccessView(Texture.Get(), nullptr, nullptr, UavCPUDescriptor);
-}
-
-void CTexture2D::OnResize(UINT InW, UINT InH)
-{
-    if (bIsDepth)
-    {
-        Texture.Reset();
-        Width = InW;
-        Height = InH;
-
-        CreateDepthTextureResource();
-
-        D3D12_DEPTH_STENCIL_VIEW_DESC DsvDesc = {};
-        DsvDesc.Format = DXGI_FORMAT_D32_FLOAT; // Cast from R32_TYPELESS
-        DsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-        DsvDesc.Texture2D.MipSlice = 0;
-        CRenderer::GetInstance().D3dDevice->CreateDepthStencilView(GetResource(), &DsvDesc, DsvCPUDescriptor);
-
-        CreateShaderResourceView(true);
-    }
-    else if (bNeedRtv || bNeedUav)
-    {
-        DXGI_FORMAT RTFormat = Texture->GetDesc().Format;
-
-        Texture.Reset();
-        Width = InW;
-        Height = InH;
-
-        CreateRenderTargetResource(RTFormat, RTClearColor);
-        if (bNeedRtv)
-        {
-            CreateRenderTargetView(true);
-        }
-        if (bNeedUav)
-        {
-            CreateUnorderedAccessView(true);
-        }
-        CreateShaderResourceView(true);
-    }
-}
-
-void CTexture2D::CreateDepthTextureResource()
+void CTextureDepthStencil::CreateResource()
 {
     D3D12_RESOURCE_DESC TextureDesc = {};
     TextureDesc.MipLevels = 1;
-    TextureDesc.Format = DXGI_FORMAT_R32_TYPELESS; // Use typeless so it can be cast to DSV and SRV
+    TextureDesc.Format = Format; // Use typeless so it can be cast to DSV and SRV
     TextureDesc.Width = Width;
     TextureDesc.Height = Height;
     TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -177,10 +159,22 @@ void CTexture2D::CreateDepthTextureResource()
     ClearValue.DepthStencil.Stencil = 0;
 
     CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &ClearValue, IID_PPV_ARGS(Texture.GetAddressOf()));
+    HRESULT hr = CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &ClearValue, IID_PPV_ARGS(Texture.GetAddressOf()));
+    if (FAILED(hr))
+    {
+		LOG_ERROR("Failed to create depth stencil resource.");
+    }
 }
 
-void CTexture2D::CreateRenderTargetResource(DXGI_FORMAT InFormat, XMFLOAT4 InColor)
+CTextureRenderTarget::CTextureRenderTarget(DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW, UINT InH, bool InNeedRtv, bool InNeedUav)
+	: CTexture(InFormat, InW, InH),
+	RTClearColor(InColor),
+    bNeedRtv(InNeedRtv),
+	bNeedUav(InNeedUav)
+{
+}
+
+void CTextureRenderTarget::CreateResource()
 {
     D3D12_RESOURCE_DESC TextureDesc = {};
 
@@ -190,7 +184,7 @@ void CTexture2D::CreateRenderTargetResource(DXGI_FORMAT InFormat, XMFLOAT4 InCol
     TextureDesc.Height = Height;
     TextureDesc.DepthOrArraySize = 1;
     TextureDesc.MipLevels = 1;
-    TextureDesc.Format = InFormat;
+    TextureDesc.Format = Format;
     TextureDesc.SampleDesc.Count = 1;
     TextureDesc.SampleDesc.Quality = 0;
     TextureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -208,15 +202,70 @@ void CTexture2D::CreateRenderTargetResource(DXGI_FORMAT InFormat, XMFLOAT4 InCol
 
     D3D12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-    RTClearColor = InColor;
     D3D12_CLEAR_VALUE ClearValue = {};
     ClearValue.Format = TextureDesc.Format;
-    ClearValue.Color[0] = InColor.x;
-    ClearValue.Color[1] = InColor.y;
-    ClearValue.Color[2] = InColor.z;
-    ClearValue.Color[3] = InColor.w;
+    ClearValue.Color[0] = RTClearColor.x;
+    ClearValue.Color[1] = RTClearColor.y;
+    ClearValue.Color[2] = RTClearColor.z;
+    ClearValue.Color[3] = RTClearColor.w;
 
-    CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, (bNeedRtv ? &ClearValue : nullptr), IID_PPV_ARGS(Texture.GetAddressOf()));
+    HRESULT hr = CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, (bNeedRtv ? &ClearValue : nullptr), IID_PPV_ARGS(Texture.GetAddressOf()));
+    if (FAILED(hr))
+    {
+        LOG_ERROR("Failed to create render target resource.");
+		return;
+    }
+}
 
+void CTextureRenderTarget::CreateRenderTargetView(bool bIsResizing)
+{
+    if (Texture == nullptr)
+    {
+		LOG_ERROR("Texture resource is null. Cannot create Render Target View.");
+        return;
+    }
+
+    if (!bIsResizing)
+    {
+        RtvCPUDescriptor = CRenderer::GetInstance().RtvDescriptorAllocator.Allocate().CpuHandle;
+    }
+    CRenderer::GetInstance().D3dDevice->CreateRenderTargetView(Texture.Get(), nullptr, RtvCPUDescriptor);
+}
+
+void CTextureRenderTarget::CreateUnorderedAccessView(bool bIsResizing)
+{
+    if(Texture == nullptr)
+    {
+        LOG_ERROR("Texture resource is null. Cannot create Unordered Access View.");
+        return;
+	}
+
+    if (!bIsResizing)
+    {
+        SDescriptorHandle DescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+        UavCPUDescriptor = DescriptorHandle.CpuHandle;
+        UavGPUDescriptor = DescriptorHandle.GpuHandle;
+    }
+
+    CRenderer::GetInstance().D3dDevice->CreateUnorderedAccessView(Texture.Get(), nullptr, nullptr, UavCPUDescriptor);
+}
+
+void CTextureRenderTarget::OnResize(UINT InW, UINT InH)
+{
+    Texture.Reset();
+    Width = InW;
+    Height = InH;
+
+    CreateResource();
+    CreateShaderResourceView(true);
+
+    if (bNeedRtv)
+    {
+        CreateRenderTargetView(true);
+    }
+    if (bNeedUav)
+    {
+        CreateUnorderedAccessView(true);
+    }
 }
 

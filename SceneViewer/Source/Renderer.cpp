@@ -462,7 +462,7 @@ std::filesystem::path CRenderer::GetAssetDirectory()
     return AssetDir;
 }
 
-CTexture2D* CRenderer::GetTexture(const std::string& InFileName)
+CTexture* CRenderer::GetTexture(const std::string& InFileName)
 {
     if (AllTextures.find(InFileName) != AllTextures.end())
     {
@@ -472,30 +472,20 @@ CTexture2D* CRenderer::GetTexture(const std::string& InFileName)
     return nullptr;
 }
 
-CTexture2D* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, UINT InH)
+CTextureDepthStencil* CRenderer::CreateDepthTexture(const std::string& InName, UINT InW, UINT InH)
 {
     if (AllTextures.find(InName) != AllTextures.end())
     {
-        return AllTextures[InName].get();
+        return dynamic_cast<CTextureDepthStencil*>(AllTextures[InName].get());
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, true, false);
-    NewTexture->Width = InW;
-    NewTexture->Height = InH;
-    NewTexture->CreateDepthTextureResource();
-
-    D3D12_DEPTH_STENCIL_VIEW_DESC DsvDesc = {};
-    DsvDesc.Format = DXGI_FORMAT_D32_FLOAT; // Cast from R32_TYPELESS
-    DsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    DsvDesc.Texture2D.MipSlice = 0;
-
-	D3D12_CPU_DESCRIPTOR_HANDLE DsvHandle = DsvDescriptorAllocator.Allocate().CpuHandle;
-    D3dDevice->CreateDepthStencilView(NewTexture->GetResource(), &DsvDesc, DsvHandle);
-    NewTexture->DsvCPUDescriptor = DsvHandle;
+    std::unique_ptr<CTextureDepthStencil> NewTexture = std::make_unique<CTextureDepthStencil>(DXGI_FORMAT_R32_TYPELESS, InW, InH);
+    NewTexture->CreateResource();
+	NewTexture->CreateDepthStencilView();
 
     NewTexture->CreateShaderResourceView();
 
-    CTexture2D* ResTex = NewTexture.get();
+    CTextureDepthStencil* ResTex = NewTexture.get();
     AllTextures[InName] = std::move(NewTexture);
     return ResTex;
 }
@@ -504,10 +494,10 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffu
 {
     if (AllTextures.find(InFileName) != AllTextures.end())
     {
-        return AllTextures[InFileName].get();
+        return dynamic_cast<CTexture2D*>(AllTextures[InFileName].get());
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(false, false, false, InIsDiffuse);
+    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(InIsDiffuse);
 
     std::filesystem::path AssetDir = CRenderer::GetAssetDirectory();
     std::filesystem::path TexFileName = AssetDir / InFileName;
@@ -516,7 +506,7 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffu
         TexFileName = AssetDir / "default_n.dds";
     }
 
-	NewTexture->Init(TexFileName.c_str(), CommandList.Get());
+	NewTexture->LoadResource(TexFileName.c_str(), CommandList.Get());
     NewTexture->CreateShaderResourceView();
 
     CTexture2D* ResTex = NewTexture.get();
@@ -524,18 +514,15 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffu
     return ResTex;
 }
 
-CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW, UINT InH, bool InNeedRtv, bool InNeedUav)
+CTextureRenderTarget* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW, UINT InH, bool InNeedRtv, bool InNeedUav)
 {
     if (AllTextures.find(InName) != AllTextures.end())
     {
-        return AllTextures[InName].get();
+        return dynamic_cast<CTextureRenderTarget*>(AllTextures[InName].get());
     }
 
-    std::unique_ptr<CTexture2D> NewTexture = std::make_unique<CTexture2D>(InNeedRtv, InNeedUav, false, false);
-    NewTexture->Width = (InW != 0 ? InW : ViewportWidth);
-    NewTexture->Height = (InH != 0 ? InH : ViewportHeight);
-
-    NewTexture->CreateRenderTargetResource(InFormat, InColor);
+    std::unique_ptr<CTextureRenderTarget> NewTexture = std::make_unique<CTextureRenderTarget>(InFormat, InColor, (InW != 0 ? InW : ViewportWidth), (InH != 0 ? InH : ViewportHeight), InNeedRtv, InNeedUav);
+    NewTexture->CreateResource();
     if (InNeedRtv)
     {
         NewTexture->CreateRenderTargetView();
@@ -546,7 +533,7 @@ CTexture2D* CRenderer::CreateRenderTarget(const std::string& InName, DXGI_FORMAT
     }
     NewTexture->CreateShaderResourceView();
 
-    CTexture2D* ResTex = NewTexture.get();
+    CTextureRenderTarget* ResTex = NewTexture.get();
     AllTextures[InName] = std::move(NewTexture);
     return ResTex;
 }

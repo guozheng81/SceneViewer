@@ -1,6 +1,7 @@
 #include "ScreenPass.h"
 #include "Renderer.h"
 #include "Scene.h"
+#include "Texture.h"
 
 void CScreenPass::Init()
 {
@@ -28,12 +29,12 @@ void CLightPass::Init()
 	Material.BuildRootSignature(RootParams, false);
 	Material.BuildPSO(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso");
 
-	GBufferA = CRenderer::GetInstance().GetTexture("GBufferA");
-	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
+	GBufferA = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferA"));
+	GBufferB = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferB"));
 
-	ShadowRT = CRenderer::GetInstance().GetTexture("ShadowRT");
+	ShadowRT = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("ShadowRT"));
 
-	IndirectLightRT = CRenderer::GetInstance().GetTexture("ATrous0");
+	IndirectLightRT = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("ATrous0"));
 }
 
 void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
@@ -121,7 +122,7 @@ void CShadowRTPass::Init()
 	Material.BuildRaytracingPSO(L"ShadowRT.cso", L"ShadowRayGen", ShaderInfoArray);
 
 	ShadowRT = CRenderer::GetInstance().CreateRenderTarget("ShadowRT", DXGI_FORMAT_R8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
-	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
+	GBufferB = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferB"));
 }
 
 void CShadowRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
@@ -170,7 +171,7 @@ void CIndirectLightRTPass::Init()
 	Material.BuildRaytracingPSO(L"IndirectLightRT.cso", L"IndirectRayGen", ShaderInfoArray, 2);
 
 	IndirectLightRT = CRenderer::GetInstance().CreateRenderTarget("IndirectLightRT", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
-	GBufferB = CRenderer::GetInstance().GetTexture("GBufferB");
+	GBufferB = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferB"));
 
 	///////////////////
 
@@ -223,8 +224,8 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	////////////// Temporal accumulate
 
-	CTexture2D* TATarget = (bIsTA1Target? TA1 : TA0);
-	CTexture2D* TASource = (bIsTA1Target ? TA0 : TA1);
+	CTextureRenderTarget* TATarget = (bIsTA1Target? TA1 : TA0);
+	CTextureRenderTarget* TASource = (bIsTA1Target ? TA0 : TA1);
 
 	{
 		if (CRenderer::GetInstance().IsFristFrame())
@@ -270,8 +271,8 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	for(int ATrousIdx = 0; ATrousIdx < 5; ++ATrousIdx)
 	{
 		bool bUse0AsTarget = (ATrousIdx % 2 == 0);
-		CTexture2D* TargetTexture = (bUse0AsTarget ? ATrous0 : ATrous1);
-		CTexture2D* SrcTexture = (bUse0AsTarget ? ATrous1 : ATrous0);
+		CTextureRenderTarget* TargetTexture = (bUse0AsTarget ? ATrous0 : ATrous1);
+		CTextureRenderTarget* SrcTexture = (bUse0AsTarget ? ATrous1 : ATrous0);
 		if (ATrousIdx == 0)
 		{
 			SrcTexture = TATarget;
