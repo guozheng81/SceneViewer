@@ -60,8 +60,6 @@ void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESO
         }
     }
 
-    LOG_INFO("CBuffer::Init: Buffer created (Size: %u bytes, Elements: %u, Upload: %s).",
-        InEleSize * InEleCount, InEleCount, bUseForUpload ? "true" : "false");
 }
 
 CBuffer::~CBuffer()

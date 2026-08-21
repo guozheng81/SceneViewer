@@ -182,11 +182,22 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
 
 void CMaterial::BuildComputePSO(LPCWSTR InComputeName)
 {
+    if (!RootSign.Get())
+    {
+        LOG_ERROR("BuildComputePSO: Root signature is not initialized. Call BuildRootSignature first.");
+        return;
+	}
+
     D3D12_COMPUTE_PIPELINE_STATE_DESC ComputePsoDesc = {};
 
     ComPtr<ID3DBlob> CSBlob;
     std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
-    D3DReadFileToBlob((ExeDirectory / InComputeName).c_str(), &CSBlob);
+    HRESULT Hr = D3DReadFileToBlob((ExeDirectory / InComputeName).c_str(), &CSBlob);
+    if(FAILED(Hr))
+    {
+        LOG_ERROR("BuildComputePSO: Failed to load compute shader (0x%08X).", Hr);
+        return;
+	}
 
     ComputePsoDesc.pRootSignature = RootSign.Get();
     ComputePsoDesc.CS = { CSBlob->GetBufferPointer(), CSBlob->GetBufferSize() };
@@ -194,7 +205,13 @@ void CMaterial::BuildComputePSO(LPCWSTR InComputeName)
     ComputePsoDesc.CachedPSO = {};
     ComputePsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 
-    CRenderer::GetInstance().D3dDevice->CreateComputePipelineState(&ComputePsoDesc, IID_PPV_ARGS(&PSO));
+    HRESULT HrState = CRenderer::GetInstance().D3dDevice->CreateComputePipelineState(&ComputePsoDesc, IID_PPV_ARGS(&PSO));
+    if(FAILED(HrState))
+    {
+        LOG_ERROR("BuildComputePSO: CreateComputePipelineState failed (0x%08X).", HrState);
+        PSO.Reset();
+        return;
+	}
 
     bUsedForCompute = true;
 }
@@ -335,6 +352,7 @@ void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister
 {
     if (InTex == nullptr || InTex->UavGPUDescriptor.ptr == 0)
     {
+		LOG_ERROR("SetUav: Invalid texture or UAV descriptor for register %u.", InRegister);
         return;
     }
 
@@ -358,6 +376,7 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
 {
     if (InTex == nullptr || InTex->SrvGPUDescriptor.ptr == 0)
     {
+		LOG_ERROR("SetShaderResource: Invalid texture or SRV descriptor for register %u.", InRegister);
         return;
     }
 
@@ -381,6 +400,7 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
 {
     if (InBuffer == nullptr || InBuffer->SrvGPUDescriptor.ptr == 0)
     {
+		LOG_ERROR("SetShaderResource: Invalid buffer or SRV descriptor for register %u.", InRegister);
         return;
     }
 
@@ -410,6 +430,7 @@ void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT
 {
     if (InBuffer == nullptr)
     {
+		LOG_ERROR("SetConstantBuffer: Invalid buffer for register %u.", InRegister);
         return;
     }
 
@@ -444,7 +465,13 @@ void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, con
     ComPtr<ID3DBlob> ShaderBlob;
     std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
 
-    D3DReadFileToBlob((ExeDirectory / InFileName).c_str(), &ShaderBlob);
+    HRESULT HrRead = D3DReadFileToBlob((ExeDirectory / InFileName).c_str(), &ShaderBlob);
+    if(FAILED(HrRead))
+    {
+        LOG_ERROR("BuildRaytracingPSO: Failed to load DXIL shader library (0x%08X).", HrRead);
+        return;
+	}
+
     D3D12_SHADER_BYTECODE dxilBytecode = { ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize()};
     DxilLib->SetDXILLibrary(&dxilBytecode);
 
@@ -482,7 +509,13 @@ void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, con
 
     PipelineConfig->Config(MaxRecursionDepth);
 
-    CRenderer::GetInstance().D3dDevice->CreateStateObject(RtPSODesc, IID_PPV_ARGS(&RaytracingPSO));
+    HRESULT HrState = CRenderer::GetInstance().D3dDevice->CreateStateObject(RtPSODesc, IID_PPV_ARGS(&RaytracingPSO));
+    if (FAILED(HrState))
+    {
+        LOG_ERROR("BuildRaytracingPSO: CreateStateObject failed (0x%08X).", HrState);
+        RaytracingPSO.Reset();
+        return;
+    }
 
     RaytracingPSO->QueryInterface(IID_PPV_ARGS(&RtPSOProperties));
 
