@@ -7,9 +7,9 @@ SamplerState AnisotropicSampler : register(s2);
 StructuredBuffer<MeshInfo> AllMeshes: register(t0);
 Texture2D MaterialTextures[] : register(t0, space1);
 
-cbuffer cbMeshIndex : register(b1)
+cbuffer cbInstanceIndex : register(b1)
 {
-    int MeshIndex;
+    int InstanceIndex;
 }
 
 struct VS_OUTPUT
@@ -27,7 +27,7 @@ VS_OUTPUT VSMain(VS_INPUT Input)
     float4 LocalPos = Input.Position;
     LocalPos.w = 1.0f;
 	
-    float4x4 WldMtx = AllMeshes[MeshIndex].mWorld;
+    float4x4 WldMtx = AllMeshes[InstanceIndex + Input.InstanceID].mWorld;
     float4 WldPos = mul(LocalPos, WldMtx);
     Output.Position = mul(WldPos, mViewProjection);
 
@@ -53,7 +53,7 @@ struct PS_OUTPUT
 
 PS_OUTPUT PSMain(PS_INPUT Input)
 {
-    int TexIdx = AllMeshes[MeshIndex].TextureIdx;
+    int TexIdx = AllMeshes[InstanceIndex].TextureIdx;
     Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
     Texture2D NormalTexture = MaterialTextures[TexIdx * 2 + 1];
     

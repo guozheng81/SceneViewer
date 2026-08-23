@@ -78,10 +78,10 @@ void IndirectMiss(inout IndirectPayload Payload)
 [shader("closesthit")]
 void IndirectClosestHit(inout IndirectPayload Payload, in BuiltInTriangleIntersectionAttributes attribs)
 {
-    uint MeshIdx = InstanceID();
+    uint InstanceIdx = InstanceID();
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
-    int TexIdx = AllMeshes[MeshIdx].TextureIdx;
+    int TexIdx = AllMeshes[InstanceIdx].TextureIdx;
     Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
     float3 Albedo = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).rgb;
     float3 N = HitVertex.Normal;
@@ -105,10 +105,10 @@ void IndirectClosestHit(inout IndirectPayload Payload, in BuiltInTriangleInterse
 [shader("anyhit")]
 void IndirectAnyHit(inout IndirectPayload Payload, in BuiltInTriangleIntersectionAttributes attribs)
 {
-    uint MeshIdx = InstanceID();
+    uint InstanceIdx = InstanceID();
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
-    int TexIdx = AllMeshes[MeshIdx].TextureIdx;
+    int TexIdx = AllMeshes[InstanceIdx].TextureIdx;
     Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
     
     float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
@@ -135,10 +135,10 @@ void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectio
 [shader("anyhit")]
 void ShadowAnyHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
 {
-    uint MeshIdx = InstanceID();
+    uint InstanceIdx = InstanceID();
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
-    int TexIdx = AllMeshes[MeshIdx].TextureIdx;
+    int TexIdx = AllMeshes[InstanceIdx].TextureIdx;
     Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
     
     float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;

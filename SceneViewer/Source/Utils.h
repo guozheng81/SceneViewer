@@ -30,5 +30,6 @@ struct SViewBuffer
 struct SMeshInfo
 {
 	XMFLOAT4X4 WorldMatrix;
+	int MeshIdx;
 	int	TextureIdx;
 };

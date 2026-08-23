@@ -495,10 +495,20 @@ ComPtr<ID3D12Resource> CRenderer::CreateDefaultBuffer(const void* InData, UINT I
 
     CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC ResDesc = CD3DX12_RESOURCE_DESC::Buffer(InTotalByteSize);
-    D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&Buffer));
+    HRESULT Hr = D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&Buffer));
+    if(FAILED(Hr))
+    {
+        LOG_ERROR("CreateDefaultBuffer for default buffer failed (0x%08X).", Hr);
+        return nullptr;
+	}
 
     CD3DX12_HEAP_PROPERTIES UploadHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    D3dDevice->CreateCommittedResource(&UploadHeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(OutUploadBuffer.GetAddressOf()));
+    HRESULT HrUpload = D3dDevice->CreateCommittedResource(&UploadHeapProp, D3D12_HEAP_FLAG_NONE, &ResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(OutUploadBuffer.GetAddressOf()));
+    if (FAILED(HrUpload))
+    {
+        LOG_ERROR("CreateDefaultBuffer for upload buffer failed (0x%08X).", HrUpload);
+        return nullptr;
+	}
 
     D3D12_SUBRESOURCE_DATA SubResourceData = {};
     SubResourceData.pData = InData;

@@ -58,10 +58,10 @@ void ShadowClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttri
 [shader("anyhit")]
 void ShadowAnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attribs)
 {
-    uint MeshIdx = InstanceID();
+    uint InstanceIdx = InstanceID();
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
-    int TexIdx = AllMeshes[MeshIdx].TextureIdx;
+    int TexIdx = AllMeshes[InstanceIdx].TextureIdx;
     Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
     
     float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;

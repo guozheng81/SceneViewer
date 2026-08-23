@@ -1,6 +1,7 @@
 #include "Scene.h"
 #include "Renderer.h"
 #include "Mesh.h"
+#include "Logger.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
@@ -129,13 +130,18 @@ CMesh* CScene::AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& In
 
 	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
 
-	CurMesh->Init(Verts, Indices, bAlphaTest);
+	CurMesh->Init(Verts, Indices, MeshInfoArray.size(), bAlphaTest);
 
 	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesDescriptor, DiffTexture->SrvGPUDescriptor);
-	SMeshInfo MeshInfo;
-	MeshInfo.TextureIdx = TextureIdx / 2;
-	CurMesh->GetWorldMatrix(&(MeshInfo.WorldMatrix));
-	MeshInfoArray.push_back(MeshInfo);
+
+	for (int InstanceIdx = 0; InstanceIdx < CurMesh->GetInstanceCount(); ++InstanceIdx)
+	{
+		SMeshInfo MeshInfo;
+		MeshInfo.MeshIdx = (int)(AllMeshes.size());
+		MeshInfo.TextureIdx = TextureIdx / 2;
+		CurMesh->GetInstanceWorldMatrix(InstanceIdx, &(MeshInfo.WorldMatrix));
+		MeshInfoArray.push_back(MeshInfo);
+	}
 
 	CMesh* Res = CurMesh.get();
 	AllMeshes.push_back(std::move(CurMesh));
@@ -162,7 +168,7 @@ void CScene::OnLoaded()
 	}
 	CRenderer::GetInstance().SrvUavDescriptorAllocator.EndBlockAllocation();
 
-	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(AllMeshes.size()), true);
+	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(MeshInfoArray.size()), true);
 	ModelBuffer.SetData(MeshInfoArray.data());
 	ModelBuffer.CreateShaderResourceView();
 
@@ -227,7 +233,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	for(int i = 0; i < AllMeshes.size(); ++i)
 	{
 		auto& CurMesh = AllMeshes[i];
-		InCommandList->SetGraphicsRoot32BitConstant(MeshIndexParam, i, 0);
+		InCommandList->SetGraphicsRoot32BitConstant(MeshIndexParam, CurMesh->GetGlobalInstanceIndex(), 0);
 		CurMesh->OnRender(InCommandList);
 	}
 
@@ -249,10 +255,11 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 		CurMesh->BuildBottomLevelAS(InCommandList);
 	}
 
+	UINT InstanceNum = MeshInfoArray.size();
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS Inputs = {};
 	Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	Inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-	Inputs.NumDescs = MeshNum;
+	Inputs.NumDescs = InstanceNum;
 	Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO Info;
@@ -260,22 +267,28 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 
 	TLAS_Scratch.Init(Info.ScratchDataSizeInBytes, 1, false, D3D12_RESOURCE_STATE_COMMON, true);
 	TLAS.Init(Info.ResultDataMaxSizeInBytes, 1, false, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, true);
-	TLAS_Instances.Init(sizeof(D3D12_RAYTRACING_INSTANCE_DESC), MeshNum, true);
+	TLAS_Instances.Init(sizeof(D3D12_RAYTRACING_INSTANCE_DESC), InstanceNum, true);
 
-	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> InstancesDescArray(MeshNum);
+	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> InstancesDescArray(InstanceNum);
+	UINT InstanceIdx = 0;
 	for (UINT i = 0; i < MeshNum; ++i)
 	{
 		auto& CurMesh = AllMeshes[i];
 
-		InstancesDescArray[i].InstanceID = i;
-		InstancesDescArray[i].InstanceContributionToHitGroupIndex = 0;
-		InstancesDescArray[i].Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-		InstancesDescArray[i].AccelerationStructure = CurMesh->BLAS.GetGPUAddress();
-		InstancesDescArray[i].InstanceMask = 0xFF;
+		for(UINT j = 0; j < CurMesh->GetInstanceCount(); ++j)
+		{
+			SMeshInfo& MeshInfo = MeshInfoArray[CurMesh->GetGlobalInstanceIndex() + j];
+			XMFLOAT4X4 Mtx = MeshInfo.WorldMatrix;
+			memcpy(InstancesDescArray[InstanceIdx].Transform, &Mtx, sizeof(InstancesDescArray[InstanceIdx].Transform));
 
-		XMFLOAT4X4 Mtx;
-		CurMesh->GetWorldMatrix(&Mtx);
-		memcpy(InstancesDescArray[i].Transform, &Mtx, sizeof(InstancesDescArray[i].Transform));
+			InstancesDescArray[InstanceIdx].InstanceID = InstanceIdx;
+			InstancesDescArray[InstanceIdx].InstanceContributionToHitGroupIndex = 0;
+			InstancesDescArray[InstanceIdx].Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+			InstancesDescArray[InstanceIdx].AccelerationStructure = CurMesh->BLAS.GetGPUAddress();
+			InstancesDescArray[InstanceIdx].InstanceMask = 0xFF;
+
+			InstanceIdx++;
+		}
 	}
 	TLAS_Instances.SetData(InstancesDescArray.data());
 

@@ -25,7 +25,8 @@ struct SHitVertexAttributes
 
 SHitVertexAttributes GetHitVertexAttributes(float2 BarycentricXY)
 {
-    uint MeshIdx = InstanceID();
+    uint InstanceIdx = InstanceID();
+    uint MeshIdx = AllMeshes[InstanceIdx].MeshIdx;
     uint TriangleID = PrimitiveIndex();
     SVertex Vert0 = VertexBufferArray[MeshIdx][TriangleID * 3];
     SVertex Vert1 = VertexBufferArray[MeshIdx][TriangleID * 3 + 1];

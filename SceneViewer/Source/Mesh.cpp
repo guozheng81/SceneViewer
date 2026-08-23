@@ -1,7 +1,7 @@
 #include "Mesh.h"
 #include "Renderer.h"
 
-void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, bool bAlphaTest)
+void CMesh::Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InGlobalInstIdx, bool bAlphaTest)
 {
 	bNeedsAlphaTest = bAlphaTest;
 
@@ -22,6 +22,10 @@ void CMesh::Init(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices,
 		IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
 		IndexBufferView.SizeInBytes = TotalSize;
 	}
+
+	GlobalInstanceIndex = InGlobalInstIdx;
+	InstanceWorldMatrices.clear();
+	AddInstance(XMMatrixIdentity());
 }
 
 void CMesh::ResetUploadResource()
@@ -39,25 +43,37 @@ void CMesh::ResetUploadResource()
 	BLAS_Scratch.Reset();
 }
 
+
 void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
-	InCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	if (InstanceWorldMatrices.empty())
+	{
+		return;
+	}
 
+	InCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	InCommandList->IASetVertexBuffers(0, 1, &VertexBufferView);
+
+	UINT InstanceCount = static_cast<UINT>(InstanceWorldMatrices.size());
+
 	if (IndicesCount > 0)
 	{
 		InCommandList->IASetIndexBuffer(&IndexBufferView);
-		InCommandList->DrawIndexedInstanced(IndicesCount, 1, 0, 0, 0);
+		InCommandList->DrawIndexedInstanced(IndicesCount, InstanceCount, 0, 0, 0);
 	}
 	else
 	{
-		InCommandList->DrawInstanced(VertexCount, 1, 0, 0);
+		InCommandList->DrawInstanced(VertexCount, InstanceCount, 0, 0);
 	}
 }
 
-void	CMesh::GetWorldMatrix(XMFLOAT4X4* OutMtx)
+void CMesh::GetWorldMatrix(XMFLOAT4X4* OutMtx)
 {
-	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(WorldMatrix));
+	// Kept for backwards compatibility - returns first instance if available
+	if (!InstanceWorldMatrices.empty() && OutMtx)
+	{
+		XMStoreFloat4x4(OutMtx, XMMatrixTranspose(InstanceWorldMatrices[0]));
+	}
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS CMesh::GetVertexGPUAddress()
@@ -74,7 +90,7 @@ void CMesh::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
 	D3D12_RAYTRACING_GEOMETRY_DESC GeomDesc = {};
 
 	GeomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-	GeomDesc.Flags = (bNeedsAlphaTest? D3D12_RAYTRACING_GEOMETRY_FLAG_NONE : D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE);
+	GeomDesc.Flags = (bNeedsAlphaTest ? D3D12_RAYTRACING_GEOMETRY_FLAG_NONE : D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE);
 	GeomDesc.Triangles.VertexBuffer.StartAddress = GetVertexGPUAddress();
 	GeomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(SSceneVertex);
 	GeomDesc.Triangles.VertexCount = VertexCount;
@@ -118,4 +134,36 @@ void CMesh::CreateVertexShaderResourceView()
 	SDescriptorHandle DescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
 	CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(VertexBuffer.Get(), &SrvDesc, DescriptorHandle.CpuHandle);
 	VertexSrvGPUDescriptor = DescriptorHandle.GpuHandle;
+}
+
+UINT CMesh::AddInstance(const XMMATRIX& InWorldMatrix)
+{
+	InstanceWorldMatrices.push_back(InWorldMatrix);
+	return static_cast<UINT>(InstanceWorldMatrices.size() - 1);
+}
+
+void CMesh::SetInstanceWorldMatrix(UINT InstanceIndex, const XMMATRIX& InWorldMatrix)
+{
+	if (InstanceIndex < InstanceWorldMatrices.size())
+	{
+		InstanceWorldMatrices[InstanceIndex] = InWorldMatrix;
+	}
+}
+
+void CMesh::GetInstanceWorldMatrix(UINT InstanceIndex, XMFLOAT4X4* OutMtx)
+{
+	if (OutMtx && InstanceIndex < InstanceWorldMatrices.size())
+	{
+		XMStoreFloat4x4(OutMtx, XMMatrixTranspose(InstanceWorldMatrices[InstanceIndex]));
+	}
+}
+
+void CMesh::ClearInstances()
+{
+	InstanceWorldMatrices.clear();
+}
+
+UINT CMesh::GetInstanceCount() const
+{
+	return static_cast<UINT>(InstanceWorldMatrices.size());
 }

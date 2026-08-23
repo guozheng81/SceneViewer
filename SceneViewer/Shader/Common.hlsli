@@ -14,6 +14,7 @@ cbuffer cbView : register(b0)
 struct MeshInfo
 {
     matrix mWorld;
+    int MeshIdx;
     int TextureIdx;
 };
 
@@ -24,6 +25,7 @@ struct VS_INPUT
     float4 Position : POSITION;
     float3 Normal : NORMAL;
     float2 Texcoord : TEXCOORD0;
+    uint InstanceID : SV_InstanceID;
 };
 
 float GGX(float3 N, float3 H, float roughness)
