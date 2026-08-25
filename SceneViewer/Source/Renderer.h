@@ -82,6 +82,8 @@ protected:
 	void	BeginFrame();
 	void	EndFrame();
 
+	void	RenderGUI();
+
 	CD3DX12_VIEWPORT Viewport;
 	CD3DX12_RECT ScissorRect;
 
@@ -89,6 +91,14 @@ protected:
 
 	bool	bIsFirstFrame = true;
 	UINT	AccumulatedFrameNumber = 0;
+
+	// Frame timing
+	double	DeltaTime = 0.0;
+	double	AccumulatedTime = 0.0;
+	UINT	FrameCount = 0;
+	UINT	CurrentFps = 0;
+
+	void	UpdateFPS();
 
 	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 

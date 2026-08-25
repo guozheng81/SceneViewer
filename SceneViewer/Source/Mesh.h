@@ -26,6 +26,16 @@ protected:
 	int GlobalInstanceIndex = 0;
 
 public:
+	CMesh(const CMesh&) = delete;
+	CMesh& operator=(const CMesh&) = delete;
+
+	CMesh() = default;
+	~CMesh() = default;
+
+	// Allow move semantics
+	CMesh(CMesh&&) noexcept = default;
+	CMesh& operator=(CMesh&&) noexcept = default;
+
 	CD3DX12_GPU_DESCRIPTOR_HANDLE VertexSrvGPUDescriptor = {};
 
 	void Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InGlobalInstIdx = 0, bool bAlphaTest = false);

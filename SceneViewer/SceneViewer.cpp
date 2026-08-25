@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "./Source/Renderer.h"
 #include "./Source/Scene.h"
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
 
 HWND        g_HWnd = nullptr;
 int         g_LastMousePositionX = 0;
@@ -11,8 +14,13 @@ float       g_DirLightX = -0.3f;
 float       g_DirLightZ = -0.15f;
 float       g_DirLightInensity = 10.0f;
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+        return true;
+
     switch (message)
     {
     case WM_CREATE:
@@ -149,6 +157,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
         nullptr,
         hInstance,
         nullptr);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark(); // Or StyleColorsLight()
+    ImGui_ImplWin32_Init(g_HWnd);
 
     CRenderer::GetInstance().Init(g_HWnd);
 

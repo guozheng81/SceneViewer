@@ -42,6 +42,11 @@ public:
 	int FindUavRootParameterIndex(UINT InRegister, UINT InSpace = 0);
 
 	CMaterial();
+	CMaterial(const CMaterial&) = delete;
+	CMaterial& operator=(const CMaterial&) = delete;
+
+	CMaterial(CMaterial&&) noexcept = default;
+	CMaterial& operator=(CMaterial&&) noexcept = default;
 
 	// unbound srvs starting from space1
 	static void InitRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, UINT InUnboundSrvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges);

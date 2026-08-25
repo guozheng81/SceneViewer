@@ -4,6 +4,9 @@
 #include "ScreenPass.h"
 #include "Logger.h"
 #include "Texture.h"
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
 
 CBuffer::CBuffer()
 {
@@ -331,6 +334,27 @@ bool	CRenderer::Init(HWND hWnd)
         Pass->Init();
     }
 
+    ///////////////// imgui /////////////////
+
+    ImGui_ImplDX12_InitInfo ImGuiInfo = {};
+    ImGuiInfo.Device = D3dDevice.Get();
+    ImGuiInfo.CommandQueue = D3DCommandQueue.Get();
+    ImGuiInfo.NumFramesInFlight = TotalFrameCount;
+    ImGuiInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    ImGuiInfo.DSVFormat = DXGI_FORMAT_R32_TYPELESS;
+    ImGuiInfo.SrvDescriptorHeap = SrvUavDescriptorAllocator.GetHeap();
+    ImGuiInfo.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
+        { 
+            SDescriptorHandle Handle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+            *out_cpu_handle = Handle.CpuHandle;
+            *out_gpu_handle = Handle.GpuHandle;
+        };
+    ImGuiInfo.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
+        { 
+            CRenderer::GetInstance().SrvUavDescriptorAllocator.DeferredFree(cpu_handle);
+        };
+    ImGui_ImplDX12_Init(&ImGuiInfo);
+
     LOG_INFO("Renderer initialization complete");
     return true;
 }
@@ -440,6 +464,8 @@ void	CRenderer::UpdateViewBuffer()
 
 void	CRenderer::Render()
 {
+	UpdateFPS();
+
     BeginFrame();
 
     CommandList->RSSetViewports(1, &Viewport);
@@ -457,7 +483,49 @@ void	CRenderer::Render()
         Pass->OnRender(CommandList.Get());
     }
 
+	RenderGUI();
+
     EndFrame();
+}
+
+void	CRenderer::RenderGUI()
+{
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::SetNextWindowPos(ImVec2(ViewportWidth - 200, 10), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(200, 80), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Debug");
+
+    ImGui::Text("FPS: %u", CurrentFps);
+    ImGui::Text("Frame Time: %.3f ms", DeltaTime * 1000.0);
+
+	ImGui::End();
+
+    ImGui::Render();
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), CommandList.Get());
+}
+
+void	CRenderer::UpdateFPS()
+{
+    auto CurrentTime = std::chrono::high_resolution_clock::now();
+    static auto LastTime = CurrentTime;
+
+    std::chrono::duration<double> ElapsedTime = CurrentTime - LastTime;
+    DeltaTime = ElapsedTime.count();
+    LastTime = CurrentTime;
+
+    AccumulatedTime += DeltaTime;
+    FrameCount++;
+
+    // Update FPS every second
+    if (AccumulatedTime >= 1.0)
+    {
+        CurrentFps = FrameCount;
+        FrameCount = 0;
+        AccumulatedTime -= 1.0;
+    }
 }
 
 void CRenderer::ResourceBarrier(ID3D12Resource* InResource, D3D12_RESOURCE_STATES InBefore, D3D12_RESOURCE_STATES InAfter)
@@ -483,6 +551,10 @@ void	CRenderer::FlushCommandQueue(bool bShouldIncreaseFence)
 
 void	CRenderer::Shutdown()
 {
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+
     FlushCommandQueue();
     CloseHandle(FrameFenceEvent);
 
