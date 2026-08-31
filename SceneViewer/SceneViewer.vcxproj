@@ -152,6 +152,7 @@
     <ClCompile Include="Source\Mesh.cpp" />
     <ClCompile Include="Source\Renderer.cpp" />
     <ClCompile Include="Source\Scene.cpp" />
+    <ClCompile Include="Source\SceneObject.cpp" />
     <ClCompile Include="Source\ScreenPass.cpp" />
     <ClCompile Include="Source\Texture.cpp" />
     <ClCompile Include="stdafx.cpp" />
@@ -173,6 +174,7 @@
     <ClInclude Include="Source\Mesh.h" />
     <ClInclude Include="Source\Renderer.h" />
     <ClInclude Include="Source\Scene.h" />
+    <ClInclude Include="Source\SceneObject.h" />
     <ClInclude Include="Source\ScreenPass.h" />
     <ClInclude Include="Source\Texture.h" />
     <ClInclude Include="Source\tiny_obj_loader.h" />

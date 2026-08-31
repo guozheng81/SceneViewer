@@ -83,6 +83,9 @@
     <ClCompile Include="Source\imgui\backends\imgui_impl_win32.cpp">
       <Filter>imgui\backends</Filter>
     </ClCompile>
+    <ClCompile Include="Source\SceneObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Renderer.h">
@@ -147,6 +150,9 @@
     </ClInclude>
     <ClInclude Include="Source\imgui\backends\imgui_impl_win32.h">
       <Filter>imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\SceneObject.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

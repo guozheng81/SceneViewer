@@ -5,6 +5,7 @@
 #include "Camera.h"
 #include "Renderer.h"
 
+class CSceneObject;
 class CMesh;
 
 class CScene
@@ -15,6 +16,8 @@ protected:
 	std::unique_ptr<CMaterial>	Material;
 
 	std::vector<SMeshInfo> MeshInfoArray;
+
+	std::vector<std::unique_ptr<CSceneObject>> AllSceneObjects;
 
 	CBuffer ModelBuffer;
 
@@ -66,5 +69,7 @@ public:
 	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 
 	void OnLoaded();
+
+	CSceneObject* CreateSceneObject(std::string InName);
 };
 

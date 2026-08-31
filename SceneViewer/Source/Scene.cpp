@@ -2,6 +2,7 @@
 #include "Renderer.h"
 #include "Mesh.h"
 #include "Logger.h"
+#include "SceneObject.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
@@ -302,4 +303,13 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 
 	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(TLAS.GetResource());
 	InCommandList->ResourceBarrier(1, &UavBarrier);
+}
+
+CSceneObject* CScene::CreateSceneObject(std::string InName)
+{
+	auto SceneObj = std::make_unique<CSceneObject>(std::move(InName));
+	CSceneObject* Ptr = SceneObj.get();
+
+	AllSceneObjects.push_back(std::move(SceneObj));
+	return Ptr;
 }
