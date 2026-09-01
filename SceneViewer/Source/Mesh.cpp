@@ -1,9 +1,11 @@
 #include "Mesh.h"
 #include "Renderer.h"
+#include "SceneObject.h"
 
-void CMesh::Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InGlobalInstIdx, bool bAlphaTest)
+void CMesh::Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx, bool bAlphaTest)
 {
 	bNeedsAlphaTest = bAlphaTest;
+	TextureIndex = InTextureIdx;
 
 	VertexCount = Verts.size();
 	UINT TotalSize = sizeof(SSceneVertex) * VertexCount;
@@ -23,9 +25,7 @@ void CMesh::Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT3
 		IndexBufferView.SizeInBytes = TotalSize;
 	}
 
-	GlobalInstanceIndex = InGlobalInstIdx;
-	InstanceWorldMatrices.clear();
-	AddInstance(XMMatrixIdentity());
+	InstanceSceneObjects.clear();
 }
 
 void CMesh::ResetUploadResource()
@@ -46,15 +46,10 @@ void CMesh::ResetUploadResource()
 
 void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
-	if (InstanceWorldMatrices.empty())
-	{
-		return;
-	}
-
 	InCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	InCommandList->IASetVertexBuffers(0, 1, &VertexBufferView);
 
-	UINT InstanceCount = static_cast<UINT>(InstanceWorldMatrices.size());
+	UINT InstanceCount = std::max(static_cast<UINT>(InstanceSceneObjects.size()), static_cast<UINT>(1));
 
 	if (IndicesCount > 0)
 	{
@@ -67,20 +62,11 @@ void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 	}
 }
 
-void CMesh::GetWorldMatrix(XMFLOAT4X4* OutMtx)
-{
-	// Kept for backwards compatibility - returns first instance if available
-	if (!InstanceWorldMatrices.empty() && OutMtx)
-	{
-		XMStoreFloat4x4(OutMtx, XMMatrixTranspose(InstanceWorldMatrices[0]));
-	}
-}
-
 D3D12_GPU_VIRTUAL_ADDRESS CMesh::GetVertexGPUAddress()
 {
 	if (VertexBuffer)
 	{
-		return	VertexBuffer->GetGPUVirtualAddress();
+		return VertexBuffer->GetGPUVirtualAddress();
 	}
 	return 0;
 }
@@ -136,34 +122,46 @@ void CMesh::CreateVertexShaderResourceView()
 	VertexSrvGPUDescriptor = DescriptorHandle.GpuHandle;
 }
 
-UINT CMesh::AddInstance(const XMMATRIX& InWorldMatrix)
+UINT CMesh::AddInstance(CSceneObject* InSceneObject)
 {
-	InstanceWorldMatrices.push_back(InWorldMatrix);
-	return static_cast<UINT>(InstanceWorldMatrices.size() - 1);
+	if (!InSceneObject) return UINT(-1);
+
+	InstanceSceneObjects.push_back(InSceneObject);
+	return static_cast<UINT>(InstanceSceneObjects.size() - 1);
 }
 
-void CMesh::SetInstanceWorldMatrix(UINT InstanceIndex, const XMMATRIX& InWorldMatrix)
+void CMesh::RemoveInstance(UINT InstanceIndex)
 {
-	if (InstanceIndex < InstanceWorldMatrices.size())
+	if(InstanceIndex < InstanceSceneObjects.size())
 	{
-		InstanceWorldMatrices[InstanceIndex] = InWorldMatrix;
+		InstanceSceneObjects.erase(InstanceSceneObjects.begin() + InstanceIndex);
 	}
 }
 
 void CMesh::GetInstanceWorldMatrix(UINT InstanceIndex, XMFLOAT4X4* OutMtx)
 {
-	if (OutMtx && InstanceIndex < InstanceWorldMatrices.size())
+	if (OutMtx && InstanceIndex < InstanceSceneObjects.size() && InstanceSceneObjects[InstanceIndex])
 	{
-		XMStoreFloat4x4(OutMtx, XMMatrixTranspose(InstanceWorldMatrices[InstanceIndex]));
+		XMMATRIX WorldMtx = InstanceSceneObjects[InstanceIndex]->GetWorldMatrix();
+		XMStoreFloat4x4(OutMtx, XMMatrixTranspose(WorldMtx));
 	}
+}
+
+CSceneObject* CMesh::GetInstanceSceneObject(UINT InstanceIndex) const
+{
+	if (InstanceIndex < InstanceSceneObjects.size())
+	{
+		return InstanceSceneObjects[InstanceIndex];
+	}
+	return nullptr;
 }
 
 void CMesh::ClearInstances()
 {
-	InstanceWorldMatrices.clear();
+	InstanceSceneObjects.clear();
 }
 
 UINT CMesh::GetInstanceCount() const
 {
-	return static_cast<UINT>(InstanceWorldMatrices.size());
+	return static_cast<UINT>(InstanceSceneObjects.size());
 }

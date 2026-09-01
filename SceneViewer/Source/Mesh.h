@@ -3,6 +3,8 @@
 #include "Utils.h"
 #include "Renderer.h"
 
+class CSceneObject;
+
 class CMesh
 {
 protected:
@@ -18,12 +20,13 @@ protected:
 	ComPtr<ID3D12Resource> VertexUploadBuffer;
 	ComPtr<ID3D12Resource> IndexUploadBuffer;
 
-	// Instance data storage
-	std::vector<XMMATRIX> InstanceWorldMatrices;
+	// Instance data storage - unowned pointers to scene objects
+	std::vector<CSceneObject*> InstanceSceneObjects;
 
 	bool bNeedsAlphaTest = false;
 
 	int GlobalInstanceIndex = 0;
+	int TextureIndex = 0;
 
 public:
 	CMesh(const CMesh&) = delete;
@@ -38,19 +41,20 @@ public:
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE VertexSrvGPUDescriptor = {};
 
-	void Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InGlobalInstIdx = 0, bool bAlphaTest = false);
+	void Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx = 0, bool bAlphaTest = false);
 	void ResetUploadResource();
 
 	// Instance management
-	UINT AddInstance(const XMMATRIX& InWorldMatrix);
-	void SetInstanceWorldMatrix(UINT InstanceIndex, const XMMATRIX& InWorldMatrix);
+	UINT AddInstance(CSceneObject* InSceneObject);
+	void RemoveInstance(UINT InstanceIndex);
 	void GetInstanceWorldMatrix(UINT InstanceIndex, XMFLOAT4X4* OutMtx);
+	CSceneObject* GetInstanceSceneObject(UINT InstanceIndex) const;
 	void ClearInstances();
 	UINT GetInstanceCount() const;
 	int GetGlobalInstanceIndex() const { return GlobalInstanceIndex; }
+	void SetGlobalInstanceIndex(int InIdx) { GlobalInstanceIndex = InIdx; }
 
-	// Deprecated - kept for compatibility
-	void	GetWorldMatrix(XMFLOAT4X4* OutMtx);
+	int GetTextureIndex() const { return TextureIndex; }
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 

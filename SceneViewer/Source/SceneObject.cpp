@@ -1,4 +1,5 @@
 #include "SceneObject.h"
+#include "Mesh.h"
 
 CSceneObject::CSceneObject(std::string ObjectName)
     : Name(std::move(ObjectName)), Parent(nullptr), bIsDirty(true) 
@@ -97,4 +98,18 @@ void CSceneObject::UpdateWorldMatrix()
     }
 
     bIsDirty = false;
+}
+
+void CSceneObject::AddMesh(CMesh* Mesh)
+{
+    if (!Mesh) return;
+
+    // Check if mesh is already added
+    for (const auto* ExistingMesh : Meshes)
+    {
+        if (ExistingMesh == Mesh) return;
+    }
+
+    Meshes.push_back(Mesh);
+	Mesh->AddInstance(this);
 }

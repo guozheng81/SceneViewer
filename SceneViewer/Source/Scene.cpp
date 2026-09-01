@@ -43,6 +43,8 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	std::filesystem::path AssetPath = CRenderer::GetAssetDirectory();
 	AssetPath /= InSceneName;
 
+	CSceneObject* SceneRoot = CreateSceneObject(InSceneName);
+
 	tinyobj::ObjReaderConfig ReaderConfig;
 	ReaderConfig.mtl_search_path = "";
 
@@ -73,7 +75,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 				if (shapes[s].mesh.material_ids[f] != CurrentMatIdx)
 				{
 					auto TinyObjMat = materials[CurrentMatIdx];
-					AddMesh(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+					AddMesh(SceneRoot, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
 
 					Verts.clear();
 					Indices.clear();
@@ -107,16 +109,18 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 			}
 
 			auto TinyObjMat = materials[CurrentMatIdx];
-			AddMesh(Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+			AddMesh(SceneRoot, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
 		}
 	}
 
 	RendererInst.SrvUavDescriptorAllocator.EndBlockAllocation();
 
+	CollectAllMeshesInfo();
+
 	BuildAccelerationStructures(InCommandList);
 }
 
-CMesh* CScene::AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName)
+CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName)
 {
 	std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
 
@@ -131,22 +135,34 @@ CMesh* CScene::AddMesh(std::vector<SSceneVertex>& Verts, std::vector<UINT32>& In
 
 	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
 
-	CurMesh->Init(Verts, Indices, MeshInfoArray.size(), bAlphaTest);
-
 	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesDescriptor, DiffTexture->SrvGPUDescriptor);
 
-	for (int InstanceIdx = 0; InstanceIdx < CurMesh->GetInstanceCount(); ++InstanceIdx)
-	{
-		SMeshInfo MeshInfo;
-		MeshInfo.MeshIdx = (int)(AllMeshes.size());
-		MeshInfo.TextureIdx = TextureIdx / 2;
-		CurMesh->GetInstanceWorldMatrix(InstanceIdx, &(MeshInfo.WorldMatrix));
-		MeshInfoArray.push_back(MeshInfo);
-	}
+	CurMesh->Init(Verts, Indices, TextureIdx/2, bAlphaTest);
+	InSceneObject->AddMesh(CurMesh.get());
 
 	CMesh* Res = CurMesh.get();
 	AllMeshes.push_back(std::move(CurMesh));
 	return Res;
+}
+
+void CScene::CollectAllMeshesInfo()
+{
+	MeshInfoArray.clear();
+	int MeshIdx = 0;
+	for (auto& CurMesh : AllMeshes)
+	{
+		for (int InstanceIdx = 0; InstanceIdx < CurMesh->GetInstanceCount(); ++InstanceIdx)
+		{
+			SMeshInfo MeshInfo;
+			MeshInfo.MeshIdx = MeshIdx;
+			MeshInfo.TextureIdx = CurMesh->GetTextureIndex();
+			CurMesh->GetInstanceWorldMatrix(InstanceIdx, &(MeshInfo.WorldMatrix));
+			CurMesh->SetGlobalInstanceIndex((int)MeshInfoArray.size());
+			MeshInfoArray.push_back(MeshInfo);
+		}
+
+		MeshIdx++;
+	}
 }
 
 CMaterial* CScene::GetSceneMaterial()

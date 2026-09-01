@@ -2,6 +2,8 @@
 
 #include "Utils.h"
 
+class CMesh;
+
 class CSceneObject 
 {
 public:
@@ -28,6 +30,9 @@ public:
     const std::vector<CSceneObject*>& GetChildren() const { return Children; }
     CSceneObject* GetParent() const { return Parent; }
 
+    void AddMesh(CMesh* Mesh);
+    const std::vector<CMesh*>& GetMeshes() const { return Meshes; }
+
 private:
     XMFLOAT3 Position;
     XMFLOAT3 Rotation;
@@ -39,6 +44,8 @@ private:
     // Hierarchy pathways are entirely unowned raw pointers
     CSceneObject* Parent = nullptr;
     std::vector<CSceneObject*> Children;
+
+    std::vector<CMesh*> Meshes;
 
     void Invalidate();
     void UpdateWorldMatrix();
