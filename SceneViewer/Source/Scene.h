@@ -19,7 +19,9 @@ protected:
 
 	std::vector<std::unique_ptr<CSceneObject>> AllSceneObjects;
 
+	CBuffer ModelUploadBuffer;
 	CBuffer ModelBuffer;
+	bool bIsModelBufferDirty = false;
 
 	CTextureRenderTarget* GBufferA = nullptr;
 	CTextureRenderTarget* GBufferB = nullptr;
@@ -31,7 +33,10 @@ protected:
 	CBuffer TLAS;
 	CBuffer TLAS_Instances;
 
-	void BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList);
+	void CalculateBoundingBox(std::vector<SSceneVertex>& Verts, XMFLOAT3& OutMin, XMFLOAT3& OutMax, XMFLOAT3& OutCenter, bool bRecenter);
+	std::string GetAvailableSceneObjectName(const std::string& InBaseName);
+
+	void BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bIsInit);
 
 public:
 	XMVECTOR DirectionalLightDir;
@@ -73,5 +78,9 @@ public:
 	void CollectAllMeshesInfo();
 
 	CSceneObject* CreateSceneObject(std::string InName);
+	inline const std::vector<std::unique_ptr<CSceneObject>>& GetAllSceneObjects() const
+	{
+		return AllSceneObjects;
+	}
 };
 

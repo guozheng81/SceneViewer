@@ -117,7 +117,46 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 
 	CollectAllMeshesInfo();
 
-	BuildAccelerationStructures(InCommandList);
+	BuildAccelerationStructures(InCommandList, true);
+}
+
+void CScene::CalculateBoundingBox(std::vector<SSceneVertex>& Verts, XMFLOAT3& OutMin, XMFLOAT3& OutMax, XMFLOAT3& OutCenter, bool bRecenter)
+{
+	if (Verts.empty())
+	{
+		OutMin = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		OutMax = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		OutCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		return;
+	}
+
+	OutMin = Verts[0].Position;
+	OutMax = Verts[0].Position;
+
+	for (const auto& Vert : Verts)
+	{
+		OutMin.x = std::min(OutMin.x, Vert.Position.x);
+		OutMin.y = std::min(OutMin.y, Vert.Position.y);
+		OutMin.z = std::min(OutMin.z, Vert.Position.z);
+
+		OutMax.x = std::max(OutMax.x, Vert.Position.x);
+		OutMax.y = std::max(OutMax.y, Vert.Position.y);
+		OutMax.z = std::max(OutMax.z, Vert.Position.z);
+	}
+
+	OutCenter.x = (OutMin.x + OutMax.x) * 0.5f;
+	OutCenter.y = (OutMin.y + OutMax.y) * 0.5f;
+	OutCenter.z = (OutMin.z + OutMax.z) * 0.5f;
+
+	if (bRecenter)
+	{
+		for (auto& Vert : Verts)
+		{
+			Vert.Position.x -= OutCenter.x;
+			Vert.Position.y -= OutCenter.y;
+			Vert.Position.z -= OutCenter.z;
+		}
+	}
 }
 
 CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName)
@@ -135,14 +174,83 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 
 	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
 
-	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesDescriptor, DiffTexture->SrvGPUDescriptor);
+	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesDescriptor, DiffTexture->SrvGPUDescriptor) / 2;
 
-	CurMesh->Init(Verts, Indices, TextureIdx/2, bAlphaTest);
-	InSceneObject->AddMesh(CurMesh.get());
+	bool bAddNewSceneObject = (InDiffTexName.find("vase_dif") != std::string::npos);
+	if (bAddNewSceneObject)
+	{
+		XMFLOAT3 Min, Max, Center;
+		CalculateBoundingBox(Verts, Min, Max, Center, true);
+		CurMesh->Init(Verts, Indices, TextureIdx, bAlphaTest);
+
+		// allow it to have its own transform, so we can move it around
+		std::string NewSceneObjectName = GetAvailableSceneObjectName(InDiffTexName);
+		CSceneObject* NewSceneObject = CreateSceneObject(NewSceneObjectName);
+		NewSceneObject->SetPosition(Center);
+		NewSceneObject->AddMesh(CurMesh.get());
+	}
+	else
+	{
+		CurMesh->Init(Verts, Indices, TextureIdx, bAlphaTest);
+		InSceneObject->AddMesh(CurMesh.get());
+	}
 
 	CMesh* Res = CurMesh.get();
 	AllMeshes.push_back(std::move(CurMesh));
 	return Res;
+}
+
+std::string CScene::GetAvailableSceneObjectName(const std::string& InBaseName)
+{
+	std::string ResultName = InBaseName;
+	size_t DelimiterPos = InBaseName.find_first_of("_.");
+	if (DelimiterPos != std::string::npos)
+	{
+		ResultName = InBaseName.substr(0, DelimiterPos);
+	}
+
+	// Check if name is already used in AllSceneObjects
+	auto IsNameUsed = [this](const std::string& NameToCheck) -> bool
+		{
+			for (const auto& SceneObj : AllSceneObjects)
+			{
+				if (SceneObj && SceneObj->Name == NameToCheck)
+				{
+					return true;
+				}
+			}
+			return false;
+		};
+
+	if (!IsNameUsed(ResultName))
+	{
+		return ResultName;
+	}
+
+	// Name is used, try appending/incrementing numeric suffix
+	int SuffixNumber = 0;
+
+	// Check if ResultName already ends with a number
+	if (!ResultName.empty() && std::isdigit(ResultName.back()))
+	{
+		size_t NumberStartIdx = ResultName.length() - 1;
+		while (NumberStartIdx > 0 && std::isdigit(ResultName[NumberStartIdx - 1]))
+		{
+			--NumberStartIdx;
+		}
+		SuffixNumber = std::stoi(ResultName.substr(NumberStartIdx));
+		ResultName = ResultName.substr(0, NumberStartIdx);
+	}
+
+	// Increment and find available name
+	std::string CandidateName;
+	do
+	{
+		CandidateName = ResultName + std::to_string(SuffixNumber);
+		++SuffixNumber;
+	} while (IsNameUsed(CandidateName));
+
+	return CandidateName;
 }
 
 void CScene::CollectAllMeshesInfo()
@@ -151,18 +259,20 @@ void CScene::CollectAllMeshesInfo()
 	int MeshIdx = 0;
 	for (auto& CurMesh : AllMeshes)
 	{
+		CurMesh->SetGlobalInstanceIndex((int)MeshInfoArray.size());
 		for (int InstanceIdx = 0; InstanceIdx < CurMesh->GetInstanceCount(); ++InstanceIdx)
 		{
 			SMeshInfo MeshInfo;
 			MeshInfo.MeshIdx = MeshIdx;
 			MeshInfo.TextureIdx = CurMesh->GetTextureIndex();
 			CurMesh->GetInstanceWorldMatrix(InstanceIdx, &(MeshInfo.WorldMatrix));
-			CurMesh->SetGlobalInstanceIndex((int)MeshInfoArray.size());
 			MeshInfoArray.push_back(MeshInfo);
 		}
 
 		MeshIdx++;
 	}
+
+	bIsModelBufferDirty = true;
 }
 
 CMaterial* CScene::GetSceneMaterial()
@@ -185,11 +295,11 @@ void CScene::OnLoaded()
 	}
 	CRenderer::GetInstance().SrvUavDescriptorAllocator.EndBlockAllocation();
 
-	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(MeshInfoArray.size()), true);
-	ModelBuffer.SetData(MeshInfoArray.data());
-	ModelBuffer.CreateShaderResourceView();
+	ModelUploadBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(MeshInfoArray.size()), true, D3D12_RESOURCE_STATE_COMMON);
+	ModelUploadBuffer.SetData(MeshInfoArray.data());
 
-	TLAS_Scratch.Reset();
+	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), (UINT)(MeshInfoArray.size()), false);
+	ModelBuffer.CreateShaderResourceView();
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC TLASSrvDesc = {};
 	TLASSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
@@ -212,6 +322,22 @@ void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
 void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
 	bIsUsingDepth0 = (!bIsUsingDepth0);
+
+	if(bIsModelBufferDirty)
+	{
+		// copy modelUploadBuffer to modelBuffer
+		CRenderer::GetInstance().ResourceBarrier(ModelBuffer.GetResource(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
+
+		ModelUploadBuffer.SetData(MeshInfoArray.data());
+		UINT BufferSize = (UINT)(sizeof(SMeshInfo)) * (UINT)(MeshInfoArray.size());
+		InCommandList->CopyBufferRegion(ModelBuffer.GetResource(), 0, ModelUploadBuffer.GetResource(), 0, BufferSize);
+
+		CRenderer::GetInstance().ResourceBarrier(ModelBuffer.GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+		BuildAccelerationStructures(InCommandList, false);
+
+		bIsModelBufferDirty = false;
+	}
 
 	CRenderer::GetInstance().ResourceBarrier(GBufferA->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -258,7 +384,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	CRenderer::GetInstance().ResourceBarrier(GetDepthTexture()->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList)
+void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bIsInit)
 {
 	UINT MeshNum = AllMeshes.size();
 	if (MeshNum == 0)
@@ -266,25 +392,36 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 		return;
 	}
 
-	for (UINT i = 0; i < MeshNum; ++i)
-	{
-		auto& CurMesh = AllMeshes[i];
-		CurMesh->BuildBottomLevelAS(InCommandList);
+	if(bIsInit)
+	{ 
+		for (UINT i = 0; i < MeshNum; ++i)
+		{
+			auto& CurMesh = AllMeshes[i];
+			CurMesh->BuildBottomLevelAS(InCommandList);
+		}
 	}
 
 	UINT InstanceNum = MeshInfoArray.size();
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS Inputs = {};
 	Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	Inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	Inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
 	Inputs.NumDescs = InstanceNum;
 	Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO Info;
 	CRenderer::GetInstance().D3dDevice->GetRaytracingAccelerationStructurePrebuildInfo(&Inputs, &Info);
 
-	TLAS_Scratch.Init(Info.ScratchDataSizeInBytes, 1, false, D3D12_RESOURCE_STATE_COMMON, true);
-	TLAS.Init(Info.ResultDataMaxSizeInBytes, 1, false, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, true);
-	TLAS_Instances.Init(sizeof(D3D12_RAYTRACING_INSTANCE_DESC), InstanceNum, true);
+	if (bIsInit)
+	{
+		TLAS_Scratch.Init(Info.ScratchDataSizeInBytes, 1, false, D3D12_RESOURCE_STATE_COMMON, true);
+		TLAS.Init(Info.ResultDataMaxSizeInBytes, 1, false, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, true);
+		TLAS_Instances.Init(sizeof(D3D12_RAYTRACING_INSTANCE_DESC), InstanceNum, true);
+	}
+	else
+	{
+		CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(TLAS.GetResource());
+		InCommandList->ResourceBarrier(1, &UavBarrier);
+	}
 
 	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> InstancesDescArray(InstanceNum);
 	UINT InstanceIdx = 0;
@@ -314,6 +451,12 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 	AsDesc.Inputs.InstanceDescs = TLAS_Instances.GetGPUAddress();
 	AsDesc.DestAccelerationStructureData = TLAS.GetGPUAddress();
 	AsDesc.ScratchAccelerationStructureData = TLAS_Scratch.GetGPUAddress();
+
+	if(!bIsInit)
+	{
+		AsDesc.SourceAccelerationStructureData = TLAS.GetGPUAddress();
+		AsDesc.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+	}
 
 	InCommandList->BuildRaytracingAccelerationStructure(&AsDesc, 0, nullptr);
 

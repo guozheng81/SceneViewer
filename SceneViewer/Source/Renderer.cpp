@@ -4,6 +4,8 @@
 #include "ScreenPass.h"
 #include "Logger.h"
 #include "Texture.h"
+#include "SceneObject.h"
+
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
@@ -494,12 +496,67 @@ void	CRenderer::RenderGUI()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::SetNextWindowPos(ImVec2(ViewportWidth - 200, 10), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(200, 80), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(ViewportWidth - 300, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(450, 300), ImGuiCond_Always);
     ImGui::Begin("Debug");
 
     ImGui::Text("FPS: %u", CurrentFps);
     ImGui::Text("Frame Time: %.3f ms", DeltaTime * 1000.0);
+
+    ImGui::Separator();
+
+    if (Scene)
+    {
+        ImGui::Text("Scene Objects");
+
+        const auto& AllSceneObjects = Scene->GetAllSceneObjects();
+        for (size_t i = 0; i < AllSceneObjects.size(); ++i)
+        {
+            CSceneObject* SceneObject = AllSceneObjects[i].get();
+
+            std::string TreeNodeLabel = SceneObject->Name + "##" + std::to_string(i);
+            if (ImGui::TreeNode(TreeNodeLabel.c_str()))
+            {
+                // Position
+                XMFLOAT3 Position = SceneObject->GetLocalPosition();
+                float PositionArray[3] = { Position.x, Position.y, Position.z };
+                ImGui::Text("Position");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(180.0f);
+                if (ImGui::InputFloat3(("##Pos" + std::to_string(i)).c_str(), PositionArray, "%.2f"))
+                {
+                    SceneObject->SetPosition(XMFLOAT3(PositionArray[0], PositionArray[1], PositionArray[2]));
+					Scene->CollectAllMeshesInfo();
+                }
+
+                // Rotation
+                XMFLOAT3 Rotation = SceneObject->GetLocalRotation();
+                float RotationArray[3] = { Rotation.x, Rotation.y, Rotation.z };
+                ImGui::Text("Rotation");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(180.0f);
+                if (ImGui::InputFloat3(("##Rot" + std::to_string(i)).c_str(), RotationArray, "%.2f"))
+                {
+                    SceneObject->SetRotation(XMFLOAT3(RotationArray[0], RotationArray[1], RotationArray[2]));
+                    Scene->CollectAllMeshesInfo();
+                }
+
+                // Scale
+                XMFLOAT3 Scale = SceneObject->GetLocalScale();
+                float ScaleArray[3] = { Scale.x, Scale.y, Scale.z };
+                ImGui::Text("Scale   ");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(180.0f);
+                if (ImGui::InputFloat3(("##Scale" + std::to_string(i)).c_str(), ScaleArray, "%.2f"))
+                {
+                    SceneObject->SetScale(XMFLOAT3(ScaleArray[0], ScaleArray[1], ScaleArray[2]));
+                    Scene->CollectAllMeshesInfo();
+                }
+
+                ImGui::TreePop();
+            }
+        }
+    }
 
 	ImGui::End();
 
