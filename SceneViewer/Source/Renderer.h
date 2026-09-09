@@ -22,8 +22,13 @@ protected:
 	UINT ElementCount = 0;
 
 	bool bUseForUpload = false;
-
 	bool bIsConstantBuffer = false;
+	bool bNeedUAV = false;
+
+	D3D12_RESOURCE_STATES InitialResourceState =
+		D3D12_RESOURCE_STATE_GENERIC_READ;
+
+	bool bHasSRV = false;
 
 public:
 	CBuffer();
@@ -34,7 +39,7 @@ public:
 	CD3DX12_CPU_DESCRIPTOR_HANDLE SrvCPUDescriptor = {};
 	CD3DX12_GPU_DESCRIPTOR_HANDLE SrvGPUDescriptor = {};
 
-	void Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState = D3D12_RESOURCE_STATE_GENERIC_READ, bool bNeedUAV = false, bool bConstantBuffer = false);
+	void Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState = D3D12_RESOURCE_STATE_GENERIC_READ, bool InNeedUAV = false, bool bConstantBuffer = false);
 	inline ID3D12Resource* GetResource() {
 		return Buffer.Get();
 	}
@@ -43,13 +48,15 @@ public:
 
 	void CreateShaderResourceView();
 
-	void SetData(void* InData);
+	void SetData(void* InData, UINT InEleCount = 0);
 
 	void SetElementData(UINT Idx, void* InData, UINT InSize);
 	inline UINT GetElementSize() const {	return ElementSize;	}
 
 	void ResetMappedData();
 	void Reset();
+
+	void ResizeElementSize(UINT NewElementSize);
 };
 
 struct SPerFrameContext
@@ -99,8 +106,6 @@ protected:
 	UINT	CurrentFps = 0;
 
 	void	UpdateFPS();
-
-	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 
 	std::unique_ptr<CScene>	Scene;
 
@@ -159,7 +164,7 @@ public:
 	CTextureRenderTarget* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0, bool InNeedRtv = true, bool InNeedUav = false);
 
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
-
+	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 
 	void	OnResize(int InW, int InH);
 };

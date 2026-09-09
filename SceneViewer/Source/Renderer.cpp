@@ -14,7 +14,7 @@ CBuffer::CBuffer()
 {
 }
 
-void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState, bool bNeedUAV, bool bConstantBuffer)
+void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESOURCE_STATES InInitState, bool InNeedUAV, bool bConstantBuffer)
 {
     if (InEleSize == 0 || InEleCount == 0)
     {
@@ -26,6 +26,8 @@ void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESO
     ElementCount = InEleCount;
     bUseForUpload = InForUpload;
     bIsConstantBuffer = bConstantBuffer;
+    bNeedUAV = InNeedUAV;
+    InitialResourceState = InInitState;
 
     if (bIsConstantBuffer)
     {
@@ -91,6 +93,47 @@ void CBuffer::Reset()
     }
 }
 
+void CBuffer::ResizeElementSize(UINT NewElementSize)
+{
+    if (NewElementSize == 0)
+    {
+        LOG_ERROR("CBuffer::ResizeElementSize: Invalid element size.");
+        return;
+    }
+
+    if (NewElementSize == ElementSize)
+    {
+        return;
+    }
+
+    if (ElementCount == 0)
+    {
+        LOG_ERROR("CBuffer::ResizeElementSize: Buffer has no elements.");
+        return;
+    }
+
+    UINT PreviousElementCount = ElementCount;
+    bool PreviousUseForUpload = bUseForUpload;
+    bool PreviousConstantBuffer = bIsConstantBuffer;
+    bool PreviousNeedUAV = bNeedUAV;
+    D3D12_RESOURCE_STATES PreviousInitialState = InitialResourceState;
+
+    Reset();
+
+    Init(
+        NewElementSize,
+        PreviousElementCount,
+        PreviousUseForUpload,
+        PreviousInitialState,
+        PreviousNeedUAV,
+        PreviousConstantBuffer);
+
+    if(bHasSRV)
+    {
+        CreateShaderResourceView();
+	}
+}
+
 void CBuffer::SetElementData(UINT Idx, void* InData, UINT InSize)
 {
     if (InData == nullptr)
@@ -138,9 +181,13 @@ void CBuffer::CreateShaderResourceView()
     SrvDesc.Buffer.StructureByteStride = ElementSize;
     SrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-    SDescriptorHandle DescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
-    SrvCPUDescriptor = DescriptorHandle.CpuHandle;
-    SrvGPUDescriptor = DescriptorHandle.GpuHandle;
+    if (!bHasSRV)
+    {
+        SDescriptorHandle DescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+        SrvCPUDescriptor = DescriptorHandle.CpuHandle;
+        SrvGPUDescriptor = DescriptorHandle.GpuHandle;
+        bHasSRV = true;
+    }
 
     CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Buffer.Get(), &SrvDesc, SrvCPUDescriptor);
 }
@@ -162,14 +209,19 @@ D3D12_GPU_VIRTUAL_ADDRESS CBuffer::GetGPUAddress(UINT InIdx)
     return Buffer->GetGPUVirtualAddress() + InIdx * ElementSize;
 }
 
-void CBuffer::SetData(void* InData)
+void CBuffer::SetData(void* InData, UINT InEleCount)
 {
     if (InData == nullptr)
     {
         return;
     }
 
-    memcpy(MappedPtr, InData, ElementSize * ElementCount);
+    if(InEleCount == 0)
+    {
+        InEleCount = ElementCount;
+	}
+
+    memcpy(MappedPtr, InData, ElementSize * InEleCount);
 }
 
 CRenderer& CRenderer::GetInstance()

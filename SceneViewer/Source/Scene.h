@@ -19,6 +19,7 @@ protected:
 
 	std::vector<std::unique_ptr<CSceneObject>> AllSceneObjects;
 
+	UINT MaxModelElementCount = 0;
 	CBuffer ModelUploadBuffer;
 	CBuffer ModelBuffer;
 	bool bIsModelBufferDirty = false;
@@ -36,7 +37,7 @@ protected:
 	void CalculateBoundingBox(std::vector<SSceneVertex>& Verts, XMFLOAT3& OutMin, XMFLOAT3& OutMax, XMFLOAT3& OutCenter, bool bRecenter);
 	std::string GetAvailableSceneObjectName(const std::string& InBaseName);
 
-	void BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bIsInit);
+	void BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bIsInit, bool bFullRebuild);
 
 public:
 	XMVECTOR DirectionalLightDir;
@@ -45,6 +46,7 @@ public:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesDescriptor = {};
 	CD3DX12_GPU_DESCRIPTOR_HANDLE VertexBuffersDescriptor = {};
 	D3D12_GPU_DESCRIPTOR_HANDLE TLASGPUDescriptor = {};
+	D3D12_CPU_DESCRIPTOR_HANDLE TLASCPUDescriptor = {};
 
 	CScene();
 	~CScene();
