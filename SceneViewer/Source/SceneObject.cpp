@@ -12,9 +12,10 @@ CSceneObject::CSceneObject(std::string ObjectName)
 
 CSceneObject::~CSceneObject() 
 {
-    if (Parent) 
+
+    for (auto* Mesh : Meshes)
     {
-        Parent->RemoveChild(this);
+        Mesh->RemoveInstance(this);
     }
 }
 

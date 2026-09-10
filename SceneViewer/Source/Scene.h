@@ -39,6 +39,9 @@ protected:
 
 	void BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bIsInit, bool bFullRebuild);
 
+	void CollectSceneObjectSubtree(CSceneObject* InSceneObject, std::vector<CSceneObject*>& OutSubtree);
+	CSceneObject* DuplicateSceneObjectRecursive(CSceneObject* InSceneObject, CSceneObject* InNewParent);
+
 public:
 	XMVECTOR DirectionalLightDir;
 	float	 DirectionalLightIntensity = 4.0f;
@@ -84,5 +87,8 @@ public:
 	{
 		return AllSceneObjects;
 	}
+
+	void DeleteSceneObject(int InIndex);
+	CSceneObject* DuplicateSceneObject(int InIndex);
 };
 

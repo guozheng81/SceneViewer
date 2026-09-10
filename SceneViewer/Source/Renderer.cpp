@@ -112,7 +112,7 @@ void CBuffer::ResizeElementSize(UINT NewElementSize)
         return;
     }
 
-    UINT PreviousElementCount = ElementCount;
+    UINT PreviousElementSize = ElementSize;
     bool PreviousUseForUpload = bUseForUpload;
     bool PreviousConstantBuffer = bIsConstantBuffer;
     bool PreviousNeedUAV = bNeedUAV;
@@ -121,8 +121,8 @@ void CBuffer::ResizeElementSize(UINT NewElementSize)
     Reset();
 
     Init(
+        PreviousElementSize,
         NewElementSize,
-        PreviousElementCount,
         PreviousUseForUpload,
         PreviousInitialState,
         PreviousNeedUAV,
@@ -549,8 +549,8 @@ void	CRenderer::RenderGUI()
     ImGui::NewFrame();
 
     ImGui::SetNextWindowPos(ImVec2(ViewportWidth - 300, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(450, 300), ImGuiCond_Always);
-    ImGui::Begin("Debug");
+    ImGui::SetNextWindowSize(ImVec2(600, 300), ImGuiCond_Always);
+    ImGui::Begin("Menu");
 
     ImGui::Text("FPS: %u", CurrentFps);
     ImGui::Text("Frame Time: %.3f ms", DeltaTime * 1000.0);
@@ -562,6 +562,10 @@ void	CRenderer::RenderGUI()
         ImGui::Text("Scene Objects");
 
         const auto& AllSceneObjects = Scene->GetAllSceneObjects();
+
+        int IndexToDelete = -1;
+        int IndexToDuplicate = -1;
+
         for (size_t i = 0; i < AllSceneObjects.size(); ++i)
         {
             CSceneObject* SceneObject = AllSceneObjects[i].get();
@@ -605,8 +609,33 @@ void	CRenderer::RenderGUI()
                     Scene->CollectAllMeshesInfo();
                 }
 
+                // Delete / Duplicate buttons
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 90);
+                if (ImGui::Button(("Delete##" + std::to_string(i)).c_str()))
+                {
+                    IndexToDelete = (int)i;
+                }
+
+                ImGui::SameLine();
+
+                if (ImGui::Button(("Duplicate##" + std::to_string(i)).c_str()))
+                {
+                    IndexToDuplicate = (int)i;
+                }
+
                 ImGui::TreePop();
             }
+        }
+
+        if (IndexToDuplicate >= 0)
+        {
+            Scene->DuplicateSceneObject(IndexToDuplicate);
+            Scene->CollectAllMeshesInfo();
+        }
+        else if (IndexToDelete >= 0)
+        {
+            Scene->DeleteSceneObject(IndexToDelete);
+            Scene->CollectAllMeshesInfo();
         }
     }
 

@@ -186,6 +186,7 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 		// allow it to have its own transform, so we can move it around
 		std::string NewSceneObjectName = GetAvailableSceneObjectName(InDiffTexName);
 		CSceneObject* NewSceneObject = CreateSceneObject(NewSceneObjectName);
+		InSceneObject->AddChild(NewSceneObject);
 		NewSceneObject->SetPosition(Center);
 		NewSceneObject->AddMesh(CurMesh.get());
 	}
@@ -459,7 +460,7 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 			InstanceIdx++;
 		}
 	}
-	TLAS_Instances.SetData(InstancesDescArray.data());
+	TLAS_Instances.SetData(InstancesDescArray.data(), InstanceNum);
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC AsDesc = {};
 	AsDesc.Inputs = Inputs;
@@ -503,4 +504,97 @@ CSceneObject* CScene::CreateSceneObject(std::string InName)
 
 	AllSceneObjects.push_back(std::move(SceneObj));
 	return Ptr;
+}
+
+void CScene::CollectSceneObjectSubtree(CSceneObject* InSceneObject, std::vector<CSceneObject*>& OutSubtree)
+{
+	if (!InSceneObject)
+	{
+		return;
+	}
+
+	OutSubtree.push_back(InSceneObject);
+	for (CSceneObject* Child : InSceneObject->GetChildren())
+	{
+		CollectSceneObjectSubtree(Child, OutSubtree);
+	}
+}
+
+void CScene::DeleteSceneObject(int InIndex)
+{
+	if (InIndex >= AllSceneObjects.size())
+	{
+		LOG_ERROR("CScene::DeleteSceneObject: Index %zu out of range.", InIndex);
+		return;
+	}
+
+	CSceneObject* TargetObject = AllSceneObjects[InIndex].get();
+
+	if (TargetObject->GetParent())
+	{
+		TargetObject->GetParent()->RemoveChild(TargetObject);
+	}
+
+	// Gather the target and all descendants, since deleting a node deletes its subtree
+	std::vector<CSceneObject*> ObjectsToDelete;
+	CollectSceneObjectSubtree(TargetObject, ObjectsToDelete);
+
+	// Erase the scene objects (this will also detach them from their parent via destructor)
+	AllSceneObjects.erase(
+		std::remove_if(AllSceneObjects.begin(), AllSceneObjects.end(),
+			[&ObjectsToDelete](const std::unique_ptr<CSceneObject>& Candidate)
+			{
+				return std::find(ObjectsToDelete.begin(), ObjectsToDelete.end(), Candidate.get()) != ObjectsToDelete.end();
+			}),
+		AllSceneObjects.end());
+}
+
+CSceneObject* CScene::DuplicateSceneObjectRecursive(CSceneObject* InSceneObject, CSceneObject* InNewParent)
+{
+	if (!InSceneObject)
+	{
+		return nullptr;
+	}
+
+	std::string NewName = GetAvailableSceneObjectName(InSceneObject->Name);
+	CSceneObject* NewSceneObject = CreateSceneObject(NewName);
+
+	NewSceneObject->SetPosition(InSceneObject->GetLocalPosition());
+	NewSceneObject->SetRotation(InSceneObject->GetLocalRotation());
+	NewSceneObject->SetScale(InSceneObject->GetLocalScale());
+
+	for (CMesh* Mesh : InSceneObject->GetMeshes())
+	{
+		NewSceneObject->AddMesh(Mesh);
+	}
+
+	if (InNewParent)
+	{
+		InNewParent->AddChild(NewSceneObject);
+	}
+
+	for (CSceneObject* Child : InSceneObject->GetChildren())
+	{
+		DuplicateSceneObjectRecursive(Child, NewSceneObject);
+	}
+
+	return NewSceneObject;
+}
+
+CSceneObject* CScene::DuplicateSceneObject(int InIndex)
+{
+	if (InIndex >= AllSceneObjects.size())
+	{
+		LOG_ERROR("CScene::DuplicateSceneObject: Index %zu out of range.", InIndex);
+		return nullptr;
+	}
+
+	CSceneObject* SourceObject = AllSceneObjects[InIndex].get();
+
+	// Note: DuplicateSceneObjectRecursive calls CreateSceneObject, which appends to AllSceneObjects.
+	// Since SourceObject is a raw pointer (owned separately by unique_ptr), this remains valid across
+	// vector growth/reallocation.
+	CSceneObject* NewRoot = DuplicateSceneObjectRecursive(SourceObject, SourceObject->GetParent());
+
+	return NewRoot;
 }

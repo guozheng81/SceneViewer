@@ -47,6 +47,7 @@ public:
 	// Instance management
 	UINT AddInstance(CSceneObject* InSceneObject);
 	void RemoveInstance(UINT InstanceIndex);
+	void RemoveInstance(CSceneObject* InSceneObject);
 	void GetInstanceWorldMatrix(UINT InstanceIndex, XMFLOAT4X4* OutMtx);
 	CSceneObject* GetInstanceSceneObject(UINT InstanceIndex) const;
 	void ClearInstances();

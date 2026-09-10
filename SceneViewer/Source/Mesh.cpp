@@ -138,6 +138,18 @@ void CMesh::RemoveInstance(UINT InstanceIndex)
 	}
 }
 
+void CMesh::RemoveInstance(CSceneObject* InSceneObject)
+{
+	for (UINT InstanceIdx = 0; InstanceIdx < GetInstanceCount(); ++InstanceIdx)
+	{
+		if (GetInstanceSceneObject(InstanceIdx) == InSceneObject)
+		{
+			RemoveInstance(InstanceIdx);
+			break;
+		}
+	}
+}
+
 void CMesh::GetInstanceWorldMatrix(UINT InstanceIndex, XMFLOAT4X4* OutMtx)
 {
 	if (OutMtx && InstanceIndex < InstanceSceneObjects.size() && InstanceSceneObjects[InstanceIndex])
