@@ -93,22 +93,22 @@ void CBuffer::Reset()
     }
 }
 
-void CBuffer::ResizeElementSize(UINT NewElementSize)
+void CBuffer::ResizeElementCount(UINT NewElementCount)
 {
-    if (NewElementSize == 0)
+    if (NewElementCount == 0)
     {
-        LOG_ERROR("CBuffer::ResizeElementSize: Invalid element size.");
+        LOG_ERROR("CBuffer::ResizeElementCount: Invalid element count.");
         return;
     }
 
-    if (NewElementSize == ElementSize)
+    if (NewElementCount == ElementCount)
     {
         return;
     }
 
     if (ElementCount == 0)
     {
-        LOG_ERROR("CBuffer::ResizeElementSize: Buffer has no elements.");
+        LOG_ERROR("CBuffer::ResizeElementCount: Buffer has no elements.");
         return;
     }
 
@@ -122,7 +122,7 @@ void CBuffer::ResizeElementSize(UINT NewElementSize)
 
     Init(
         PreviousElementSize,
-        NewElementSize,
+        NewElementCount,
         PreviousUseForUpload,
         PreviousInitialState,
         PreviousNeedUAV,

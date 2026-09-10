@@ -57,7 +57,7 @@ public:
 	void ResetMappedData();
 	void Reset();
 
-	void ResizeElementSize(UINT NewElementSize);
+	void ResizeElementCount(UINT NewElementCount);
 };
 
 struct SPerFrameContext

@@ -325,8 +325,8 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 			CRenderer::GetInstance().FlushCommandQueue();
 
 			MaxModelElementCount = (UINT)(CurModelEleCount *1.5f);
-			ModelBuffer.ResizeElementSize(MaxModelElementCount);
-			ModelUploadBuffer.ResizeElementSize(MaxModelElementCount);
+			ModelBuffer.ResizeElementCount(MaxModelElementCount);
+			ModelUploadBuffer.ResizeElementCount(MaxModelElementCount);
 			bRebuildTLAS = true;
 		}
 
@@ -431,7 +431,7 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 
 		TLAS_Scratch.Init(Info.ScratchDataSizeInBytes, 1, false, D3D12_RESOURCE_STATE_COMMON, true);
 		TLAS.Init(Info.ResultDataMaxSizeInBytes, 1, false, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, true);
-		TLAS_Instances.ResizeElementSize(MaxInstanceNum);
+		TLAS_Instances.ResizeElementCount(MaxInstanceNum);
 	}
 	else
 	{
