@@ -11,6 +11,7 @@ class CTextureDepthStencil;
 class CTextureRenderTarget;
 class CScreenPass;
 class CMesh;
+class CSceneObject;
 
 class CBuffer
 {
@@ -90,6 +91,7 @@ protected:
 	void	EndFrame();
 
 	void	RenderGUI();
+	void	RenderGUIForSceneObject(CSceneObject* SceneObject, int& IndexToDelete, int& IndexToDuplicate);
 
 	CD3DX12_VIEWPORT Viewport;
 	CD3DX12_RECT ScissorRect;

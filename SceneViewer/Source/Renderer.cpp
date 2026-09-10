@@ -542,6 +542,77 @@ void	CRenderer::Render()
     EndFrame();
 }
 
+void	CRenderer::RenderGUIForSceneObject(CSceneObject* SceneObject, int& IndexToDelete, int& IndexToDuplicate)
+{
+    int Index = Scene->FindSceneObjectIndex(SceneObject);
+    if (Index < 0)
+    {
+        return;
+    }
+
+    std::string TreeNodeLabel = SceneObject->Name + "##" + std::to_string(Index);
+    if (ImGui::TreeNode(TreeNodeLabel.c_str()))
+    {
+        // Position
+        XMFLOAT3 Position = SceneObject->GetLocalPosition();
+        float PositionArray[3] = { Position.x, Position.y, Position.z };
+        ImGui::Text("Position");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(180.0f);
+        if (ImGui::InputFloat3(("##Pos" + std::to_string(Index)).c_str(), PositionArray, "%.2f"))
+        {
+            SceneObject->SetPosition(XMFLOAT3(PositionArray[0], PositionArray[1], PositionArray[2]));
+            Scene->CollectAllMeshesInfo();
+        }
+
+        // Rotation
+        XMFLOAT3 Rotation = SceneObject->GetLocalRotation();
+        float RotationArray[3] = { Rotation.x, Rotation.y, Rotation.z };
+        ImGui::Text("Rotation");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(180.0f);
+        if (ImGui::InputFloat3(("##Rot" + std::to_string(Index)).c_str(), RotationArray, "%.2f"))
+        {
+            SceneObject->SetRotation(XMFLOAT3(RotationArray[0], RotationArray[1], RotationArray[2]));
+            Scene->CollectAllMeshesInfo();
+        }
+
+        // Scale
+        XMFLOAT3 Scale = SceneObject->GetLocalScale();
+        float ScaleArray[3] = { Scale.x, Scale.y, Scale.z };
+        ImGui::Text("Scale   ");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(180.0f);
+        if (ImGui::InputFloat3(("##Scale" + std::to_string(Index)).c_str(), ScaleArray, "%.2f"))
+        {
+            SceneObject->SetScale(XMFLOAT3(ScaleArray[0], ScaleArray[1], ScaleArray[2]));
+            Scene->CollectAllMeshesInfo();
+        }
+
+        // Delete / Duplicate buttons
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 90);
+        if (ImGui::Button(("Delete##" + std::to_string(Index)).c_str()))
+        {
+            IndexToDelete = Index;
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button(("Duplicate##" + std::to_string(Index)).c_str()))
+        {
+            IndexToDuplicate = Index;
+        }
+
+        // Recurse into children to reflect the scene hierarchy.
+        for (CSceneObject* Child : SceneObject->GetChildren())
+        {
+            RenderGUIForSceneObject(Child, IndexToDelete, IndexToDuplicate);
+        }
+
+        ImGui::TreePop();
+    }
+}
+
 void	CRenderer::RenderGUI()
 {
     ImGui_ImplDX12_NewFrame();
@@ -566,64 +637,13 @@ void	CRenderer::RenderGUI()
         int IndexToDelete = -1;
         int IndexToDuplicate = -1;
 
+        // Only render root objects (those without a parent); children are rendered recursively.
         for (size_t i = 0; i < AllSceneObjects.size(); ++i)
         {
             CSceneObject* SceneObject = AllSceneObjects[i].get();
-
-            std::string TreeNodeLabel = SceneObject->Name + "##" + std::to_string(i);
-            if (ImGui::TreeNode(TreeNodeLabel.c_str()))
+            if (SceneObject->GetParent() == nullptr)
             {
-                // Position
-                XMFLOAT3 Position = SceneObject->GetLocalPosition();
-                float PositionArray[3] = { Position.x, Position.y, Position.z };
-                ImGui::Text("Position");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(180.0f);
-                if (ImGui::InputFloat3(("##Pos" + std::to_string(i)).c_str(), PositionArray, "%.2f"))
-                {
-                    SceneObject->SetPosition(XMFLOAT3(PositionArray[0], PositionArray[1], PositionArray[2]));
-					Scene->CollectAllMeshesInfo();
-                }
-
-                // Rotation
-                XMFLOAT3 Rotation = SceneObject->GetLocalRotation();
-                float RotationArray[3] = { Rotation.x, Rotation.y, Rotation.z };
-                ImGui::Text("Rotation");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(180.0f);
-                if (ImGui::InputFloat3(("##Rot" + std::to_string(i)).c_str(), RotationArray, "%.2f"))
-                {
-                    SceneObject->SetRotation(XMFLOAT3(RotationArray[0], RotationArray[1], RotationArray[2]));
-                    Scene->CollectAllMeshesInfo();
-                }
-
-                // Scale
-                XMFLOAT3 Scale = SceneObject->GetLocalScale();
-                float ScaleArray[3] = { Scale.x, Scale.y, Scale.z };
-                ImGui::Text("Scale   ");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(180.0f);
-                if (ImGui::InputFloat3(("##Scale" + std::to_string(i)).c_str(), ScaleArray, "%.2f"))
-                {
-                    SceneObject->SetScale(XMFLOAT3(ScaleArray[0], ScaleArray[1], ScaleArray[2]));
-                    Scene->CollectAllMeshesInfo();
-                }
-
-                // Delete / Duplicate buttons
-                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 90);
-                if (ImGui::Button(("Delete##" + std::to_string(i)).c_str()))
-                {
-                    IndexToDelete = (int)i;
-                }
-
-                ImGui::SameLine();
-
-                if (ImGui::Button(("Duplicate##" + std::to_string(i)).c_str()))
-                {
-                    IndexToDuplicate = (int)i;
-                }
-
-                ImGui::TreePop();
+                RenderGUIForSceneObject(SceneObject, IndexToDelete, IndexToDuplicate);
             }
         }
 

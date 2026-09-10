@@ -539,7 +539,6 @@ void CScene::DeleteSceneObject(int InIndex)
 	std::vector<CSceneObject*> ObjectsToDelete;
 	CollectSceneObjectSubtree(TargetObject, ObjectsToDelete);
 
-	// Erase the scene objects (this will also detach them from their parent via destructor)
 	AllSceneObjects.erase(
 		std::remove_if(AllSceneObjects.begin(), AllSceneObjects.end(),
 			[&ObjectsToDelete](const std::unique_ptr<CSceneObject>& Candidate)
@@ -597,4 +596,16 @@ CSceneObject* CScene::DuplicateSceneObject(int InIndex)
 	CSceneObject* NewRoot = DuplicateSceneObjectRecursive(SourceObject, SourceObject->GetParent());
 
 	return NewRoot;
+}
+
+int CScene::FindSceneObjectIndex(CSceneObject* InSceneObject) const
+{
+    for (size_t i = 0; i < AllSceneObjects.size(); ++i)
+    {
+        if (AllSceneObjects[i].get() == InSceneObject)
+        {
+            return (int)i;
+        }
+    }
+    return -1;
 }

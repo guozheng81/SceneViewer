@@ -90,5 +90,7 @@ public:
 
 	void DeleteSceneObject(int InIndex);
 	CSceneObject* DuplicateSceneObject(int InIndex);
+
+	int FindSceneObjectIndex(CSceneObject* InSceneObject) const;
 };
 
