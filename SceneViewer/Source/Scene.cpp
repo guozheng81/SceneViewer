@@ -3,10 +3,13 @@
 #include "Mesh.h"
 #include "Logger.h"
 #include "SceneObject.h"
+#include "json.hpp"
+#include <fstream>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
+using Json = nlohmann::json;
 
 CScene::CScene()
 {
@@ -19,6 +22,77 @@ CScene::CScene()
 	Material->PSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	Material->PSODesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	//Material->PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+}
+
+void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* InParentSceneObject)
+{
+	tinyobj::ObjReaderConfig ReaderConfig;
+	ReaderConfig.mtl_search_path = "";
+
+	tinyobj::ObjReader TinyObjReader;
+
+	std::vector<SSceneVertex> Verts;
+	std::vector<UINT32>	Indices;
+
+	if (!TinyObjReader.ParseFromFile(InObjPath.string(), ReaderConfig))
+	{
+		LOG_WARN("Failed to load obj file: %s", InObjPath.string().c_str());
+		return;
+	}
+
+	auto& attrib = TinyObjReader.GetAttrib();
+	auto& shapes = TinyObjReader.GetShapes();
+	auto& materials = TinyObjReader.GetMaterials();
+
+	for (size_t s = 0; s < shapes.size(); s++)
+	{
+		Verts.clear();
+		Indices.clear();
+		int CurrentMatIdx = shapes[s].mesh.material_ids[0];
+
+		size_t index_offset = 0;
+		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
+		{
+			size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+			if (shapes[s].mesh.material_ids[f] != CurrentMatIdx)
+			{
+				auto TinyObjMat = materials[CurrentMatIdx];
+				AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+
+				Verts.clear();
+				Indices.clear();
+				CurrentMatIdx = shapes[s].mesh.material_ids[f];
+			}
+
+			// Loop over vertices in the face.
+			for (size_t v = 0; v < fv; v++)
+			{
+				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+				tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
+				tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
+				tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
+
+				tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
+				tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
+				tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+
+				tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
+				tinyobj::real_t ty = 1.0f - attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
+
+				//Indices.push_back((UINT)(Verts.size()));
+
+				SSceneVertex Vert;
+				Vert.Position = XMFLOAT3(vx, vy, vz);
+				Vert.Normal = XMFLOAT3(nx, ny, nz);
+				Vert.Tex = XMFLOAT2(tx, ty);
+				Verts.push_back(Vert);
+			}
+			index_offset += fv;
+		}
+
+		auto TinyObjMat = materials[CurrentMatIdx];
+		AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+	}
 }
 
 void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* InCommandList)
@@ -43,74 +117,70 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	std::filesystem::path AssetPath = CRenderer::GetAssetDirectory();
 	AssetPath /= InSceneName;
 
-	CSceneObject* SceneRoot = CreateSceneObject(InSceneName);
-
-	tinyobj::ObjReaderConfig ReaderConfig;
-	ReaderConfig.mtl_search_path = "";
-
-	tinyobj::ObjReader TinyObjReader;
-
-	std::vector<SSceneVertex> Verts;
-	std::vector<UINT32>	Indices;
-
 	// all textures will be allocated in a single block, so we can use a single descriptor for all of them
 	MaterialTexturesDescriptor = RendererInst.SrvUavDescriptorAllocator.BeginBlockAllocation();
 
-	if (TinyObjReader.ParseFromFile(AssetPath.string(), ReaderConfig))
+	std::ifstream JsonFile(AssetPath);
+	if (JsonFile)
 	{
-		auto& attrib = TinyObjReader.GetAttrib();
-		auto& shapes = TinyObjReader.GetShapes();
-		auto& materials = TinyObjReader.GetMaterials();
-
-		for (size_t s = 0; s < shapes.size(); s++) 
+		Json SceneJson;
+		try
 		{
-			Verts.clear();
-			Indices.clear();
-			int CurrentMatIdx = shapes[s].mesh.material_ids[0];
-
-			size_t index_offset = 0;
-			for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) 
-			{
-				size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
-				if (shapes[s].mesh.material_ids[f] != CurrentMatIdx)
-				{
-					auto TinyObjMat = materials[CurrentMatIdx];
-					AddMesh(SceneRoot, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
-
-					Verts.clear();
-					Indices.clear();
-					CurrentMatIdx = shapes[s].mesh.material_ids[f];
-				}
-
-				// Loop over vertices in the face.
-				for (size_t v = 0; v < fv; v++) 
-				{
-					tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-					tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
-					tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
-					tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
-
-					tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
-					tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
-					tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
-
-					tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
-					tinyobj::real_t ty = 1.0f - attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
-
-					//Indices.push_back((UINT)(Verts.size()));
-
-					SSceneVertex Vert;
-					Vert.Position = XMFLOAT3(vx, vy, vz);
-					Vert.Normal = XMFLOAT3(nx, ny, nz);
-					Vert.Tex = XMFLOAT2(tx, ty);
-					Verts.push_back(Vert);
-				}
-				index_offset += fv;
-			}
-
-			auto TinyObjMat = materials[CurrentMatIdx];
-			AddMesh(SceneRoot, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+			JsonFile >> SceneJson;
 		}
+		catch (const Json::parse_error& Ex)
+		{
+			LOG_ERROR("Failed to parse scene json '%s': %s", AssetPath.string().c_str(), Ex.what());
+			SceneJson = Json();
+		}
+		JsonFile.close();
+
+		if (SceneJson.contains("Objects") && SceneJson["Objects"].is_array())
+		{
+			for (const auto& ObjectEntry : SceneJson["Objects"])
+			{
+				std::string ObjFileName = ObjectEntry.value("File", std::string());
+				if (ObjFileName.empty())
+				{
+					continue;
+				}
+
+				std::string ObjectName = ObjectEntry.value("Name", ObjFileName);
+				CSceneObject* RootSceneObject = CreateSceneObject(GetAvailableSceneObjectName(ObjectName));
+
+				XMFLOAT3 Position(0.0f, 0.0f, 0.0f);
+				if (ObjectEntry.contains("Position") && ObjectEntry["Position"].is_array() && ObjectEntry["Position"].size() >= 3)
+				{
+					const auto& PositionArray = ObjectEntry["Position"];
+					Position = XMFLOAT3(PositionArray[0].get<float>(), PositionArray[1].get<float>(), PositionArray[2].get<float>());
+				}
+				RootSceneObject->SetPosition(Position);
+
+				XMFLOAT3 Rotation(0.0f, 0.0f, 0.0f);
+				if (ObjectEntry.contains("Rotation") && ObjectEntry["Rotation"].is_array() && ObjectEntry["Rotation"].size() >= 3)
+				{
+					const auto& RotationArray = ObjectEntry["Rotation"];
+					Rotation = XMFLOAT3(RotationArray[0].get<float>(), RotationArray[1].get<float>(), RotationArray[2].get<float>());
+				}
+				RootSceneObject->SetRotation(Rotation);
+
+				XMFLOAT3 Scale(1.0f, 1.0f, 1.0f);
+				if (ObjectEntry.contains("Scale") && ObjectEntry["Scale"].is_array() && ObjectEntry["Scale"].size() >= 3)
+				{
+					const auto& ScaleArray = ObjectEntry["Scale"];
+					Scale = XMFLOAT3(ScaleArray[0].get<float>(), ScaleArray[1].get<float>(), ScaleArray[2].get<float>());
+				}
+				RootSceneObject->SetScale(Scale);
+
+				std::filesystem::path ObjFilePath = CRenderer::GetAssetDirectory();
+				ObjFilePath /= ObjFileName;
+				LoadObjFile(ObjFilePath, RootSceneObject);
+			}
+		}
+	}
+	else
+	{
+		LOG_ERROR("Failed to open scene json file: %s", AssetPath.string().c_str());
 	}
 
 	RendererInst.SrvUavDescriptorAllocator.EndBlockAllocation();

@@ -419,7 +419,7 @@ void	CRenderer::LoadScene()
     GetCurrentFrameContext().CommandAllocator->Reset();
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
 
-    Scene->Load("sponza.obj", CommandList.Get());
+    Scene->Load("scene.json", CommandList.Get());
 
     ScreenQuad = std::make_unique<CMesh>();
 

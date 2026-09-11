@@ -42,6 +42,8 @@ protected:
 	void CollectSceneObjectSubtree(CSceneObject* InSceneObject, std::vector<CSceneObject*>& OutSubtree);
 	CSceneObject* DuplicateSceneObjectRecursive(CSceneObject* InSceneObject, CSceneObject* InNewParent);
 
+	void LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* InParentSceneObject);
+
 public:
 	XMVECTOR DirectionalLightDir;
 	float	 DirectionalLightIntensity = 4.0f;
