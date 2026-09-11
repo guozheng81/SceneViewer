@@ -118,7 +118,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	AssetPath /= InSceneName;
 
 	// all textures will be allocated in a single block, so we can use a single descriptor for all of them
-	MaterialTexturesDescriptor = RendererInst.SrvUavDescriptorAllocator.BeginBlockAllocation();
+	RendererInst.SrvUavDescriptorAllocator.BeginBlockAllocation(0);
 
 	std::ifstream JsonFile(AssetPath);
 	if (JsonFile)
@@ -244,7 +244,7 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 
 	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
 
-	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(MaterialTexturesDescriptor, DiffTexture->SrvGPUDescriptor) / 2;
+	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), DiffTexture->SrvGPUDescriptor) / 2;
 
 	bool bAddNewSceneObject = (InDiffTexName.find("vase_dif") != std::string::npos);
 	if (bAddNewSceneObject)
@@ -357,7 +357,7 @@ CScene::~CScene()
 
 void CScene::OnLoaded()
 {
-	VertexBuffersDescriptor = CRenderer::GetInstance().SrvUavDescriptorAllocator.BeginBlockAllocation();
+	CRenderer::GetInstance().SrvUavDescriptorAllocator.BeginBlockAllocation(1);
 	for (auto& CurMesh : AllMeshes)
 	{
 		CurMesh->ResetUploadResource();
@@ -439,7 +439,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	int TexturesParam = Material->FindSrvRootParameterIndex(0, 1);
 	if (TexturesParam >= 0)
 	{
-		InCommandList->SetGraphicsRootDescriptorTable(TexturesParam, MaterialTexturesDescriptor);
+		InCommandList->SetGraphicsRootDescriptorTable(TexturesParam, GetMaterialTexturesGPUDescriptor());
 	}
 	
 	int MeshIndexParam = Material->FindConstantRootParameterIndex(1);
@@ -678,4 +678,14 @@ int CScene::FindSceneObjectIndex(CSceneObject* InSceneObject) const
         }
     }
     return -1;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE CScene::GetMaterialTexturesGPUDescriptor() const
+{
+	return CRenderer::GetInstance().SrvUavDescriptorAllocator.GetReservedBlockGpuHandle(0);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE CScene::GetVertexBuffersGPUDescriptor() const
+{
+	return CRenderer::GetInstance().SrvUavDescriptorAllocator.GetReservedBlockGpuHandle(1);
 }

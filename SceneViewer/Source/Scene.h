@@ -48,8 +48,9 @@ public:
 	XMVECTOR DirectionalLightDir;
 	float	 DirectionalLightIntensity = 4.0f;
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE MaterialTexturesDescriptor = {};
-	CD3DX12_GPU_DESCRIPTOR_HANDLE VertexBuffersDescriptor = {};
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMaterialTexturesGPUDescriptor() const;
+	D3D12_GPU_DESCRIPTOR_HANDLE GetVertexBuffersGPUDescriptor() const;
+
 	D3D12_GPU_DESCRIPTOR_HANDLE TLASGPUDescriptor = {};
 	D3D12_CPU_DESCRIPTOR_HANDLE TLASCPUDescriptor = {};
 

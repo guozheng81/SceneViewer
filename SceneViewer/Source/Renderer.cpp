@@ -318,6 +318,8 @@ bool	CRenderer::Init(HWND hWnd)
     //////////// descriptor heaps /////////////////
 
 	SrvUavDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, true);
+	SrvUavDescriptorAllocator.ReserveBlock(128, 256); // Reserve a block for textures starting at offset 128
+    SrvUavDescriptorAllocator.ReserveBlock(384, 640);
 
 	RtvDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 32, false);
 	DsvDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4, false);

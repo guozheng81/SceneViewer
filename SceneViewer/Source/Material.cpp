@@ -551,12 +551,12 @@ void CMaterial::SetSceneForRaytracing(ID3D12GraphicsCommandList* InCommandList, 
     int TexturesParam = FindSrvRootParameterIndex(0, 1);
     if (TexturesParam >= 0)
     {
-        InCommandList->SetComputeRootDescriptorTable(TexturesParam, InScene->MaterialTexturesDescriptor);
+        InCommandList->SetComputeRootDescriptorTable(TexturesParam, InScene->GetMaterialTexturesGPUDescriptor());
     }
 
     int VertexBufferParam = FindSrvRootParameterIndex(0, 2);
     if (VertexBufferParam >= 0)
     {
-        InCommandList->SetComputeRootDescriptorTable(VertexBufferParam, InScene->VertexBuffersDescriptor);
+        InCommandList->SetComputeRootDescriptorTable(VertexBufferParam, InScene->GetVertexBuffersGPUDescriptor());
     }
 }

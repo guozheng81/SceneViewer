@@ -3,9 +3,10 @@
 #include "Renderer.h"
 
 
-void CDescriptorAllocator::Init(ID3D12Device* Device, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t NumDescriptors, bool ShaderVisible)
+void CDescriptorAllocator::Init(ID3D12Device* Device, D3D12_DESCRIPTOR_HEAP_TYPE Type, UINT NumDescriptors, bool ShaderVisible)
 {
-    NumDescriptors_ = NumDescriptors;
+    TotalDescriptorCount = NumDescriptors;
+	OriginalDescriptorCount = NumDescriptors;
     DescriptorSize = Device->GetDescriptorHandleIncrementSize(Type);
 
     D3D12_DESCRIPTOR_HEAP_DESC Desc = {};
@@ -25,36 +26,109 @@ void CDescriptorAllocator::Init(ID3D12Device* Device, D3D12_DESCRIPTOR_HEAP_TYPE
         HeapGpuStart = Heap->GetGPUDescriptorHandleForHeapStart();
     }
     NextFreeIndex = 0;
+	ReservedBlocks.clear();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorAllocator::BeginBlockAllocation()
+UINT CDescriptorAllocator::ReserveBlock(UINT InStartOffset, UINT NumDescriptors)
 {
-    if(bIsBlockAllocating)
+    std::lock_guard<std::mutex> Lock(Mutex);
+
+	// Validate the requested block is within the heap's range and it does not overlap with existing reserved blocks
+    if (InStartOffset + NumDescriptors > OriginalDescriptorCount)
+    {
+        LOG_ERROR("Reserved block exceeds heap range!");
+        return static_cast<UINT>(-1);
+    }
+
+    for (const SReservedBlock& ExistingBlock : ReservedBlocks)
+    {
+        bool bOverlaps = InStartOffset < ExistingBlock.StartOffset + ExistingBlock.NumDescriptors &&
+            ExistingBlock.StartOffset < InStartOffset + NumDescriptors;
+
+        if (bOverlaps)
+        {
+            LOG_ERROR("Reserved block overlaps with an existing reserved block!");
+            return static_cast<UINT>(-1);
+        }
+    }
+
+    SReservedBlock Block;
+    Block.StartOffset = InStartOffset;
+    Block.NumDescriptors = NumDescriptors;
+    Block.NextFreeIndex = InStartOffset;
+
+    ReservedBlocks.push_back(Block);
+
+	TotalDescriptorCount = std::min(TotalDescriptorCount, InStartOffset);
+
+    return static_cast<UINT>(ReservedBlocks.size() - 1);
+}
+
+void CDescriptorAllocator::ResetReservedBlock(UINT BlockIndex)
+{
+    std::lock_guard<std::mutex> Lock(Mutex);
+
+    assert(BlockIndex < ReservedBlocks.size() && "Invalid reserved block index!");
+
+    ReservedBlocks[BlockIndex].NextFreeIndex = ReservedBlocks[BlockIndex].StartOffset;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorAllocator::GetReservedBlockGpuHandle(UINT BlockIndex) const
+{
+    if (BlockIndex >= ReservedBlocks.size())
+    {
+        LOG_ERROR("Invalid reserved block index!");
+        return { 0 };
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE GpuHandle = HeapGpuStart;
+    GpuHandle.ptr += ReservedBlocks[BlockIndex].StartOffset * DescriptorSize;
+    return GpuHandle;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorAllocator::BeginBlockAllocation(UINT BlockIndex)
+{
+    if (ActiveBlockIndex >= 0)
     {
         LOG_ERROR("Block allocation already in progress!");
 		return { 0 };
 	}
 
-	bIsBlockAllocating = true;
+    if (BlockIndex >= ReservedBlocks.size())
+    {
+        LOG_ERROR("Invalid reserved block index!");
+        return { 0 };
+    }
+
+	ActiveBlockIndex = static_cast<int>(BlockIndex);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GpuHandle = HeapGpuStart;
-    GpuHandle.ptr += NextFreeIndex * DescriptorSize;
+    GpuHandle.ptr += ReservedBlocks[BlockIndex].NextFreeIndex * DescriptorSize;
 	return GpuHandle;
 }
 
 SDescriptorHandle CDescriptorAllocator::Allocate()
 {
     std::lock_guard<std::mutex> Lock(Mutex);
-    uint32_t Index = 0;
+    UINT Index = 0;
 
-    if (!FreeList.empty() && !bIsBlockAllocating) 
+    if (ActiveBlockIndex >= 0)
+    {
+        assert(static_cast<size_t>(ActiveBlockIndex) < ReservedBlocks.size());
+
+        SReservedBlock& Block = ReservedBlocks[ActiveBlockIndex];
+        assert(Block.NextFreeIndex < Block.StartOffset + Block.NumDescriptors && "Reserved block out of descriptors!");
+
+        Index = Block.NextFreeIndex++;
+    }
+    else if (!FreeList.empty())
     {
         Index = FreeList.back();
         FreeList.pop_back();
     }
     else 
     {
-        assert(NextFreeIndex < NumDescriptors_ && "Allocator out of descriptors!");
+        assert(NextFreeIndex < TotalDescriptorCount && "Allocator out of descriptors!");
         Index = NextFreeIndex++;
     }
 
@@ -77,7 +151,7 @@ void CDescriptorAllocator::DeferredFree(D3D12_CPU_DESCRIPTOR_HANDLE InCpuHandle)
     std::lock_guard<std::mutex> Lock(Mutex);
     
     // Validate the handle is in the heap's range
-    if (InCpuHandle.ptr < HeapCpuStart.ptr || InCpuHandle.ptr >= HeapCpuStart.ptr + NumDescriptors_ * DescriptorSize)
+    if (InCpuHandle.ptr < HeapCpuStart.ptr || InCpuHandle.ptr >= HeapCpuStart.ptr + TotalDescriptorCount * DescriptorSize)
     {
         LOG_ERROR("Invalid CPU descriptor handle for this heap!");
         return;
@@ -90,8 +164,8 @@ void CDescriptorAllocator::DeferredFree(D3D12_CPU_DESCRIPTOR_HANDLE InCpuHandle)
         return;
     }
 
-    uint32_t Index = static_cast<uint32_t>((InCpuHandle.ptr - HeapCpuStart.ptr) / DescriptorSize);
-    assert(Index < NumDescriptors_);
+    UINT Index = static_cast<UINT>((InCpuHandle.ptr - HeapCpuStart.ptr) / DescriptorSize);
+    assert(Index < TotalDescriptorCount);
 
     UINT64 FenceValueToWait = CRenderer::GetInstance().GetCurrentFrameContext().FenceValue + 1;
     DeferredQueue.push({ Index, FenceValueToWait });
@@ -109,7 +183,7 @@ void CDescriptorAllocator::CleanUp(UINT64 CompletedFenceValue)
             break;
         }
 
-        FreeList.push_back(Item.HeapIndex);
+        FreeList.push_back(Item.Offset);
         DeferredQueue.pop();
     }
 }
