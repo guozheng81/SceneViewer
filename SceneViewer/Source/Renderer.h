@@ -116,6 +116,8 @@ protected:
 	std::unique_ptr<CMesh>	ScreenQuad;
 	std::vector<std::unique_ptr<CScreenPass>>	ScreenPasses;
 
+	void CountAssets(UINT& OutTextureCount, UINT& OutMeshCount);
+
 public:
 	UINT	ViewportWidth = 1280;
 	UINT	ViewportHeight = 720;

@@ -315,11 +315,24 @@ bool	CRenderer::Init(HWND hWnd)
 
     CurrentFrameIndex = SwapChain->GetCurrentBackBufferIndex();
 
+	/////////// scene /////////////////
+
+    Scene = std::make_unique<CScene>();
+
     //////////// descriptor heaps /////////////////
 
-	SrvUavDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, true);
-	SrvUavDescriptorAllocator.ReserveBlock(128, 256); // Reserve a block for textures starting at offset 128
-    SrvUavDescriptorAllocator.ReserveBlock(384, 640);
+	UINT TextureCount = 0;
+	UINT MeshCount = 0;
+
+    CountAssets(TextureCount, MeshCount);
+
+    TextureCount = std::max((UINT)(TextureCount*1.5f), 256u);
+	MeshCount = std::max((UINT)(MeshCount * 1.5f), 256u);
+
+	UINT OtherSrvUavCount = 128; 
+	SrvUavDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, OtherSrvUavCount +TextureCount+MeshCount, true);
+	SrvUavDescriptorAllocator.ReserveBlock(OtherSrvUavCount, TextureCount);
+    SrvUavDescriptorAllocator.ReserveBlock(OtherSrvUavCount+TextureCount, MeshCount);
 
 	RtvDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 32, false);
 	DsvDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4, false);
@@ -366,8 +379,6 @@ bool	CRenderer::Init(HWND hWnd)
     CommandList->Close();
 
     /////////////////////////////////////////////////
-
-    Scene = std::make_unique<CScene>();
 
     LoadScene();
 
@@ -753,6 +764,46 @@ ComPtr<ID3D12Resource> CRenderer::CreateDefaultBuffer(const void* InData, UINT I
     ResourceBarrier(Buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 
     return Buffer;
+}
+
+void CRenderer::CountAssets(UINT& OutTextureCount, UINT& OutMeshCount)
+{
+    OutTextureCount = 0;
+    OutMeshCount = 0;
+
+    std::filesystem::path AssetDirectory = GetAssetDirectory();
+    if (!std::filesystem::exists(AssetDirectory))
+    {
+        LOG_ERROR("Asset directory does not exist: %s", AssetDirectory.string().c_str());
+        return;
+    }
+
+    std::error_code ErrorCode;
+    std::filesystem::recursive_directory_iterator AssetIterator(AssetDirectory, ErrorCode);
+    if (ErrorCode)
+    {
+        LOG_ERROR("Failed to enumerate asset directory: %s", AssetDirectory.string().c_str());
+        return;
+    }
+
+    for (const std::filesystem::directory_entry& AssetEntry : AssetIterator)
+    {
+        if (!AssetEntry.is_regular_file())
+        {
+            continue;
+        }
+
+        const std::filesystem::path& AssetPath = AssetEntry.path();
+        if (AssetPath.extension() == ".dds")
+        {
+            ++OutTextureCount;
+        }
+    }
+
+    if (Scene)
+    {
+        OutMeshCount = Scene->CountAndCacheAllMeshes("scene.json");
+    }
 }
 
 std::filesystem::path CRenderer::GetExeDirectory()

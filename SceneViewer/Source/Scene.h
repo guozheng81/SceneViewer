@@ -5,6 +5,11 @@
 #include "Camera.h"
 #include "Renderer.h"
 
+namespace tinyobj
+{
+	class ObjReader;
+}
+
 class CSceneObject;
 class CMesh;
 
@@ -42,7 +47,10 @@ protected:
 	void CollectSceneObjectSubtree(CSceneObject* InSceneObject, std::vector<CSceneObject*>& OutSubtree);
 	CSceneObject* DuplicateSceneObjectRecursive(CSceneObject* InSceneObject, CSceneObject* InNewParent);
 
+	std::map<std::filesystem::path, std::unique_ptr<tinyobj::ObjReader>> ObjReaderCache;
 	void LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* InParentSceneObject);
+
+	UINT CountMeshInObjFileAndCache(const std::filesystem::path& InPath);
 
 public:
 	XMVECTOR DirectionalLightDir;
@@ -95,5 +103,8 @@ public:
 	CSceneObject* DuplicateSceneObject(int InIndex);
 
 	int FindSceneObjectIndex(CSceneObject* InSceneObject) const;
+	int FindSceneObjectIndexByFileName(const std::string& InFileName) const;
+	UINT CountAndCacheAllMeshes(const std::string& InSceneName);
+
 };
 

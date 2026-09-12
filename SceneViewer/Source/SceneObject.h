@@ -8,6 +8,7 @@ class CSceneObject
 {
 public:
     std::string Name;
+    std::string FileName;
 
     CSceneObject(std::string ObjectName);
     ~CSceneObject();

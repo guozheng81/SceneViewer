@@ -26,23 +26,19 @@ CScene::CScene()
 
 void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* InParentSceneObject)
 {
-	tinyobj::ObjReaderConfig ReaderConfig;
-	ReaderConfig.mtl_search_path = "";
-
-	tinyobj::ObjReader TinyObjReader;
-
-	std::vector<SSceneVertex> Verts;
-	std::vector<UINT32>	Indices;
-
-	if (!TinyObjReader.ParseFromFile(InObjPath.string(), ReaderConfig))
+	tinyobj::ObjReader* TinyObjReader = ObjReaderCache[InObjPath].get();
+	if(TinyObjReader == nullptr)
 	{
 		LOG_WARN("Failed to load obj file: %s", InObjPath.string().c_str());
 		return;
 	}
 
-	auto& attrib = TinyObjReader.GetAttrib();
-	auto& shapes = TinyObjReader.GetShapes();
-	auto& materials = TinyObjReader.GetMaterials();
+	std::vector<SSceneVertex> Verts;
+	std::vector<UINT32>	Indices;
+
+	auto& attrib = TinyObjReader->GetAttrib();
+	auto& shapes = TinyObjReader->GetShapes();
+	auto& materials = TinyObjReader->GetMaterials();
 
 	for (size_t s = 0; s < shapes.size(); s++)
 	{
@@ -115,12 +111,12 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	Depth1 = RendererInst.CreateDepthTexture("Depth1", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
 
 	std::filesystem::path AssetPath = CRenderer::GetAssetDirectory();
-	AssetPath /= InSceneName;
+	std::filesystem::path JsonPath = AssetPath / InSceneName;
 
 	// all textures will be allocated in a single block, so we can use a single descriptor for all of them
 	RendererInst.SrvUavDescriptorAllocator.BeginBlockAllocation(0);
 
-	std::ifstream JsonFile(AssetPath);
+	std::ifstream JsonFile(JsonPath);
 	if (JsonFile)
 	{
 		Json SceneJson;
@@ -130,7 +126,7 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 		}
 		catch (const Json::parse_error& Ex)
 		{
-			LOG_ERROR("Failed to parse scene json '%s': %s", AssetPath.string().c_str(), Ex.what());
+			LOG_ERROR("Failed to parse scene json '%s': %s", JsonPath.string().c_str(), Ex.what());
 			SceneJson = Json();
 		}
 		JsonFile.close();
@@ -145,8 +141,19 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 					continue;
 				}
 
-				std::string ObjectName = ObjectEntry.value("Name", ObjFileName);
-				CSceneObject* RootSceneObject = CreateSceneObject(GetAvailableSceneObjectName(ObjectName));
+				CSceneObject* RootSceneObject = nullptr;
+
+				int ExistingSceneObjectIndex = FindSceneObjectIndexByFileName(ObjFileName);
+				if (ExistingSceneObjectIndex >= 0)
+				{
+					RootSceneObject = DuplicateSceneObject(ExistingSceneObjectIndex);
+				}
+				else
+				{
+					std::string ObjectName = ObjectEntry.value("Name", ObjFileName);
+					RootSceneObject = CreateSceneObject(GetAvailableSceneObjectName(ObjectName));
+					RootSceneObject->FileName = ObjFileName;
+				}
 
 				XMFLOAT3 Position(0.0f, 0.0f, 0.0f);
 				if (ObjectEntry.contains("Position") && ObjectEntry["Position"].is_array() && ObjectEntry["Position"].size() >= 3)
@@ -172,15 +179,16 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 				}
 				RootSceneObject->SetScale(Scale);
 
-				std::filesystem::path ObjFilePath = CRenderer::GetAssetDirectory();
-				ObjFilePath /= ObjFileName;
-				LoadObjFile(ObjFilePath, RootSceneObject);
+				if (ExistingSceneObjectIndex < 0)
+				{
+					LoadObjFile(AssetPath / ObjFileName, RootSceneObject);
+				}
 			}
 		}
 	}
 	else
 	{
-		LOG_ERROR("Failed to open scene json file: %s", AssetPath.string().c_str());
+		LOG_ERROR("Failed to open scene json file: %s", JsonPath.string().c_str());
 	}
 
 	RendererInst.SrvUavDescriptorAllocator.EndBlockAllocation();
@@ -188,6 +196,88 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	CollectAllMeshesInfo();
 
 	BuildAccelerationStructures(InCommandList, true, false);
+}
+
+UINT CScene::CountAndCacheAllMeshes(const std::string& InSceneName)
+{
+	std::filesystem::path AssetPath = CRenderer::GetAssetDirectory();
+
+	UINT TotalMeshCount = 0;
+	std::ifstream JsonFile(AssetPath/ InSceneName);
+	if (JsonFile)
+	{
+		Json SceneJson;
+		try
+		{
+			JsonFile >> SceneJson;
+		}
+		catch (const Json::parse_error& Ex)
+		{
+			LOG_ERROR("Failed to parse scene json '%s': %s", AssetPath.string().c_str(), Ex.what());
+			SceneJson = Json();
+		}
+		JsonFile.close();
+
+		if (SceneJson.contains("Objects") && SceneJson["Objects"].is_array())
+		{
+			for (const auto& ObjectEntry : SceneJson["Objects"])
+			{
+				std::string ObjFileName = ObjectEntry.value("File", std::string());
+				if (ObjFileName.empty())
+				{
+					continue;
+				}
+
+				TotalMeshCount += CountMeshInObjFileAndCache(AssetPath / ObjFileName);
+			}
+		}
+	}
+
+	return TotalMeshCount;
+}
+
+UINT CScene::CountMeshInObjFileAndCache(const std::filesystem::path& InPath)
+{
+	tinyobj::ObjReader* TinyObjReader = ObjReaderCache.find(InPath) != ObjReaderCache.end() ? ObjReaderCache[InPath].get() : nullptr;
+
+	if(TinyObjReader != nullptr)
+	{
+		return 0;
+	}
+	else
+	{
+		std::unique_ptr<tinyobj::ObjReader> NewReader = std::make_unique<tinyobj::ObjReader>();
+		TinyObjReader = NewReader.get();
+		if (!TinyObjReader->ParseFromFile(InPath.string()))
+		{
+			LOG_WARN("Failed to load obj file: %s", InPath.string().c_str());
+			return 0;
+		}
+		else
+		{
+			ObjReaderCache[InPath] = std::move(NewReader);
+		}
+	}
+
+	auto& shapes = TinyObjReader->GetShapes();
+	auto& materials = TinyObjReader->GetMaterials();
+
+	UINT MeshCount = 0;
+	for (const auto& Shape : shapes)
+	{
+		int PrevMatIdx = -2; // sentinel that never matches a real material id
+		for (size_t f = 0; f < Shape.mesh.material_ids.size(); ++f)
+		{
+			int MatIdx = Shape.mesh.material_ids[f];
+			if (MatIdx != PrevMatIdx)
+			{
+				++MeshCount;
+				PrevMatIdx = MatIdx;
+			}
+		}
+	}
+
+	return MeshCount;	
 }
 
 void CScene::CalculateBoundingBox(std::vector<SSceneVertex>& Verts, XMFLOAT3& OutMin, XMFLOAT3& OutMax, XMFLOAT3& OutCenter, bool bRecenter)
@@ -373,6 +463,7 @@ void CScene::OnLoaded()
 	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), MaxModelElementCount, false, D3D12_RESOURCE_STATE_COMMON);
 	ModelBuffer.CreateShaderResourceView();
 
+	ObjReaderCache.clear();
 }
 
 void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
@@ -627,6 +718,7 @@ CSceneObject* CScene::DuplicateSceneObjectRecursive(CSceneObject* InSceneObject,
 
 	std::string NewName = GetAvailableSceneObjectName(InSceneObject->Name);
 	CSceneObject* NewSceneObject = CreateSceneObject(NewName);
+	NewSceneObject->FileName = InSceneObject->FileName;
 
 	NewSceneObject->SetPosition(InSceneObject->GetLocalPosition());
 	NewSceneObject->SetRotation(InSceneObject->GetLocalRotation());
@@ -678,6 +770,18 @@ int CScene::FindSceneObjectIndex(CSceneObject* InSceneObject) const
         }
     }
     return -1;
+}
+
+int CScene::FindSceneObjectIndexByFileName(const std::string& InFileName) const
+{
+	for (int i = 0; i < AllSceneObjects.size(); ++i)
+	{
+		if (AllSceneObjects[i]->FileName == InFileName)
+		{
+			return i;
+		}
+	}
+	return -1;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE CScene::GetMaterialTexturesGPUDescriptor() const
