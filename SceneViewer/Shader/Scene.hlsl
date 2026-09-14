@@ -91,10 +91,23 @@ PS_OUTPUT PSMain(PS_INPUT Input)
     float3 N = T * NormalColor.x + B * NormalColor.y + WldNormal * NormalColor.z;
     N = normalize(N);
 
-    // todo: pbr params should be read from textures
-    float roughness = 0.85f;
-    float metal = 0.1f;
-    
+    float roughness = 0.6f;
+    float metal = 0.0f;
+
+    int PBRTexIdx = AllMeshes[InstanceIndex].PBRTextureIdx;
+    if(PBRTexIdx >= 0)
+    {
+        Texture2D PBRTexture = MaterialTextures[PBRTexIdx];
+        float4 PBRParams = PBRTexture.Sample(AnisotropicSampler, Input.Texcoord);
+        roughness = PBRParams.g;
+        metal = PBRParams.b;        
+    }
+    else
+    {
+        roughness = AllMeshes[InstanceIndex].Roughness;
+        metal = AllMeshes[InstanceIndex].Metallic;
+    }
+        
     PS_OUTPUT Output;
     Albedo.a = roughness;
     Output.Albedo = Albedo;

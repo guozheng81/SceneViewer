@@ -2,11 +2,12 @@
 #include "Renderer.h"
 #include "SceneObject.h"
 
-void CMesh::Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx, int InNormalTextureIdx, bool bAlphaTest)
+void CMesh::Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx, int InNormalTextureIdx, int InPBRTextureIdx, bool bAlphaTest)
 {
 	bNeedsAlphaTest = bAlphaTest;
 	AlbedoTextureIndex = InTextureIdx;
 	NormalTextureIndex = InNormalTextureIdx;
+	PBRTextureIndex = InPBRTextureIdx;
 
 	VertexCount = Verts.size();
 	UINT TotalSize = sizeof(SSceneVertex) * VertexCount;

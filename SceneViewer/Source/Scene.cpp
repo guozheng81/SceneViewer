@@ -53,7 +53,7 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 			if (shapes[s].mesh.material_ids[f] != CurrentMatIdx)
 			{
 				auto TinyObjMat = materials[CurrentMatIdx];
-				AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+				AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname, TinyObjMat.roughness_texname);
 
 				Verts.clear();
 				Indices.clear();
@@ -87,7 +87,7 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 		}
 
 		auto TinyObjMat = materials[CurrentMatIdx];
-		AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname);
+		AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname, TinyObjMat.roughness_texname);
 	}
 }
 
@@ -319,7 +319,7 @@ void CScene::CalculateBoundingBox(std::vector<SSceneVertex>& Verts, XMFLOAT3& Ou
 	}
 }
 
-CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName)
+CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName, const std::string& InPBRTexName)
 {
 	std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
 
@@ -337,6 +337,16 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 		}
 	}
 
+	int PBRTextureIdx = -1;
+	if (!InPBRTexName.empty())
+	{
+		CTexture* PBRTexture = CRenderer::GetInstance().LoadTexture(InPBRTexName);
+		if (PBRTexture)
+		{
+			PBRTextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), PBRTexture->SrvGPUDescriptor);
+		}
+	}
+
 	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
 
 	int AlbedoTextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), DiffTexture->SrvGPUDescriptor);
@@ -346,7 +356,7 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 	{
 		XMFLOAT3 Min, Max, Center;
 		CalculateBoundingBox(Verts, Min, Max, Center, true);
-		CurMesh->Init(Verts, Indices, AlbedoTextureIdx, NormalTextureIdx, bAlphaTest);
+		CurMesh->Init(Verts, Indices, AlbedoTextureIdx, NormalTextureIdx, PBRTextureIdx, bAlphaTest);
 
 		// allow it to have its own transform, so we can move it around
 		std::string NewSceneObjectName = GetAvailableSceneObjectName(InDiffTexName);
@@ -357,7 +367,7 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 	}
 	else
 	{
-		CurMesh->Init(Verts, Indices, AlbedoTextureIdx, NormalTextureIdx, bAlphaTest);
+		CurMesh->Init(Verts, Indices, AlbedoTextureIdx, NormalTextureIdx, PBRTextureIdx, bAlphaTest);
 		InSceneObject->AddMesh(CurMesh.get());
 	}
 
@@ -432,7 +442,15 @@ void CScene::CollectAllMeshesInfo()
 			MeshInfo.MeshIdx = MeshIdx;
 			MeshInfo.AlbedoTextureIdx = CurMesh->GetAlbedoTextureIndex();
 			MeshInfo.NormalTextureIdx = CurMesh->GetNormalTextureIndex();
+			MeshInfo.PBRTextureIdx = CurMesh->GetPBRTextureIndex();
 			CurMesh->GetInstanceWorldMatrix(InstanceIdx, &(MeshInfo.WorldMatrix));
+			CSceneObject* SceneObj = CurMesh->GetInstanceSceneObject(InstanceIdx);
+			if (SceneObj)
+			{
+				MeshInfo.Albedo = SceneObj->Albedo;
+				MeshInfo.Roughness = SceneObj->Roughness;
+				MeshInfo.Metallic = SceneObj->Metallic;
+			}
 			MeshInfoArray.push_back(MeshInfo);
 		}
 

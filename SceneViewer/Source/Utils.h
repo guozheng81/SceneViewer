@@ -33,4 +33,8 @@ struct SMeshInfo
 	int MeshIdx;
 	int	AlbedoTextureIdx;
 	int	NormalTextureIdx;
+	int PBRTextureIdx;
+	XMFLOAT3 Albedo;
+	float Roughness;
+	float Metallic;
 };

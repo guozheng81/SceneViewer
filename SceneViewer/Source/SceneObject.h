@@ -10,6 +10,10 @@ public:
     std::string Name;
     std::string FileName;
 
+	XMFLOAT3 Albedo = XMFLOAT3(1.0f, 1.0f, 1.0f);   // used when no albedo texture is present
+	float Roughness = 0.6f; // used when no PRB texture is present
+	float Metallic = 0.0f; // used when no PRB texture is present
+
     CSceneObject(std::string ObjectName);
     ~CSceneObject();
 

@@ -17,6 +17,10 @@ struct MeshInfo
     int MeshIdx;
     int AlbedoTextureIdx;
     int NormalTextureIdx;
+    int PBRTextureIdx;
+    float3 Albedo;
+    float Roughness;
+    float Metallic;
 };
 
 #define PI 3.1415926f

@@ -67,7 +67,7 @@ public:
 
 	void	Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* InCommandList);
 
-	CMesh* AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName);
+	CMesh* AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName, const std::string& InPBRTexName);
 	CMaterial* GetSceneMaterial();
 
 	void	SetDirectionalLight(const XMFLOAT3& InDir, float Intensity);
