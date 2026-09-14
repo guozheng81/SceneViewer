@@ -53,9 +53,9 @@ struct PS_OUTPUT
 
 PS_OUTPUT PSMain(PS_INPUT Input)
 {
-    int TexIdx = AllMeshes[InstanceIndex].TextureIdx;
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx * 2];
-    Texture2D NormalTexture = MaterialTextures[TexIdx * 2 + 1];
+    int TexIdx = AllMeshes[InstanceIndex].AlbedoTextureIdx;
+    int NormalTexIdx = AllMeshes[InstanceIndex].NormalTextureIdx;
+    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
     
     float4 Albedo = DiffuseTexture.Sample(AnisotropicSampler, Input.Texcoord);
     if (Albedo.a < 0.5f)
@@ -79,9 +79,14 @@ PS_OUTPUT PSMain(PS_INPUT Input)
     float Invmax = rsqrt(max(dot(T, T), dot(B, B)));
     T *= Invmax;
     B *= Invmax;
-    
-    float3 NormalColor = NormalTexture.Sample(AnisotropicSampler, Input.Texcoord).rgb;
-    NormalColor = (NormalColor * 2.0f - 1.0f);
+
+    float3 NormalColor = float3(0.0f, 0.0f, 1.0f);    
+    if(NormalTexIdx >= 0)
+    {
+        Texture2D NormalTexture = MaterialTextures[NormalTexIdx];
+        NormalColor = NormalTexture.Sample(AnisotropicSampler, Input.Texcoord).rgb;
+        NormalColor = (NormalColor * 2.0f - 1.0f);
+    }
 
     float3 N = T * NormalColor.x + B * NormalColor.y + WldNormal * NormalColor.z;
     N = normalize(N);

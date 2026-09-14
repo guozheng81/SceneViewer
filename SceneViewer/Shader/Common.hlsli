@@ -15,7 +15,8 @@ struct MeshInfo
 {
     matrix mWorld;
     int MeshIdx;
-    int TextureIdx;
+    int AlbedoTextureIdx;
+    int NormalTextureIdx;
 };
 
 #define PI 3.1415926f

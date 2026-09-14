@@ -324,24 +324,29 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 	std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
 
 	std::string	NormalTextureName = InNormalTexName;
-	if (InNormalTexName.empty())
-	{
-		NormalTextureName = std::string("default_normal_") + InDiffTexName;
-	}
 
 	CTexture2D* DiffTexture = CRenderer::GetInstance().LoadTexture(InDiffTexName, true);
-	CRenderer::GetInstance().LoadTexture(NormalTextureName);
+
+	int NormalTextureIdx = -1;
+	if (!InNormalTexName.empty())
+	{
+		CTexture* NormalTexture = CRenderer::GetInstance().LoadTexture(NormalTextureName);
+		if (NormalTexture)
+		{
+			NormalTextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), NormalTexture->SrvGPUDescriptor);
+		}
+	}
 
 	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
 
-	int TextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), DiffTexture->SrvGPUDescriptor) / 2;
+	int AlbedoTextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), DiffTexture->SrvGPUDescriptor);
 
 	bool bAddNewSceneObject = (InDiffTexName.find("vase_dif") != std::string::npos);
 	if (bAddNewSceneObject)
 	{
 		XMFLOAT3 Min, Max, Center;
 		CalculateBoundingBox(Verts, Min, Max, Center, true);
-		CurMesh->Init(Verts, Indices, TextureIdx, bAlphaTest);
+		CurMesh->Init(Verts, Indices, AlbedoTextureIdx, NormalTextureIdx, bAlphaTest);
 
 		// allow it to have its own transform, so we can move it around
 		std::string NewSceneObjectName = GetAvailableSceneObjectName(InDiffTexName);
@@ -352,7 +357,7 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 	}
 	else
 	{
-		CurMesh->Init(Verts, Indices, TextureIdx, bAlphaTest);
+		CurMesh->Init(Verts, Indices, AlbedoTextureIdx, NormalTextureIdx, bAlphaTest);
 		InSceneObject->AddMesh(CurMesh.get());
 	}
 
@@ -425,7 +430,8 @@ void CScene::CollectAllMeshesInfo()
 		{
 			SMeshInfo MeshInfo;
 			MeshInfo.MeshIdx = MeshIdx;
-			MeshInfo.TextureIdx = CurMesh->GetTextureIndex();
+			MeshInfo.AlbedoTextureIdx = CurMesh->GetAlbedoTextureIndex();
+			MeshInfo.NormalTextureIdx = CurMesh->GetNormalTextureIndex();
 			CurMesh->GetInstanceWorldMatrix(InstanceIdx, &(MeshInfo.WorldMatrix));
 			MeshInfoArray.push_back(MeshInfo);
 		}

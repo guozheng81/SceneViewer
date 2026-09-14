@@ -864,7 +864,8 @@ CTexture2D* CRenderer::LoadTexture(const std::string& InFileName, bool InIsDiffu
     std::filesystem::path TexFileName = AssetDir / InFileName;
     if (!std::filesystem::exists(TexFileName))
     {
-        TexFileName = AssetDir / "default_n.dds";
+		LOG_WARN("Texture file not found: %s.", TexFileName.string().c_str());
+        return nullptr;
     }
 
 	NewTexture->LoadResource(TexFileName.c_str(), CommandList.Get());

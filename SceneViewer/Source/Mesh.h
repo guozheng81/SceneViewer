@@ -26,7 +26,8 @@ protected:
 	bool bNeedsAlphaTest = false;
 
 	int GlobalInstanceIndex = 0;
-	int TextureIndex = 0;
+	int AlbedoTextureIndex = 0;
+	int NormalTextureIndex = -1;
 
 public:
 	CMesh(const CMesh&) = delete;
@@ -41,7 +42,7 @@ public:
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE VertexSrvGPUDescriptor = {};
 
-	void Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx = 0, bool bAlphaTest = false);
+	void Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx = 0, int InNormalTextureIdx = -1, bool bAlphaTest = false);
 	void ResetUploadResource();
 
 	// Instance management
@@ -55,7 +56,8 @@ public:
 	int GetGlobalInstanceIndex() const { return GlobalInstanceIndex; }
 	void SetGlobalInstanceIndex(int InIdx) { GlobalInstanceIndex = InIdx; }
 
-	int GetTextureIndex() const { return TextureIndex; }
+	int GetAlbedoTextureIndex() const { return AlbedoTextureIndex; }
+	int GetNormalTextureIndex() const { return NormalTextureIndex; }
 
 	void OnRender(ID3D12GraphicsCommandList* InCommandList);
 
