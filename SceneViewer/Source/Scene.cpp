@@ -351,7 +351,7 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 
 	int AlbedoTextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), DiffTexture->SrvGPUDescriptor);
 
-	bool bAddNewSceneObject = (InDiffTexName.find("vase_dif") != std::string::npos);
+	bool bAddNewSceneObject = (InDiffTexName.find("vase_base") != std::string::npos);
 	if (bAddNewSceneObject)
 	{
 		XMFLOAT3 Min, Max, Center;

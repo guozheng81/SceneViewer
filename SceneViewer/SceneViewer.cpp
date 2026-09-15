@@ -12,7 +12,7 @@ bool        g_InSizeMove = false;
 
 float       g_DirLightX = -0.3f;
 float       g_DirLightZ = -0.15f;
-float       g_DirLightInensity = 10.0f;
+float       g_DirLightInensity = 5.0f;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -165,6 +165,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     ImGui_ImplWin32_Init(g_HWnd);
 
     CRenderer::GetInstance().Init(g_HWnd);
+
+    CScene* Scene = CRenderer::GetInstance().GetScene();
+    if (Scene)
+    {
+        Scene->SetDirectionalLight(XMFLOAT3(g_DirLightX, -1.0f, g_DirLightZ), g_DirLightInensity);
+    }
 
     ShowWindow(g_HWnd, nCmdShow);
 
