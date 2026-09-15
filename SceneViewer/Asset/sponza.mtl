@@ -250,7 +250,8 @@ newmtl fabric_e
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
 	map_Ka sponza_fabric_green_diff.dds
-	map_Kd sponza_fabric_green_diff.dds
+	map_Kd sponza_fabric_green_basecolor.dds
+	map_Pr sponza_fabric_metallicroughness.dds
 
 newmtl fabric_d
 	Ns 10.0000
@@ -264,7 +265,8 @@ newmtl fabric_d
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
 	map_Ka sponza_fabric_blue_diff.dds
-	map_Kd sponza_fabric_blue_diff.dds
+	map_Kd sponza_fabric_blue_basecolor.dds
+	map_Pr sponza_fabric_metallicroughness.dds
 
 newmtl fabric_a
 	Ns 10.0000
@@ -278,7 +280,8 @@ newmtl fabric_a
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
 	map_Ka sponza_fabric_diff.dds
-	map_Kd sponza_fabric_diff.dds
+	map_Kd sponza_fabric_basecolor.dds
+	map_Pr sponza_fabric_metallicroughness.dds
 
 newmtl fabric_g
 	Ns 10.0000
@@ -292,7 +295,8 @@ newmtl fabric_g
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
 	map_Ka sponza_curtain_blue_diff.dds
-	map_Kd sponza_curtain_blue_diff.dds
+	map_Kd sponza_curtain_blue_basecolor.dds
+	map_Pr sponza_curtain_metallicroughness.dds
 
 newmtl fabric_c
 	Ns 10.0000
@@ -306,7 +310,8 @@ newmtl fabric_c
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
 	map_Ka sponza_curtain_diff.dds
-	map_Kd sponza_curtain_diff.dds
+	map_Kd sponza_curtain_basecolor.dds
+	map_Pr sponza_curtain_metallicroughness.dds
 
 newmtl fabric_f
 	Ns 10.0000
@@ -320,7 +325,8 @@ newmtl fabric_f
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
 	map_Ka sponza_curtain_green_diff.dds
-	map_Kd sponza_curtain_green_diff.dds
+	map_Kd sponza_curtain_green_basecolor.dds
+	map_Pr sponza_curtain_metallicroughness.dds
 
 newmtl chain
 	Ns 10.0000
