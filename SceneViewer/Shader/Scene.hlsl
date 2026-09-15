@@ -55,9 +55,14 @@ PS_OUTPUT PSMain(PS_INPUT Input)
 {
     int TexIdx = AllMeshes[InstanceIndex].AlbedoTextureIdx;
     int NormalTexIdx = AllMeshes[InstanceIndex].NormalTextureIdx;
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
     
-    float4 Albedo = DiffuseTexture.Sample(AnisotropicSampler, Input.Texcoord);
+    float4 Albedo = float4(AllMeshes[InstanceIndex].Albedo, 1.0f);    
+    if(TexIdx >= 0)
+    {
+        Texture2D DiffuseTexture = MaterialTextures[TexIdx];    
+        Albedo = DiffuseTexture.Sample(AnisotropicSampler, Input.Texcoord);
+    }
+    
     if (Albedo.a < 0.5f)
     {
         discard;

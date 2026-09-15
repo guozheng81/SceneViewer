@@ -41,8 +41,13 @@ void PrimaryClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttr
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
     int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
+    if(TexIdx < 0)
+    {
+        payload.Color = AllMeshes[InstanceIdx].Albedo;
+        return;
+    }
     
+    Texture2D DiffuseTexture = MaterialTextures[TexIdx];    
     payload.Color = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).rgb;
 }
 
@@ -53,12 +58,15 @@ void PrimaryAnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
     int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
-    
-    float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
-    
-    if(Alpha < 0.5f)
+    if(TexIdx >= 0)
     {
-        IgnoreHit();
+        Texture2D DiffuseTexture = MaterialTextures[TexIdx];
+    
+        float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
+    
+        if (Alpha < 0.5f)
+        {
+            IgnoreHit();
+        }
     }
 }

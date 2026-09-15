@@ -325,7 +325,15 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 
 	std::string	NormalTextureName = InNormalTexName;
 
-	CTexture2D* DiffTexture = CRenderer::GetInstance().LoadTexture(InDiffTexName, true);
+	int AlbedoTextureIdx = -1;
+	if (!InDiffTexName.empty())
+	{
+		CTexture2D* DiffTexture = CRenderer::GetInstance().LoadTexture(InDiffTexName, true);
+		if(DiffTexture)
+		{
+			AlbedoTextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), DiffTexture->SrvGPUDescriptor);
+		}
+	}
 
 	int NormalTextureIdx = -1;
 	if (!InNormalTexName.empty())
@@ -348,8 +356,6 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 	}
 
 	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
-
-	int AlbedoTextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), DiffTexture->SrvGPUDescriptor);
 
 	bool bAddNewSceneObject = (InDiffTexName.find("vase_base") != std::string::npos);
 	if (bAddNewSceneObject)

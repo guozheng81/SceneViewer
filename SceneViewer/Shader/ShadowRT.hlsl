@@ -61,10 +61,13 @@ void ShadowAnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttribute
     uint InstanceIdx = InstanceID();
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
+    float Alpha = 1.0f;
     int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
-    
-    float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
+    if (TexIdx >= 0)
+    {
+        Texture2D DiffuseTexture = MaterialTextures[TexIdx];
+        Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
+    }
     
     if (Alpha < 0.5f)
     {

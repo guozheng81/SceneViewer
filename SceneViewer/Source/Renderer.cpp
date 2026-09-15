@@ -602,6 +602,43 @@ void	CRenderer::RenderGUIForSceneObject(CSceneObject* SceneObject, int& IndexToD
             Scene->CollectAllMeshesInfo();
         }
 
+        // Albedo
+        XMFLOAT3 Albedo = SceneObject->Albedo;
+        float AlbedoArray[3] = { Albedo.x, Albedo.y, Albedo.z };
+        ImGui::Text("Albedo  ");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(180.0f);
+        if (ImGui::InputFloat3(("##Albedo" + std::to_string(Index)).c_str(), AlbedoArray, "%.2f"))
+        {
+            SceneObject->Albedo = XMFLOAT3(AlbedoArray[0], AlbedoArray[1], AlbedoArray[2]);
+            Scene->CollectAllMeshesInfo();
+        }
+
+        // Roughness
+        float Roughness = SceneObject->Roughness;
+        ImGui::Text("Roughness");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(50.0f);
+        if (ImGui::InputFloat(("##Roughness" + std::to_string(Index)).c_str(), &Roughness, 0.0f, 0.0f, "%.2f"))
+        {
+            Roughness = std::clamp(Roughness, 0.0f, 1.0f);
+            SceneObject->Roughness = Roughness;
+            Scene->CollectAllMeshesInfo();
+        }
+
+        ImGui::SameLine();
+        // Metallic
+        float Metallic = SceneObject->Metallic;
+        ImGui::Text(" Metallic");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(50.0f);
+        if (ImGui::InputFloat(("##Metallic" + std::to_string(Index)).c_str(), &Metallic, 0.0f, 0.0f, "%.2f"))
+        {
+            Metallic = std::clamp(Metallic, 0.0f, 1.0f);
+            SceneObject->Metallic = Metallic;
+            Scene->CollectAllMeshesInfo();
+        }
+
         // Delete / Duplicate buttons
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 90);
         if (ImGui::Button(("Delete##" + std::to_string(Index)).c_str()))

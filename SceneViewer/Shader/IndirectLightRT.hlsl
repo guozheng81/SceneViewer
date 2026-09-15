@@ -82,8 +82,12 @@ void IndirectClosestHit(inout IndirectPayload Payload, in BuiltInTriangleInterse
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
     int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
-    float3 Albedo = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).rgb;
+    float3 Albedo = AllMeshes[InstanceIdx].Albedo;
+    if(TexIdx >= 0)
+    {
+        Texture2D DiffuseTexture = MaterialTextures[TexIdx];
+        Albedo = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).rgb;
+    }
     float3 N = HitVertex.Normal;
     
     float3 WldPos = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
@@ -109,13 +113,16 @@ void IndirectAnyHit(inout IndirectPayload Payload, in BuiltInTriangleIntersectio
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
     int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
-    
-    float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
-    
-    if (Alpha < 0.5f)
+    if(TexIdx >= 0)
     {
-        IgnoreHit();
+        Texture2D DiffuseTexture = MaterialTextures[TexIdx];
+    
+        float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
+    
+        if (Alpha < 0.5f)
+        {
+            IgnoreHit();
+        }        
     }
 }
 
@@ -139,6 +146,12 @@ void ShadowAnyHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAtt
     SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
 
     int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
+    if(TexIdx < 0)
+    {
+        payload.Shadow = 0.025f;
+        AcceptHitAndEndSearch();
+    }
+    
     Texture2D DiffuseTexture = MaterialTextures[TexIdx];
     
     float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
