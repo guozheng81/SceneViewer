@@ -28,8 +28,7 @@ protected:
 	CBuffer ModelUploadBuffer;
 	CBuffer ModelBuffer;
 	bool bIsModelBufferDirty = false;
-
-	bool bRequestReload = false;
+	bool bNeedRebuildTLAS = false;
 
 	CTextureRenderTarget* GBufferA = nullptr;
 	CTextureRenderTarget* GBufferB = nullptr;
@@ -109,7 +108,5 @@ public:
 	int FindSceneObjectIndex(CSceneObject* InSceneObject) const;
 	int FindSceneObjectIndexByFileName(const std::string& InFileName) const;
 	UINT CountAndCacheAllMeshes(const std::string& InSceneName);
-
-	void RequestReload() { bRequestReload = true; }
 };
 

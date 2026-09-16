@@ -109,6 +109,8 @@ protected:
 
 	void	UpdateFPS();
 
+	bool bRequestReload = false;
+
 	std::unique_ptr<CScene>	Scene;
 
 	std::map<std::string, std::unique_ptr<CTexture>>  AllTextures;
@@ -150,7 +152,7 @@ public:
 	inline CScene* GetScene()	{		return Scene.get();	}
 	inline CMesh* GetScreenQuad() {	return ScreenQuad.get();	}
 
-	void	LoadScene();
+	void	LoadScene(bool bIsInit);
 
 	inline bool IsFristFrame() const {	return bIsFirstFrame;	}
 	void	UpdateViewBuffer();
@@ -167,7 +169,8 @@ public:
 	CTextureDepthStencil* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
 	CTextureRenderTarget* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0, bool InNeedRtv = true, bool InNeedUav = false);
 
-	void UnloadScene();
+	void OnSceneLoaded();
+	void ReloadScene();
 
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 	void	FlushCommandQueue(bool bShouldIncreaseFence = true);

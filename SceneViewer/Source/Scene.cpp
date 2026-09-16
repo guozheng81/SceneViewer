@@ -29,8 +29,17 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 	tinyobj::ObjReader* TinyObjReader = ObjReaderCache[InObjPath].get();
 	if(TinyObjReader == nullptr)
 	{
-		LOG_WARN("Failed to load obj file: %s", InObjPath.string().c_str());
-		return;
+		std::unique_ptr<tinyobj::ObjReader> NewReader = std::make_unique<tinyobj::ObjReader>();
+		TinyObjReader = NewReader.get();
+		if (!TinyObjReader->ParseFromFile(InObjPath.string()))
+		{
+			LOG_WARN("Failed to load obj file: %s", InObjPath.string().c_str());
+			return;
+		}
+		else
+		{
+			ObjReaderCache[InObjPath] = std::move(NewReader);
+		}
 	}
 
 	std::vector<SSceneVertex> Verts;
@@ -464,6 +473,8 @@ std::string CScene::GetAvailableSceneObjectName(const std::string& InBaseName)
 
 void CScene::CollectAllMeshesInfo()
 {
+	size_t PreMeshCount = MeshInfoArray.size();
+
 	MeshInfoArray.clear();
 	int MeshIdx = 0;
 	for (auto& CurMesh : AllMeshes)
@@ -490,6 +501,7 @@ void CScene::CollectAllMeshesInfo()
 		MeshIdx++;
 	}
 
+	bNeedRebuildTLAS = (PreMeshCount != MeshInfoArray.size());
 	bIsModelBufferDirty = true;
 }
 
@@ -527,25 +539,21 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
 	bIsUsingDepth0 = (!bIsUsingDepth0);
 
-	if(bRequestReload)
-	{
-		bRequestReload = false;
-	}
-
 	if(bIsModelBufferDirty)
 	{
-		UINT CurModelEleCount = (UINT)(MeshInfoArray.size());
-		bool bRebuildTLAS = false;
-		if(MaxModelElementCount < CurModelEleCount)
+		if (bNeedRebuildTLAS)
 		{
 			CRenderer::GetInstance().FlushCommandQueue();
+		}
 
+		UINT CurModelEleCount = (UINT)(MeshInfoArray.size());
+		if(MaxModelElementCount < CurModelEleCount)
+		{
 			MaxModelElementCount = (UINT)(CurModelEleCount *1.5f);
 			ModelBuffer.ResizeElementCount(MaxModelElementCount);
 			ModelUploadBuffer.ResizeElementCount(MaxModelElementCount);
 
 			TLAS_Instances.ResizeElementCount(MaxModelElementCount);
-			bRebuildTLAS = true;
 		}
 
 		// copy modelUploadBuffer to modelBuffer
@@ -557,7 +565,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 		CRenderer::GetInstance().ResourceBarrier(ModelBuffer.GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
-		BuildAccelerationStructures(InCommandList, false, bRebuildTLAS);
+		BuildAccelerationStructures(InCommandList, false, bNeedRebuildTLAS);
 
 		bIsModelBufferDirty = false;
 	}
@@ -625,12 +633,11 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 	}
 
 	UINT InstanceNum = MeshInfoArray.size();
-	UINT MaxInstanceNum = std::max(InstanceNum, MaxModelElementCount);
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS Inputs = {};
 	Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	Inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
-	Inputs.NumDescs = MaxInstanceNum;
+	Inputs.NumDescs = InstanceNum;
 	Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO Info;

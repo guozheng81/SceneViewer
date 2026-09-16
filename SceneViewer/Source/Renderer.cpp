@@ -380,14 +380,9 @@ bool	CRenderer::Init(HWND hWnd)
 
     /////////////////////////////////////////////////
 
-    LoadScene();
+    LoadScene(true);
 
-    Scene->OnLoaded();
-    ScreenQuad->ResetUploadResource();
-    for (auto& CurTexture : AllTextures)
-    {
-        CurTexture.second->ResetUploadResource();
-    }
+	OnSceneLoaded();
 
     Scene->SetDirectionalLight(XMFLOAT3(-0.3f, -1.0f, -0.15f), 10.0f);
 
@@ -426,26 +421,40 @@ bool	CRenderer::Init(HWND hWnd)
     return true;
 }
 
-void	CRenderer::LoadScene()
+void CRenderer::OnSceneLoaded()
+{
+    Scene->OnLoaded();
+    ScreenQuad->ResetUploadResource();
+    for (auto& CurTexture : AllTextures)
+    {
+        CurTexture.second->ResetUploadResource();
+    }
+}
+
+void	CRenderer::LoadScene(bool bIsInit)
 {
     //// load scene
     GetCurrentFrameContext().CommandAllocator->Reset();
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
 
-    Scene->Init();
+    if(bIsInit)
+    { 
+        Scene->Init();
+
+        ScreenQuad = std::make_unique<CMesh>();
+
+        std::vector<SSceneVertex> Verts = {
+            { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} },
+            { { 1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+            { { -1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} },
+            { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f} }
+        };
+
+        std::vector<UINT32>	Indices = { 0, 1, 2, 0, 3, 1 };
+        ScreenQuad->Init(Verts, Indices);
+    }
+
     Scene->Load("scene.json", CommandList.Get());
-
-    ScreenQuad = std::make_unique<CMesh>();
-
-    std::vector<SSceneVertex> Verts = {
-        { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} },
-        { { 1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-        { { -1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f} },
-        { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f} }
-    };
-
-    std::vector<UINT32>	Indices = { 0, 1, 2, 0, 3, 1 };
-    ScreenQuad->Init(Verts, Indices);
 
     CommandList->Close();
 
@@ -456,8 +465,12 @@ void	CRenderer::LoadScene()
     ///
 }
 
-void CRenderer::UnloadScene()
+void CRenderer::ReloadScene()
 {
+	FlushCommandQueue();
+
+    Scene->Unload();
+
 	// unload texture2D, check if it is texture2D, if so, remove it from AllTextures
     for(auto it = AllTextures.begin(); it != AllTextures.end(); )
     {
@@ -474,7 +487,9 @@ void CRenderer::UnloadScene()
 	SrvUavDescriptorAllocator.ResetReservedBlock(0);
     SrvUavDescriptorAllocator.ResetReservedBlock(1);
 
-	Scene->Unload();
+	LoadScene(false);
+
+    OnSceneLoaded();
 }
 
 void	CRenderer::BeginFrame()
@@ -554,6 +569,12 @@ void	CRenderer::UpdateViewBuffer()
 void	CRenderer::Render()
 {
 	UpdateFPS();
+
+    if (bRequestReload)
+    {
+		ReloadScene();
+        bRequestReload = false;
+    }
 
     BeginFrame();
 
@@ -733,7 +754,7 @@ void	CRenderer::RenderGUI()
 		// add reload scene button
         if (ImGui::Button("Reload Scene"))
         {
-			Scene->RequestReload();
+			bRequestReload = true;
 		}
     }
 
