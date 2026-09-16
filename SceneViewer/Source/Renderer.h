@@ -167,6 +167,8 @@ public:
 	CTextureDepthStencil* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
 	CTextureRenderTarget* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0, bool InNeedRtv = true, bool InNeedUav = false);
 
+	void UnloadScene();
+
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 

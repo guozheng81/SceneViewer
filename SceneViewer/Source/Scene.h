@@ -29,6 +29,8 @@ protected:
 	CBuffer ModelBuffer;
 	bool bIsModelBufferDirty = false;
 
+	bool bRequestReload = false;
+
 	CTextureRenderTarget* GBufferA = nullptr;
 	CTextureRenderTarget* GBufferB = nullptr;
 	CTextureDepthStencil* Depth0 = nullptr;
@@ -42,7 +44,7 @@ protected:
 	void CalculateBoundingBox(std::vector<SSceneVertex>& Verts, XMFLOAT3& OutMin, XMFLOAT3& OutMax, XMFLOAT3& OutCenter, bool bRecenter);
 	std::string GetAvailableSceneObjectName(const std::string& InBaseName);
 
-	void BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bIsInit, bool bFullRebuild);
+	void BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bBuildBLAS, bool bFullRebuild);
 
 	void CollectSceneObjectSubtree(CSceneObject* InSceneObject, std::vector<CSceneObject*>& OutSubtree);
 	CSceneObject* DuplicateSceneObjectRecursive(CSceneObject* InSceneObject, CSceneObject* InNewParent);
@@ -65,7 +67,9 @@ public:
 	CScene();
 	~CScene();
 
+	void	Init();
 	void	Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* InCommandList);
+	void Unload();
 
 	CMesh* AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName, const std::string& InPBRTexName);
 	CMaterial* GetSceneMaterial();
@@ -106,5 +110,6 @@ public:
 	int FindSceneObjectIndexByFileName(const std::string& InFileName) const;
 	UINT CountAndCacheAllMeshes(const std::string& InSceneName);
 
+	void RequestReload() { bRequestReload = true; }
 };
 

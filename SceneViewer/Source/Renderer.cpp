@@ -432,6 +432,7 @@ void	CRenderer::LoadScene()
     GetCurrentFrameContext().CommandAllocator->Reset();
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
 
+    Scene->Init();
     Scene->Load("scene.json", CommandList.Get());
 
     ScreenQuad = std::make_unique<CMesh>();
@@ -453,6 +454,27 @@ void	CRenderer::LoadScene()
 
     FlushCommandQueue();
     ///
+}
+
+void CRenderer::UnloadScene()
+{
+	// unload texture2D, check if it is texture2D, if so, remove it from AllTextures
+    for(auto it = AllTextures.begin(); it != AllTextures.end(); )
+    {
+        if (dynamic_cast<CTexture2D*>(it->second.get()) != nullptr)
+        {
+            it = AllTextures.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+	}
+
+	SrvUavDescriptorAllocator.ResetReservedBlock(0);
+    SrvUavDescriptorAllocator.ResetReservedBlock(1);
+
+	Scene->Unload();
 }
 
 void	CRenderer::BeginFrame()
@@ -707,6 +729,12 @@ void	CRenderer::RenderGUI()
             Scene->DeleteSceneObject(IndexToDelete);
             Scene->CollectAllMeshesInfo();
         }
+
+		// add reload scene button
+        if (ImGui::Button("Reload Scene"))
+        {
+			Scene->RequestReload();
+		}
     }
 
 	ImGui::End();

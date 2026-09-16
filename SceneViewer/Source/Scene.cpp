@@ -91,7 +91,7 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 	}
 }
 
-void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* InCommandList)
+void	CScene::Init()
 {
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
@@ -109,6 +109,15 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 	GBufferB = RendererInst.CreateRenderTarget("GBufferB", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.5f, 0.5f, 0.5f, 0.0f));
 	Depth0 = RendererInst.CreateDepthTexture("Depth0", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
 	Depth1 = RendererInst.CreateDepthTexture("Depth1", RendererInst.ViewportWidth, RendererInst.ViewportHeight);
+
+	SDescriptorHandle SrvDescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+	TLASGPUDescriptor = SrvDescriptorHandle.GpuHandle;
+	TLASCPUDescriptor = SrvDescriptorHandle.CpuHandle;
+}
+
+void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* InCommandList)
+{
+	CRenderer& RendererInst = CRenderer::GetInstance();
 
 	std::filesystem::path AssetPath = CRenderer::GetAssetDirectory();
 	std::filesystem::path JsonPath = AssetPath / InSceneName;
@@ -195,7 +204,25 @@ void CScene::Load(const std::string& InSceneName, ID3D12GraphicsCommandList4* In
 
 	CollectAllMeshesInfo();
 
-	BuildAccelerationStructures(InCommandList, true, false);
+	if (MaxModelElementCount == 0 && MeshInfoArray.size() != 0)
+	{
+		MaxModelElementCount = (UINT)(MeshInfoArray.size());
+		ModelUploadBuffer.Init((UINT)(sizeof(SMeshInfo)), MaxModelElementCount, true, D3D12_RESOURCE_STATE_COMMON);
+		ModelUploadBuffer.SetData(MeshInfoArray.data());
+
+		ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), MaxModelElementCount, false, D3D12_RESOURCE_STATE_COMMON);
+		ModelBuffer.CreateShaderResourceView();
+
+		TLAS_Instances.Init(sizeof(D3D12_RAYTRACING_INSTANCE_DESC), MaxModelElementCount, true);
+	}
+
+	BuildAccelerationStructures(InCommandList, true, true);
+}
+
+void CScene::Unload()
+{
+	AllSceneObjects.clear();
+	AllMeshes.clear();
 }
 
 UINT CScene::CountAndCacheAllMeshes(const std::string& InSceneName)
@@ -486,13 +513,6 @@ void CScene::OnLoaded()
 	}
 	CRenderer::GetInstance().SrvUavDescriptorAllocator.EndBlockAllocation();
 
-	MaxModelElementCount = (UINT)(MeshInfoArray.size());
-	ModelUploadBuffer.Init((UINT)(sizeof(SMeshInfo)), MaxModelElementCount, true, D3D12_RESOURCE_STATE_COMMON);
-	ModelUploadBuffer.SetData(MeshInfoArray.data());
-
-	ModelBuffer.Init((UINT)(sizeof(SMeshInfo)), MaxModelElementCount, false, D3D12_RESOURCE_STATE_COMMON);
-	ModelBuffer.CreateShaderResourceView();
-
 	ObjReaderCache.clear();
 }
 
@@ -507,6 +527,11 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
 	bIsUsingDepth0 = (!bIsUsingDepth0);
 
+	if(bRequestReload)
+	{
+		bRequestReload = false;
+	}
+
 	if(bIsModelBufferDirty)
 	{
 		UINT CurModelEleCount = (UINT)(MeshInfoArray.size());
@@ -518,6 +543,8 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 			MaxModelElementCount = (UINT)(CurModelEleCount *1.5f);
 			ModelBuffer.ResizeElementCount(MaxModelElementCount);
 			ModelUploadBuffer.ResizeElementCount(MaxModelElementCount);
+
+			TLAS_Instances.ResizeElementCount(MaxModelElementCount);
 			bRebuildTLAS = true;
 		}
 
@@ -580,7 +607,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	CRenderer::GetInstance().ResourceBarrier(GetDepthTexture()->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bIsInit, bool bFullRebuild)
+void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bBuildBLAS, bool bFullRebuild)
 {
 	UINT MeshNum = AllMeshes.size();
 	if (MeshNum == 0)
@@ -588,8 +615,8 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 		return;
 	}
 
-	if(bIsInit)
-	{ 
+	if(bBuildBLAS)
+	{
 		for (UINT i = 0; i < MeshNum; ++i)
 		{
 			auto& CurMesh = AllMeshes[i];
@@ -609,20 +636,13 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO Info;
 	CRenderer::GetInstance().D3dDevice->GetRaytracingAccelerationStructurePrebuildInfo(&Inputs, &Info);
 
-	if (bIsInit)
-	{
-		TLAS_Scratch.Init(Info.ScratchDataSizeInBytes, 1, false, D3D12_RESOURCE_STATE_COMMON, true);
-		TLAS.Init(Info.ResultDataMaxSizeInBytes, 1, false, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, true);
-		TLAS_Instances.Init(sizeof(D3D12_RAYTRACING_INSTANCE_DESC), MaxInstanceNum, true);
-	}
-	else if (bFullRebuild)
+	if (bFullRebuild)
 	{
 		TLAS_Scratch.Reset();
 		TLAS.Reset();
 
 		TLAS_Scratch.Init(Info.ScratchDataSizeInBytes, 1, false, D3D12_RESOURCE_STATE_COMMON, true);
 		TLAS.Init(Info.ResultDataMaxSizeInBytes, 1, false, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, true);
-		TLAS_Instances.ResizeElementCount(MaxInstanceNum);
 	}
 	else
 	{
@@ -659,7 +679,7 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 	AsDesc.DestAccelerationStructureData = TLAS.GetGPUAddress();
 	AsDesc.ScratchAccelerationStructureData = TLAS_Scratch.GetGPUAddress();
 
-	if(!bIsInit && !bFullRebuild)
+	if(!bFullRebuild)
 	{
 		AsDesc.SourceAccelerationStructureData = TLAS.GetGPUAddress();
 		AsDesc.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
@@ -670,19 +690,12 @@ void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandLi
 	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(TLAS.GetResource());
 	InCommandList->ResourceBarrier(1, &UavBarrier);
 
-	if(bIsInit || bFullRebuild)
+	if(bFullRebuild)
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC TLASSrvDesc = {};
 		TLASSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
 		TLASSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		TLASSrvDesc.RaytracingAccelerationStructure.Location = TLAS.GetGPUAddress();
-
-		if (bIsInit)
-		{
-			SDescriptorHandle SrvDescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
-			TLASGPUDescriptor = SrvDescriptorHandle.GpuHandle;
-			TLASCPUDescriptor = SrvDescriptorHandle.CpuHandle;
-		}
 
 		CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(nullptr, &TLASSrvDesc, TLASCPUDescriptor);
 	}
