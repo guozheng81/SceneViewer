@@ -269,3 +269,91 @@ void CTextureRenderTarget::OnResize(UINT InW, UINT InH)
     }
 }
 
+
+CTexture3D::CTexture3D(DXGI_FORMAT InFormat, UINT InW, UINT InH, UINT InD)
+    : CTexture(InFormat, InW, InH)
+    , Depth(InD)
+{
+}
+
+void CTexture3D::CreateResource()
+{
+    D3D12_RESOURCE_DESC TextureDesc = {};
+    TextureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+    TextureDesc.Alignment = 0;
+    TextureDesc.Width = Width;
+    TextureDesc.Height = Height;
+    TextureDesc.DepthOrArraySize = static_cast<UINT16>(Depth);
+    TextureDesc.MipLevels = 1;
+    TextureDesc.Format = Format;
+    TextureDesc.SampleDesc.Count = 1;
+    TextureDesc.SampleDesc.Quality = 0;
+    TextureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    TextureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+    CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+    HRESULT hr = CRenderer::GetInstance().D3dDevice->CreateCommittedResource(
+        &HeapProp,
+        D3D12_HEAP_FLAG_NONE,
+        &TextureDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(Texture.GetAddressOf()));
+
+    if (FAILED(hr))
+    {
+        LOG_ERROR("Failed to create 3D texture resource.");
+        return;
+    }
+}
+
+void CTexture3D::CreateShaderResourceView(bool bIsResizing)
+{
+    if (Texture == nullptr)
+    {
+        LOG_ERROR("Texture resource is null. Cannot create Shader Resource View.");
+        return;
+    }
+
+    if (!bIsResizing)
+    {
+        SDescriptorHandle SrvDescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+        SrvCPUDescriptor = SrvDescriptorHandle.CpuHandle;
+        SrvGPUDescriptor = SrvDescriptorHandle.GpuHandle;
+    }
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc = {};
+    SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    SrvDesc.Format = SrvFormat;
+    SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+    SrvDesc.Texture3D.MostDetailedMip = 0;
+    SrvDesc.Texture3D.MipLevels = 1;
+    SrvDesc.Texture3D.ResourceMinLODClamp = 0.0f;
+
+    CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, SrvCPUDescriptor);
+}
+
+void CTexture3D::CreateUnorderedAccessView()
+{
+    if (Texture == nullptr)
+    {
+        LOG_ERROR("Texture resource is null. Cannot create Unordered Access View.");
+        return;
+    }
+
+    {
+        SDescriptorHandle UavDescriptorHandle = CRenderer::GetInstance().SrvUavDescriptorAllocator.Allocate();
+        UavCPUDescriptor = UavDescriptorHandle.CpuHandle;
+        UavGPUDescriptor = UavDescriptorHandle.GpuHandle;
+    }
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC UavDesc = {};
+    UavDesc.Format = Format;
+    UavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+    UavDesc.Texture3D.MipSlice = 0;
+    UavDesc.Texture3D.FirstWSlice = 0;
+    UavDesc.Texture3D.WSize = Depth;
+
+    CRenderer::GetInstance().D3dDevice->CreateUnorderedAccessView(Texture.Get(), nullptr, &UavDesc, UavCPUDescriptor);
+}

@@ -110,3 +110,28 @@ struct QuadVS_Output
     float4 Pos : SV_POSITION;
     float2 Uv : TEXCOORD0;
 };
+
+float4 SHBasisFunc(float3 Dir)
+{
+    float4 Res;
+    Res.x = 0.282095f;
+    Res.y = -0.488603f * Dir.y;
+    Res.z = 0.488603f * Dir.z;
+    Res.w = -0.488603f * Dir.x;
+    return Res;
+}
+
+float4 SHCosTransfer(float3 Dir)
+{
+    float4 Res = SHBasisFunc(Dir);
+    Res.x *= 3.1415926f;
+    Res.yzw *= (3.1415926f * 2.0f / 3.0f);
+    return Res;
+}
+
+struct SH_RGB
+{
+    float4 R;
+    float4 G;
+    float4 B;
+};

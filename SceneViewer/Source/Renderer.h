@@ -9,6 +9,7 @@ class CTexture;
 class CTexture2D;
 class CTextureDepthStencil;
 class CTextureRenderTarget;
+class CTexture3D;
 class CScreenPass;
 class CMesh;
 class CSceneObject;
@@ -168,6 +169,7 @@ public:
 	CTexture* GetTexture(const std::string& InFileName);
 	CTextureDepthStencil* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
 	CTextureRenderTarget* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0, bool InNeedRtv = true, bool InNeedUav = false);
+	CTexture3D* CreateTexture3D(const std::string& InName, DXGI_FORMAT InFormat, UINT InW, UINT InH, UINT InD);
 
 	void OnSceneLoaded();
 	void ReloadScene();

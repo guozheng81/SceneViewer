@@ -987,6 +987,23 @@ CTextureRenderTarget* CRenderer::CreateRenderTarget(const std::string& InName, D
     return ResTex;
 }
 
+CTexture3D* CRenderer::CreateTexture3D(const std::string& InName, DXGI_FORMAT InFormat, UINT InW, UINT InH, UINT InD)
+{
+    if (AllTextures.find(InName) != AllTextures.end())
+    {
+        return dynamic_cast<CTexture3D*>(AllTextures[InName].get());
+    }
+
+    std::unique_ptr<CTexture3D> NewTexture = std::make_unique<CTexture3D>(InFormat, InW, InH, InD);
+    NewTexture->CreateResource();
+    NewTexture->CreateShaderResourceView();
+    NewTexture->CreateUnorderedAccessView();
+
+    CTexture3D* ResTex = NewTexture.get();
+    AllTextures[InName] = std::move(NewTexture);
+    return ResTex;
+}
+
 int	CRenderer::GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd)
 {
     return (int)(InEnd.ptr - InStart.ptr) / (int)SrvUavDescriptorAllocator.GetDescriptorSize();

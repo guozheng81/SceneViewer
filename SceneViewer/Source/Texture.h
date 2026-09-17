@@ -95,3 +95,22 @@ public:
 
 	virtual void OnResize(UINT InW, UINT InH);
 };
+
+class CTexture3D : public CTexture
+{
+private:
+	UINT Depth = 0;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE UavCPUDescriptor = {};
+	CD3DX12_GPU_DESCRIPTOR_HANDLE UavGPUDescriptor = {};
+
+public:
+	CTexture3D(DXGI_FORMAT InFormat, UINT InW, UINT InH, UINT InD);
+
+	inline UINT GetDepth() const { return Depth; }
+
+	virtual void CreateResource();
+
+	virtual void CreateShaderResourceView(bool bIsResizing = false);
+	void CreateUnorderedAccessView();
+};
