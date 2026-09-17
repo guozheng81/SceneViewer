@@ -23,6 +23,7 @@ protected:
 	// Instance data storage - unowned pointers to scene objects
 	std::vector<CSceneObject*> InstanceSceneObjects;
 
+	bool bNeedsSceneObjectTransform = true;
 	bool bNeedsAlphaTest = false;
 
 	int GlobalInstanceIndex = 0;
@@ -45,6 +46,7 @@ public:
 
 	void Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx = 0, int InNormalTextureIdx = -1, int InPBRTextureIdx = -1, bool bAlphaTest = false);
 	void ResetUploadResource();
+	void SetNeedsSceneObjectTransform(bool bInNeedsTransform) { bNeedsSceneObjectTransform = bInNeedsTransform; }
 
 	// Instance management
 	UINT AddInstance(CSceneObject* InSceneObject);

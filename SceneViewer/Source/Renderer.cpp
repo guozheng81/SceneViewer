@@ -327,7 +327,7 @@ bool	CRenderer::Init(HWND hWnd)
     CountAssets(TextureCount, MeshCount);
 
     TextureCount = std::max((UINT)(TextureCount*1.5f), 256u);
-	MeshCount = std::max((UINT)(MeshCount * 1.5f), 256u);
+	MeshCount = std::max((UINT)(MeshCount * 1.5f), 768u);
 
 	UINT OtherSrvUavCount = 128; 
 	SrvUavDescriptorAllocator.Init(D3dDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, OtherSrvUavCount +TextureCount+MeshCount, true);
@@ -442,6 +442,7 @@ void	CRenderer::LoadScene(bool bIsInit)
         Scene->Init();
 
         ScreenQuad = std::make_unique<CMesh>();
+		ScreenQuad->SetNeedsSceneObjectTransform(false);
 
         std::vector<SSceneVertex> Verts = {
             { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} },
@@ -453,7 +454,7 @@ void	CRenderer::LoadScene(bool bIsInit)
         std::vector<UINT32>	Indices = { 0, 1, 2, 0, 3, 1 };
         ScreenQuad->Init(Verts, Indices);
     }
-
+        
     Scene->Load("scene.json", CommandList.Get());
 
     CommandList->Close();

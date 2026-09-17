@@ -48,6 +48,11 @@ void CMesh::ResetUploadResource()
 
 void CMesh::OnRender(ID3D12GraphicsCommandList* InCommandList)
 {
+	if(bNeedsSceneObjectTransform && InstanceSceneObjects.size() == 0)
+	{
+		return;
+	}
+
 	InCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	InCommandList->IASetVertexBuffers(0, 1, &VertexBufferView);
 

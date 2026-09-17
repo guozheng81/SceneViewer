@@ -556,14 +556,17 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 			TLAS_Instances.ResizeElementCount(MaxModelElementCount);
 		}
 
-		// copy modelUploadBuffer to modelBuffer
-		CRenderer::GetInstance().ResourceBarrier(ModelBuffer.GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+		if(CurModelEleCount > 0)
+		{
+			// copy modelUploadBuffer to modelBuffer
+			CRenderer::GetInstance().ResourceBarrier(ModelBuffer.GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
 
-		ModelUploadBuffer.SetData(MeshInfoArray.data(), CurModelEleCount);
-		UINT BufferSize = (UINT)(sizeof(SMeshInfo)) * CurModelEleCount;
-		InCommandList->CopyBufferRegion(ModelBuffer.GetResource(), 0, ModelUploadBuffer.GetResource(), 0, BufferSize);
+			ModelUploadBuffer.SetData(MeshInfoArray.data(), CurModelEleCount);
+			UINT BufferSize = (UINT)(sizeof(SMeshInfo)) * CurModelEleCount;
+			InCommandList->CopyBufferRegion(ModelBuffer.GetResource(), 0, ModelUploadBuffer.GetResource(), 0, BufferSize);
 
-		CRenderer::GetInstance().ResourceBarrier(ModelBuffer.GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+			CRenderer::GetInstance().ResourceBarrier(ModelBuffer.GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+		}
 
 		BuildAccelerationStructures(InCommandList, false, bNeedRebuildTLAS);
 
@@ -590,7 +593,10 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	Material->SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 
-	Material->SetShaderResource(InCommandList, 0, &ModelBuffer);
+	if(MaxModelElementCount > 0)
+	{
+		Material->SetShaderResource(InCommandList, 0, &ModelBuffer);
+	}
 
 	int TexturesParam = Material->FindSrvRootParameterIndex(0, 1);
 	if (TexturesParam >= 0)
@@ -618,10 +624,6 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 void CScene::BuildAccelerationStructures(ID3D12GraphicsCommandList4* InCommandList, bool bBuildBLAS, bool bFullRebuild)
 {
 	UINT MeshNum = AllMeshes.size();
-	if (MeshNum == 0)
-	{
-		return;
-	}
 
 	if(bBuildBLAS)
 	{

@@ -80,7 +80,7 @@ public:
 		return &MainCamera;
 	}
 
-	CBuffer* GetModelBuffer() {	return &ModelBuffer;	}
+	CBuffer* GetModelBuffer() {	return MaxModelElementCount == 0? nullptr : &ModelBuffer;	}
 
 	inline CTextureDepthStencil* GetDepthTexture() {
 		return (bIsUsingDepth0 ? Depth0 : Depth1);

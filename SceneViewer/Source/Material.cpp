@@ -541,7 +541,11 @@ void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, con
 
 void CMaterial::SetSceneForRaytracing(ID3D12GraphicsCommandList* InCommandList, CScene* InScene)
 {
-    SetShaderResource(InCommandList, 0, InScene->GetModelBuffer());
+	CBuffer* ModelBuffer = InScene->GetModelBuffer();
+    if (ModelBuffer)
+    {
+        SetShaderResource(InCommandList, 0, ModelBuffer);
+    }
     int TLASParam = FindSrvRootParameterIndex(1);
     if (TLASParam >= 0)
     {
