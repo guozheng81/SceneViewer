@@ -89,3 +89,27 @@ public:
 	virtual void Init();
 	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 };
+
+struct SIrradianceVolumeConstants
+{
+	XMFLOAT3 VolumeMin;
+	XMFLOAT3 VolumeCellSize;
+};
+
+class CIrradianceVolumeRTPass : public CScreenPass
+{
+protected:
+	CTexture3D* SHVolumeR = nullptr;
+	CTexture3D* SHVolumeG = nullptr;
+	CTexture3D* SHVolumeB = nullptr;
+
+	UINT VolumeWidth = 265;
+	UINT VolumeHeight = 128;
+	UINT VolumeDepth = 256;
+
+	SIrradianceVolumeConstants VolumeConstants;
+
+public:
+	virtual void Init();
+	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
+};

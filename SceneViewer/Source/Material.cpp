@@ -348,9 +348,10 @@ int CMaterial::FindUavRootParameterIndex(UINT InRegister, UINT InSpace)
     return -1;
 }
 
-void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTextureRenderTarget* InTex)
+void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture* InTex)
 {
-    if (InTex == nullptr || InTex->UavGPUDescriptor.ptr == 0)
+    CD3DX12_GPU_DESCRIPTOR_HANDLE UavHandle = InTex->GetUavGPUDescriptor();
+    if (InTex == nullptr || UavHandle.ptr == 0)
     {
 		LOG_ERROR("SetUav: Invalid texture or UAV descriptor for register %u.", InRegister);
         return;
@@ -364,11 +365,11 @@ void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister
 
     if (bUsedForRaytracing || bUsedForCompute)
     {
-        InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, InTex->UavGPUDescriptor);
+        InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, UavHandle);
     }
     else
     {
-        InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, InTex->UavGPUDescriptor);
+        InCommandList->SetGraphicsRootDescriptorTable(FoundRootParamIdx, UavHandle);
     }
 }
 

@@ -100,8 +100,6 @@ void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
 
 	CRenderer::GetInstance().ResourceBarrier(SimpleRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(SimpleRT->GetResource());
-	InCommandList->ResourceBarrier(1, &UavBarrier);
 }
 
 void CShadowRTPass::Init()
@@ -144,8 +142,6 @@ void CShadowRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
 
 	CRenderer::GetInstance().ResourceBarrier(ShadowRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(ShadowRT->GetResource());
-	InCommandList->ResourceBarrier(1, &UavBarrier);
 }
 
 void CIndirectLightRTPass::Init()
@@ -219,8 +215,6 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
 
 	CRenderer::GetInstance().ResourceBarrier(IndirectLightRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(IndirectLightRT->GetResource());
-	InCommandList->ResourceBarrier(1, &UavBarrier);
 
 	////////////// Temporal accumulate
 
@@ -247,8 +241,6 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 8) / 8, (CRenderer::GetInstance().ViewportHeight + 8) / 8, 1);
 
 		CRenderer::GetInstance().ResourceBarrier(TATarget->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(TATarget->GetResource());
-		InCommandList->ResourceBarrier(1, &UavBarrier);
 	}
 
 	bIsTA1Target = !bIsTA1Target;
@@ -289,9 +281,83 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 15) / 16, (CRenderer::GetInstance().ViewportHeight + 15) / 16, 1);
 
 		CRenderer::GetInstance().ResourceBarrier(TargetTexture->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		CD3DX12_RESOURCE_BARRIER UavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(TargetTexture->GetResource());
-		InCommandList->ResourceBarrier(1, &UavBarrier);
-	}
-	
+	}	
 }
 
+void CIrradianceVolumeRTPass::Init()
+{
+	CScreenPass::Init();
+
+	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
+	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
+	CMaterial::InitRootParameters(1, 2, 3, 2, RootParams, Ranges);
+
+	CD3DX12_ROOT_PARAMETER ConstRootParam;
+	ConstRootParam.InitAsConstants(sizeof(SIrradianceVolumeConstants) / 4, 1);
+	RootParams.push_back(ConstRootParam);
+
+	Material.BuildRootSignature(RootParams, true);
+
+	std::vector<SRaytracingShaderInfo> ShaderInfoArray(2);
+	ShaderInfoArray[0].MissShader = L"IrradianceVolumeMiss";
+	ShaderInfoArray[0].HitGroup = L"IrradianceVolumeHitGroup";
+	ShaderInfoArray[0].ClosestHitShader = L"IrradianceVolumeClosestHit";
+	ShaderInfoArray[0].AnyHitShader = L"IrradianceVolumeAnyHit";
+
+	ShaderInfoArray[1].MissShader = L"ShadowMiss";
+	ShaderInfoArray[1].HitGroup = L"ShadowHitGroup";
+	ShaderInfoArray[1].ClosestHitShader = L"ShadowClosestHit";
+	ShaderInfoArray[1].AnyHitShader = L"ShadowAnyHit";
+
+	Material.BuildRaytracingPSO(L"IrradianceVolumeRT.cso", L"IrradianceVolumeRayGen", ShaderInfoArray, 2);
+
+	SHVolumeR = CRenderer::GetInstance().CreateTexture3D("SHVolumeR", DXGI_FORMAT_R32G32B32A32_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
+	SHVolumeG = CRenderer::GetInstance().CreateTexture3D("SHVolumeG", DXGI_FORMAT_R32G32B32A32_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
+	SHVolumeB = CRenderer::GetInstance().CreateTexture3D("SHVolumeB", DXGI_FORMAT_R32G32B32A32_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
+}
+
+void CIrradianceVolumeRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
+{
+	CD3DX12_RESOURCE_BARRIER TransitionBarriers[3] = {
+		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeR->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeG->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeB->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+	};
+	InCommandList->ResourceBarrier(3, TransitionBarriers);
+
+	Material.OnRender(InCommandList);
+	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
+
+	CScene* Scene = CRenderer::GetInstance().GetScene();
+	XMFLOAT3 SceneMin = { 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 SceneMax = { 0.0f, 0.0f, 0.0f };
+	if (Scene)
+	{
+		Scene->GetSceneBoundingBox(SceneMin, SceneMax);
+	}
+
+	VolumeConstants.VolumeMin = SceneMin;
+	VolumeConstants.VolumeCellSize = XMFLOAT3((SceneMax.x - SceneMin.x) / VolumeWidth, (SceneMax.y - SceneMin.y) / VolumeHeight, (SceneMax.z - SceneMin.z) / VolumeDepth);
+
+	InCommandList->SetComputeRoot32BitConstants(Material.FindConstantRootParameterIndex(1), sizeof(SIrradianceVolumeConstants) / 4, &VolumeConstants, 0);
+
+	Material.SetSceneForRaytracing(InCommandList, CRenderer::GetInstance().GetScene());
+
+	Material.SetUav(InCommandList, 0, SHVolumeR);
+	Material.SetUav(InCommandList, 1, SHVolumeG);
+	Material.SetUav(InCommandList, 2, SHVolumeB);
+
+	// dispatch raytracing
+	Material.RaytraceDesc.Width = VolumeWidth;
+	Material.RaytraceDesc.Height = VolumeHeight;
+	Material.RaytraceDesc.Depth = VolumeDepth;
+	InCommandList->DispatchRays(&(Material.RaytraceDesc));
+
+	CD3DX12_RESOURCE_BARRIER EndTransitionBarriers[3] = {
+		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeR->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeG->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeB->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+	};
+	InCommandList->ResourceBarrier(3, EndTransitionBarriers);
+
+}

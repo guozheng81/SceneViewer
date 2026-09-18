@@ -168,5 +168,6 @@
     <FxCompile Include="Shader\IndirectLightRT.hlsl" />
     <FxCompile Include="Shader\EdgeAvoidATrous.hlsl" />
     <FxCompile Include="Shader\TemporalAccumulate.hlsl" />
+    <FxCompile Include="Shader\IrradianceVolumeRT.hlsl" />
   </ItemGroup>
 </Project>

@@ -38,6 +38,10 @@ public:
 		Width = InW;
 		Height = InH;
 	}
+
+	virtual CD3DX12_GPU_DESCRIPTOR_HANDLE GetUavGPUDescriptor() {
+		return CD3DX12_GPU_DESCRIPTOR_HANDLE();
+	}
 };
 
 class CTexture2D : public CTexture
@@ -64,12 +68,12 @@ private:
 	bool bNeedUav;
 	XMFLOAT4 RTClearColor;
 
+	CD3DX12_CPU_DESCRIPTOR_HANDLE UavCPUDescriptor = {};
+	CD3DX12_GPU_DESCRIPTOR_HANDLE UavGPUDescriptor = {};
+
 public:
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvCPUDescriptor = {};
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE UavCPUDescriptor = {};
-	CD3DX12_GPU_DESCRIPTOR_HANDLE UavGPUDescriptor = {};
 
 	CTextureRenderTarget(DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW, UINT InH, bool InNeedRtv, bool InNeedUav);
 
@@ -79,6 +83,9 @@ public:
 	void CreateUnorderedAccessView(bool bIsResizing = false);
 
 	virtual void OnResize(UINT InW, UINT InH);
+	virtual CD3DX12_GPU_DESCRIPTOR_HANDLE GetUavGPUDescriptor() override {
+		return UavGPUDescriptor;
+	}
 };
 
 class CTextureDepthStencil : public CTexture
@@ -113,4 +120,8 @@ public:
 
 	virtual void CreateShaderResourceView(bool bIsResizing = false);
 	void CreateUnorderedAccessView();
+
+	virtual CD3DX12_GPU_DESCRIPTOR_HANDLE GetUavGPUDescriptor() override {
+		return UavGPUDescriptor;
+	}
 };

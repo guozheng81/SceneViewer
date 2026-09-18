@@ -108,5 +108,7 @@ public:
 	int FindSceneObjectIndex(CSceneObject* InSceneObject) const;
 	int FindSceneObjectIndexByFileName(const std::string& InFileName) const;
 	UINT CountAndCacheAllMeshes(const std::string& InSceneName);
+
+	void GetSceneBoundingBox(XMFLOAT3& OutMin, XMFLOAT3& OutMax);
 };
 

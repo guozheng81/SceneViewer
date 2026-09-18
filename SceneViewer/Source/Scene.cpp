@@ -845,3 +845,10 @@ D3D12_GPU_DESCRIPTOR_HANDLE CScene::GetVertexBuffersGPUDescriptor() const
 {
 	return CRenderer::GetInstance().SrvUavDescriptorAllocator.GetReservedBlockGpuHandle(1);
 }
+
+void CScene::GetSceneBoundingBox(XMFLOAT3& OutMin, XMFLOAT3& OutMax)
+{
+	// set to zero first, todo: calculate the actual bounding box based on all meshes in the scene
+	OutMin = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	OutMax = XMFLOAT3(0.0f, 0.0f, 0.0f);
+}
