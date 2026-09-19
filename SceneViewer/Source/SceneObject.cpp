@@ -111,6 +111,54 @@ void CSceneObject::AddMesh(CMesh* Mesh)
         if (ExistingMesh == Mesh) return;
     }
 
+    if(Meshes.size() == 0)
+    {
+        // If this is the first mesh, set the bounding box to match the mesh's bounding box
+        XMVECTOR MeshMin, MeshMax;
+        Mesh->GetBoundingBox(MeshMin, MeshMax);
+        BoundingBoxMin = MeshMin;
+        BoundingBoxMax = MeshMax;
+    }
+    else
+    {
+        // Update the bounding box to encompass the new mesh's bounding box
+        XMVECTOR MeshMin, MeshMax;
+        Mesh->GetBoundingBox(MeshMin, MeshMax);
+        BoundingBoxMin = XMVectorMin(BoundingBoxMin, MeshMin);
+        BoundingBoxMax = XMVectorMax(BoundingBoxMax, MeshMax);
+	}
+
     Meshes.push_back(Mesh);
 	Mesh->AddInstance(this);
+}
+
+void CSceneObject::GetBoundingBox(XMVECTOR& OutMin, XMVECTOR& OutMax)
+{
+    // apply the world transformation to the local bounding box
+    XMMATRIX WorldMat = GetWorldMatrix();
+
+    XMVECTOR Corners[8] =
+    {
+        XMVectorSet(XMVectorGetX(BoundingBoxMin), XMVectorGetY(BoundingBoxMin), XMVectorGetZ(BoundingBoxMin), 1.0f),
+        XMVectorSet(XMVectorGetX(BoundingBoxMax), XMVectorGetY(BoundingBoxMin), XMVectorGetZ(BoundingBoxMin), 1.0f),
+        XMVectorSet(XMVectorGetX(BoundingBoxMin), XMVectorGetY(BoundingBoxMax), XMVectorGetZ(BoundingBoxMin), 1.0f),
+        XMVectorSet(XMVectorGetX(BoundingBoxMax), XMVectorGetY(BoundingBoxMax), XMVectorGetZ(BoundingBoxMin), 1.0f),
+        XMVectorSet(XMVectorGetX(BoundingBoxMin), XMVectorGetY(BoundingBoxMin), XMVectorGetZ(BoundingBoxMax), 1.0f),
+        XMVectorSet(XMVectorGetX(BoundingBoxMax), XMVectorGetY(BoundingBoxMin), XMVectorGetZ(BoundingBoxMax), 1.0f),
+        XMVectorSet(XMVectorGetX(BoundingBoxMin), XMVectorGetY(BoundingBoxMax), XMVectorGetZ(BoundingBoxMax), 1.0f),
+        XMVectorSet(XMVectorGetX(BoundingBoxMax), XMVectorGetY(BoundingBoxMax), XMVectorGetZ(BoundingBoxMax), 1.0f)
+    };
+
+    XMVECTOR TransformedMin = XMVectorSet(FLT_MAX, FLT_MAX, FLT_MAX, 0.0f);
+    XMVECTOR TransformedMax = XMVectorSet(-FLT_MAX, -FLT_MAX, -FLT_MAX, 0.0f);
+
+    for (const auto& Corner : Corners)
+    {
+        XMVECTOR TransformedCorner = XMVector3Transform(Corner, WorldMat);
+        TransformedMin = XMVectorMin(TransformedMin, TransformedCorner);
+        TransformedMax = XMVectorMax(TransformedMax, TransformedCorner);
+    }
+
+    OutMin = TransformedMin;
+    OutMax = TransformedMax;
 }

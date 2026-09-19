@@ -400,6 +400,14 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 		CalculateBoundingBox(Verts, Min, Max, Center, true);
 		CurMesh->Init(Verts, Indices, AlbedoTextureIdx, NormalTextureIdx, PBRTextureIdx, bAlphaTest);
 
+		Min.x -= Center.x;
+		Min.y -= Center.y;
+		Min.z -= Center.z;
+		Max.x -= Center.x;
+		Max.y -= Center.y;
+		Max.z -= Center.z;
+		CurMesh->SetBoundingBox(Min, Max);
+
 		// allow it to have its own transform, so we can move it around
 		std::string NewSceneObjectName = GetAvailableSceneObjectName(InDiffTexName);
 		CSceneObject* NewSceneObject = CreateSceneObject(NewSceneObjectName);
@@ -410,6 +418,10 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 	else
 	{
 		CurMesh->Init(Verts, Indices, AlbedoTextureIdx, NormalTextureIdx, PBRTextureIdx, bAlphaTest);
+		XMFLOAT3 Min, Max, Center;
+		CalculateBoundingBox(Verts, Min, Max, Center, false);
+		CurMesh->SetBoundingBox(Min, Max);
+
 		InSceneObject->AddMesh(CurMesh.get());
 	}
 
@@ -503,6 +515,8 @@ void CScene::CollectAllMeshesInfo()
 
 	bNeedRebuildTLAS = (PreMeshCount != MeshInfoArray.size());
 	bIsModelBufferDirty = true;
+
+	GetSceneBoundingBox(BoundingBoxMin, BoundingBoxMax);
 }
 
 CMaterial* CScene::GetSceneMaterial()
@@ -848,7 +862,30 @@ D3D12_GPU_DESCRIPTOR_HANDLE CScene::GetVertexBuffersGPUDescriptor() const
 
 void CScene::GetSceneBoundingBox(XMFLOAT3& OutMin, XMFLOAT3& OutMax)
 {
-	// set to zero first, todo: calculate the actual bounding box based on all meshes in the scene
-	OutMin = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	OutMax = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMVECTOR SceneMin = XMVectorZero();
+	XMVECTOR SceneMax = XMVectorZero();
+
+	bool bHasAnyPoint = false;
+
+	// iterate through all scene objects to find the overall bounding box
+	for (auto& CurSceneObject : AllSceneObjects)
+	{
+		XMVECTOR ObjectMin, ObjectMax;
+		CurSceneObject->GetBoundingBox(ObjectMin, ObjectMax);
+
+		if (!bHasAnyPoint)
+		{
+			SceneMin = ObjectMin;
+			SceneMax = ObjectMax;
+			bHasAnyPoint = true;
+		}
+		else
+		{
+			SceneMin = XMVectorMin(SceneMin, ObjectMin);
+			SceneMax = XMVectorMax(SceneMax, ObjectMax);
+		}
+	}
+
+	XMStoreFloat3(&OutMin, SceneMin);
+	XMStoreFloat3(&OutMax, SceneMax);
 }

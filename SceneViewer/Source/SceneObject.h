@@ -38,6 +38,8 @@ public:
     void AddMesh(CMesh* Mesh);
     const std::vector<CMesh*>& GetMeshes() const { return Meshes; }
 
+    void GetBoundingBox(XMVECTOR& OutMin, XMVECTOR& OutMax);
+
 private:
     XMFLOAT3 Position;
     XMFLOAT3 Rotation;
@@ -45,6 +47,9 @@ private:
 
     XMFLOAT4X4 WorldMatrix;
     bool bIsDirty = true;
+
+    XMVECTOR BoundingBoxMin = { 0.0f, 0.0f, 0.0f };
+    XMVECTOR BoundingBoxMax = { 0.0f, 0.0f, 0.0f };
 
     // Hierarchy pathways are entirely unowned raw pointers
     CSceneObject* Parent = nullptr;

@@ -40,6 +40,9 @@ protected:
 	CBuffer TLAS;
 	CBuffer TLAS_Instances;
 
+	XMFLOAT3 BoundingBoxMin = { 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 BoundingBoxMax = { 0.0f, 0.0f, 0.0f };
+
 	void CalculateBoundingBox(std::vector<SSceneVertex>& Verts, XMFLOAT3& OutMin, XMFLOAT3& OutMax, XMFLOAT3& OutCenter, bool bRecenter);
 	std::string GetAvailableSceneObjectName(const std::string& InBaseName);
 

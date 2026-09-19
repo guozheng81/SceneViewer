@@ -31,6 +31,9 @@ protected:
 	int NormalTextureIndex = -1;
 	int PBRTextureIndex = -1;
 
+	XMVECTOR BoundingBoxMin = { 0.0f, 0.0f, 0.0f };
+	XMVECTOR BoundingBoxMax = { 0.0f, 0.0f, 0.0f };
+
 public:
 	CMesh(const CMesh&) = delete;
 	CMesh& operator=(const CMesh&) = delete;
@@ -47,6 +50,13 @@ public:
 	void Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx = 0, int InNormalTextureIdx = -1, int InPBRTextureIdx = -1, bool bAlphaTest = false);
 	void ResetUploadResource();
 	void SetNeedsSceneObjectTransform(bool bInNeedsTransform) { bNeedsSceneObjectTransform = bInNeedsTransform; }
+
+	void SetBoundingBox(const XMFLOAT3& InMin, const XMFLOAT3& InMax) 
+	{
+		BoundingBoxMin = XMLoadFloat3(&InMin);
+		BoundingBoxMax = XMLoadFloat3(&InMax);
+	}
+	void GetBoundingBox(XMVECTOR& OutMin, XMVECTOR& OutMax) const { OutMin = BoundingBoxMin; OutMax = BoundingBoxMax; }
 
 	// Instance management
 	UINT AddInstance(CSceneObject* InSceneObject);
