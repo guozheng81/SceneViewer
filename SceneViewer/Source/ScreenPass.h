@@ -92,7 +92,6 @@ public:
 
 struct SIrradianceVolumeConstants
 {
-	XMFLOAT3 VolumeMin;
 	XMFLOAT3 VolumeCellSize;
 };
 

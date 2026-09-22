@@ -336,7 +336,6 @@ void CIrradianceVolumeRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList
 		Scene->GetSceneBoundingBox(SceneMin, SceneMax);
 	}
 
-	VolumeConstants.VolumeMin = SceneMin;
 	VolumeConstants.VolumeCellSize = XMFLOAT3((SceneMax.x - SceneMin.x) / VolumeWidth, (SceneMax.y - SceneMin.y) / VolumeHeight, (SceneMax.z - SceneMin.z) / VolumeDepth);
 
 	InCommandList->SetComputeRoot32BitConstants(Material.FindConstantRootParameterIndex(1), sizeof(SIrradianceVolumeConstants) / 4, &VolumeConstants, 0);

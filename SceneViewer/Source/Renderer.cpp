@@ -564,6 +564,8 @@ void	CRenderer::UpdateViewBuffer()
     ViewBuffer.Proj_m22 = Far / (Far - Near);
     ViewBuffer.Proj_m32 = (-Far) * Near / (Far - Near);
 
+	Scene->GetSceneBoundingBox(ViewBuffer.BoundingBoxMin, ViewBuffer.BoundingBoxMax);
+
     GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
 }
 

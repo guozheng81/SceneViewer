@@ -7,7 +7,6 @@ RWTexture3D<float4> SHVolumeB : register(u2);
 
 cbuffer cbIrradianceVolume : register(b1)
 {
-    float3 VolumeMin;
     float3 VolumeCellSize;
 };
 
@@ -27,7 +26,7 @@ void IrradianceVolumeRayGen()
     uint3 ProbeIdx = DispatchRaysIndex();
     uint3 VolumeResolution = DispatchRaysDimensions();
 
-    float3 ProbePos = VolumeMin + (float3) ProbeIdx * VolumeCellSize;
+    float3 ProbePos = BoundingBoxMin + ((float3) ProbeIdx + 0.5f) * VolumeCellSize;
 
     uint RandSeed = initRand(ProbeIdx.x + ProbeIdx.y * VolumeResolution.x + ProbeIdx.z * VolumeResolution.x * VolumeResolution.y, FrameNumber);
 
