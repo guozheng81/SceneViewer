@@ -29,6 +29,10 @@ protected:
 	CTextureRenderTarget* ShadowRT = nullptr;
 	CTextureRenderTarget* IndirectLightRT = nullptr;
 
+	CTexture3D* SHVolumeR = nullptr;
+	CTexture3D* SHVolumeG = nullptr;
+	CTexture3D* SHVolumeB = nullptr;
+
 public:
 	virtual void Init();
 	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
@@ -102,9 +106,9 @@ protected:
 	CTexture3D* SHVolumeG = nullptr;
 	CTexture3D* SHVolumeB = nullptr;
 
-	UINT VolumeWidth = 265;
-	UINT VolumeHeight = 128;
-	UINT VolumeDepth = 256;
+	UINT VolumeWidth = 32;
+	UINT VolumeHeight = 16;
+	UINT VolumeDepth = 32;
 
 	SIrradianceVolumeConstants VolumeConstants;
 

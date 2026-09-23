@@ -35,6 +35,10 @@ void CLightPass::Init()
 	ShadowRT = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("ShadowRT"));
 
 	IndirectLightRT = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("ATrous0"));
+
+	SHVolumeR = dynamic_cast<CTexture3D*>(CRenderer::GetInstance().GetTexture("SHVolumeR"));
+	SHVolumeG = dynamic_cast<CTexture3D*>(CRenderer::GetInstance().GetTexture("SHVolumeG"));
+	SHVolumeB = dynamic_cast<CTexture3D*>(CRenderer::GetInstance().GetTexture("SHVolumeB"));
 }
 
 void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
@@ -60,6 +64,12 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	Material.SetShaderResource(InCommandList, 3, ShadowRT);
 	Material.SetShaderResource(InCommandList, 4, IndirectLightRT);
+
+	/*
+	Material.SetShaderResource(InCommandList, 5, SHVolumeR);
+	Material.SetShaderResource(InCommandList, 6, SHVolumeG);
+	Material.SetShaderResource(InCommandList, 7, SHVolumeB);
+	*/
 
 	CScreenPass::OnRender(InCommandList);
 }

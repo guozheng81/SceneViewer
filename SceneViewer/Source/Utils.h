@@ -23,10 +23,13 @@ struct SViewBuffer
 	float		Proj_m32;
 	float		Proj_m22;
 	UINT		FrameNumber;
-	XMFLOAT3	BoundingBoxMin;
-	XMFLOAT3	BoundingBoxMax;
 
-	float padding[59];
+	float padding0;
+
+	XMFLOAT4	BoundingBoxMin;
+	XMFLOAT4	BoundingBoxSize;
+
+	float padding[56];
 };
 
 struct SMeshInfo

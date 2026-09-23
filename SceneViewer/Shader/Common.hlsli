@@ -9,8 +9,13 @@ cbuffer cbView : register(b0)
     float Proj_m32;
     float Proj_m22;
     uint FrameNumber;
-    float3 BoundingBoxMin;
-    float3 BoundingBoxMax;
+
+    float padding0;
+
+    float4 BoundingBoxMin;
+    float4 BoundingBoxSize;
+    
+    float padding[56];
 };
 
 struct MeshInfo

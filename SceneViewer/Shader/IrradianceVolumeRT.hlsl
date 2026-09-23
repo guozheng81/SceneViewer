@@ -20,32 +20,45 @@ struct ShadowPayload
     float Shadow;
 };
 
+float RadicalInverse_VdC(uint bits)
+{
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+}
+
+float2 Hammersley(uint i, uint N)
+{
+    return float2(float(i) / float(N), RadicalInverse_VdC(i));
+}
+
 [shader("raygeneration")]
 void IrradianceVolumeRayGen()
 {
     uint3 ProbeIdx = DispatchRaysIndex();
     uint3 VolumeResolution = DispatchRaysDimensions();
 
-    float3 ProbePos = BoundingBoxMin + ((float3) ProbeIdx + 0.5f) * VolumeCellSize;
-
-    uint RandSeed = initRand(ProbeIdx.x + ProbeIdx.y * VolumeResolution.x + ProbeIdx.z * VolumeResolution.x * VolumeResolution.y, FrameNumber);
+    float3 ProbePos = BoundingBoxMin.xyz + ((float3) ProbeIdx + 0.5f) * VolumeCellSize;
 
     float4 SHR = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float4 SHG = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float4 SHB = float4(0.0f, 0.0f, 0.0f, 0.0f);
-
-    const uint SamplesPerProbe = 32;
+    
+    const uint SamplesPerProbe = 160;
     for (uint i = 0; i < SamplesPerProbe; ++i)
     {
-        float Rand1 = PCG_rand(RandSeed);
-        float Rand2 = PCG_rand(RandSeed);
+        uint sampleIndex = (i + FrameNumber * SamplesPerProbe) % 1024;
+        float2 xi = Hammersley(sampleIndex, 1024);
 
         // Uniform sample over the full sphere since a probe gathers radiance from all directions.
-        float Phi = Rand1 * 2.0f * PI;
-        float CosTheta = 1.0f - 2.0f * Rand2;
+        float Phi = xi.y * 2.0f * PI;
+        float CosTheta = 1.0f - 2.0f * xi.x;
         float SinTheta = sqrt(saturate(1.0f - CosTheta * CosTheta));
         float3 SampleDir = float3(cos(Phi) * SinTheta, sin(Phi) * SinTheta, CosTheta);
-
+        
         RayDesc Ray;
         Ray.Origin = ProbePos;
         Ray.Direction = SampleDir;
@@ -69,9 +82,15 @@ void IrradianceVolumeRayGen()
     SHG *= Weight;
     SHB *= Weight;
 
-    SHVolumeR[ProbeIdx] = SHR;
-    SHVolumeG[ProbeIdx] = SHG;
-    SHVolumeB[ProbeIdx] = SHB;
+    float4 PrevSHR = SHVolumeR[ProbeIdx];
+    float4 PrevSHG = SHVolumeG[ProbeIdx];
+    float4 PrevSHB = SHVolumeB[ProbeIdx];
+    
+    //float BlendFactor = (FrameNumber == 0) ? 1.0f : (1.0f / (float) (FrameNumber + 1));
+    float BlendFactor = 0.01f;
+    SHVolumeR[ProbeIdx] = lerp(PrevSHR, SHR, BlendFactor);
+    SHVolumeG[ProbeIdx] = lerp(PrevSHG, SHG, BlendFactor);
+    SHVolumeB[ProbeIdx] = lerp(PrevSHB, SHB, BlendFactor);
 }
 
 [shader("miss")]
@@ -110,5 +129,67 @@ void IrradianceVolumeClosestHit(inout IrradiancePayload Payload, in BuiltInTrian
     TraceRay(RtScene, 0 /*rayFlags*/, 0xFF, 1 /* ray index*/, 0, 1, Ray, ShadowRes);
 
     float3 L = DirectionalLight.xyz;
-    Payload.Color = Albedo * max(dot(N, L), 0.0f) * ShadowRes.Shadow * DirectionalLight.w;
+    Payload.Color = Albedo / 3.14159265f * max(dot(N, L), 0.0f) * ShadowRes.Shadow * DirectionalLight.w;
+}
+
+[shader("anyhit")]
+void IrradianceVolumeAnyHit(inout IrradiancePayload Payload, in BuiltInTriangleIntersectionAttributes attribs)
+{
+    uint InstanceIdx = InstanceID();
+    SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
+
+    int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
+    if (TexIdx >= 0)
+    {
+        Texture2D DiffuseTexture = MaterialTextures[TexIdx];
+    
+        float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
+    
+        if (Alpha < 0.5f)
+        {
+            IgnoreHit();
+        }
+    }
+}
+
+
+[shader("miss")]
+void ShadowMiss(inout ShadowPayload payload)
+{
+    payload.Shadow = 1.0f;
+}
+
+[shader("closesthit")]
+void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
+{
+    payload.Shadow = 0.025f;
+}
+
+[shader("anyhit")]
+void ShadowAnyHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
+{
+    uint InstanceIdx = InstanceID();
+    SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
+
+    int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
+    if (TexIdx < 0)
+    {
+        payload.Shadow = 0.025f;
+        AcceptHitAndEndSearch();
+    }
+    
+    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
+    
+    float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
+    
+    if (Alpha < 0.5f)
+    {
+        IgnoreHit();
+    }
+    else
+    {
+        payload.Shadow = 0.025f;
+        AcceptHitAndEndSearch();
+
+    }
 }

@@ -388,6 +388,7 @@ bool	CRenderer::Init(HWND hWnd)
 
     //ScreenPasses.push_back(std::make_unique<CSimpleRTPass>());
     ScreenPasses.push_back(std::make_unique<CShadowRTPass>());
+	//ScreenPasses.push_back(std::make_unique<CIrradianceVolumeRTPass>());
     ScreenPasses.push_back(std::make_unique<CIndirectLightRTPass>());
     ScreenPasses.push_back(std::make_unique<CLightPass>());
 
@@ -564,7 +565,10 @@ void	CRenderer::UpdateViewBuffer()
     ViewBuffer.Proj_m22 = Far / (Far - Near);
     ViewBuffer.Proj_m32 = (-Far) * Near / (Far - Near);
 
-	Scene->GetSceneBoundingBox(ViewBuffer.BoundingBoxMin, ViewBuffer.BoundingBoxMax);
+	XMFLOAT3 BoundingBoxMin, BoundingBoxMax;
+	Scene->GetSceneBoundingBox(BoundingBoxMin, BoundingBoxMax);
+	ViewBuffer.BoundingBoxMin = XMFLOAT4(BoundingBoxMin.x, BoundingBoxMin.y, BoundingBoxMin.z, 0.0f);
+	ViewBuffer.BoundingBoxSize = XMFLOAT4(BoundingBoxMax.x - BoundingBoxMin.x, BoundingBoxMax.y - BoundingBoxMin.y, BoundingBoxMax.z - BoundingBoxMin.z, 0.0f);
 
     GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
 }
