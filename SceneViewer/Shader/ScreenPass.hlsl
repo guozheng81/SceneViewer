@@ -44,11 +44,11 @@ float3 SampleIrradiance(float3 WldPos, float3 N)
     uint3 VolumeResolution;
     SHVolumeR.GetDimensions(VolumeResolution.x, VolumeResolution.y, VolumeResolution.z);
 
-    float3 VolumeCellSize = (BoundingBoxSize.xyz) / VolumeResolution;
+    float3 VolumeCellSize = (BoundingBoxSize.xyz) / (VolumeResolution - 1);
     
     float3 BiasedWldPos = WldPos + N * 1.5f;
     
-    float3 VoxelCoords = (BiasedWldPos - BoundingBoxMin.xyz) / VolumeCellSize - 0.5f;
+    float3 VoxelCoords = (BiasedWldPos - BoundingBoxMin.xyz) / VolumeCellSize;
     int3 BaseIndex = int3(floor(VoxelCoords));
     float3 FracWeights = frac(VoxelCoords);
     
@@ -70,8 +70,15 @@ float3 SampleIrradiance(float3 WldPos, float3 N)
                                                y == 1 ? FracWeights.y : 1.0f - FracWeights.y,
                                                z == 1 ? FracWeights.z : 1.0f - FracWeights.z);
                 float CombinedWeight = TrilinearTerms.x * TrilinearTerms.y * TrilinearTerms.z;
-                                                                
-                if (CombinedWeight > 0.001f)
+                
+                /*
+                float3 ProbeWldPos = BoundingBoxMin.xyz + (float3(ProbeCoords)) * VolumeCellSize;
+                float3 DirToPixel = BiasedWldPos - ProbeWldPos;
+                float W = max(dot(N, normalize(DirToPixel)), 0.001f);
+                CombinedWeight *= W;
+                */
+                
+                //if (CombinedWeight > 0.001f)
                 {
                     float4 SH_R = SHVolumeR.Load(int4(ProbeCoords, 0));
                     float4 SH_G = SHVolumeG.Load(int4(ProbeCoords, 0));

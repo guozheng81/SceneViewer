@@ -302,10 +302,6 @@ void CIrradianceVolumeRTPass::Init()
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
 	CMaterial::InitRootParameters(1, 2, 3, 2, RootParams, Ranges);
 
-	CD3DX12_ROOT_PARAMETER ConstRootParam;
-	ConstRootParam.InitAsConstants(sizeof(SIrradianceVolumeConstants) / 4, 1);
-	RootParams.push_back(ConstRootParam);
-
 	Material.BuildRootSignature(RootParams, true);
 
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(2);
@@ -321,9 +317,9 @@ void CIrradianceVolumeRTPass::Init()
 
 	Material.BuildRaytracingPSO(L"IrradianceVolumeRT.cso", L"IrradianceVolumeRayGen", ShaderInfoArray, 2);
 
-	SHVolumeR = CRenderer::GetInstance().CreateTexture3D("SHVolumeR", DXGI_FORMAT_R32G32B32A32_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
-	SHVolumeG = CRenderer::GetInstance().CreateTexture3D("SHVolumeG", DXGI_FORMAT_R32G32B32A32_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
-	SHVolumeB = CRenderer::GetInstance().CreateTexture3D("SHVolumeB", DXGI_FORMAT_R32G32B32A32_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
+	SHVolumeR = CRenderer::GetInstance().CreateTexture3D("SHVolumeR", DXGI_FORMAT_R16G16B16A16_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
+	SHVolumeG = CRenderer::GetInstance().CreateTexture3D("SHVolumeG", DXGI_FORMAT_R16G16B16A16_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
+	SHVolumeB = CRenderer::GetInstance().CreateTexture3D("SHVolumeB", DXGI_FORMAT_R16G16B16A16_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
 }
 
 void CIrradianceVolumeRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
@@ -345,10 +341,6 @@ void CIrradianceVolumeRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList
 	{
 		Scene->GetSceneBoundingBox(SceneMin, SceneMax);
 	}
-
-	VolumeConstants.VolumeCellSize = XMFLOAT3((SceneMax.x - SceneMin.x) / VolumeWidth, (SceneMax.y - SceneMin.y) / VolumeHeight, (SceneMax.z - SceneMin.z) / VolumeDepth);
-
-	InCommandList->SetComputeRoot32BitConstants(Material.FindConstantRootParameterIndex(1), sizeof(SIrradianceVolumeConstants) / 4, &VolumeConstants, 0);
 
 	Material.SetSceneForRaytracing(InCommandList, CRenderer::GetInstance().GetScene());
 

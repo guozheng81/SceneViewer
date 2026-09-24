@@ -94,11 +94,6 @@ public:
 	virtual void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 };
 
-struct SIrradianceVolumeConstants
-{
-	XMFLOAT3 VolumeCellSize;
-};
-
 class CIrradianceVolumeRTPass : public CScreenPass
 {
 protected:
@@ -109,8 +104,6 @@ protected:
 	UINT VolumeWidth = 32;
 	UINT VolumeHeight = 16;
 	UINT VolumeDepth = 32;
-
-	SIrradianceVolumeConstants VolumeConstants;
 
 public:
 	virtual void Init();

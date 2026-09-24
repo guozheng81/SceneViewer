@@ -5,11 +5,6 @@ RWTexture3D<float4> SHVolumeR : register(u0);
 RWTexture3D<float4> SHVolumeG : register(u1);
 RWTexture3D<float4> SHVolumeB : register(u2);
 
-cbuffer cbIrradianceVolume : register(b1)
-{
-    float3 VolumeCellSize;
-};
-
 struct IrradiancePayload
 {
     float3 Color;
@@ -40,8 +35,9 @@ void IrradianceVolumeRayGen()
 {
     uint3 ProbeIdx = DispatchRaysIndex();
     uint3 VolumeResolution = DispatchRaysDimensions();
+    float3 VolumeCellSize = (BoundingBoxSize.xyz) / (VolumeResolution - 1);
 
-    float3 ProbePos = BoundingBoxMin.xyz + ((float3) ProbeIdx + 0.5f) * VolumeCellSize;
+    float3 ProbePos = BoundingBoxMin.xyz + ((float3) ProbeIdx) * VolumeCellSize;
 
     float4 SHR = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float4 SHG = float4(0.0f, 0.0f, 0.0f, 0.0f);
