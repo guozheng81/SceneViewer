@@ -179,6 +179,10 @@ void CIndirectLightRTPass::Init()
 	IndirectLightRT = CRenderer::GetInstance().CreateRenderTarget("IndirectLightRT", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 	GBufferB = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferB"));
 
+	SHVolumeR = dynamic_cast<CTexture3D*>(CRenderer::GetInstance().GetTexture("SHVolumeR"));
+	SHVolumeG = dynamic_cast<CTexture3D*>(CRenderer::GetInstance().GetTexture("SHVolumeG"));
+	SHVolumeB = dynamic_cast<CTexture3D*>(CRenderer::GetInstance().GetTexture("SHVolumeB"));
+
 	///////////////////
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	TARootParams;
@@ -218,6 +222,12 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	Material.SetShaderResource(InCommandList, 2, GBufferB);
 	Material.SetShaderResource(InCommandList, 3, Depth);
 	Material.SetSceneForRaytracing(InCommandList, CRenderer::GetInstance().GetScene());
+
+	/*
+	Material.SetShaderResource(InCommandList, 4, SHVolumeR);
+	Material.SetShaderResource(InCommandList, 5, SHVolumeG);
+	Material.SetShaderResource(InCommandList, 6, SHVolumeB);
+	*/
 
 	Material.SetUav(InCommandList, 0, IndirectLightRT);
 

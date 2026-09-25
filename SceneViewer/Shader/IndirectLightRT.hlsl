@@ -3,6 +3,16 @@
 Texture2D GBufferB : register(t2);
 Texture2D DepthBuffer : register(t3);
 
+#define _USE_IRRADIANCE_LIGHTING 0
+
+#if _USE_IRRADIANCE_LIGHTING
+
+Texture3D SHVolumeR : register(t4);
+Texture3D SHVolumeG : register(t5);
+Texture3D SHVolumeB : register(t6);
+#endif
+
+
 RWTexture2D<float4> OutTexture : register(u0);
 
 struct ShadowPayload
@@ -104,6 +114,11 @@ void IndirectClosestHit(inout IndirectPayload Payload, in BuiltInTriangleInterse
     
     float3 L = DirectionalLight.xyz;
     Payload.Color = Albedo * max(dot(N, L), 0.0f) * ShadowRes.Shadow * DirectionalLight.w; //
+    
+    #if _USE_IRRADIANCE_LIGHTING
+    float3 IrradianceLight = SampleIrradiance(SHVolumeR, SHVolumeG, SHVolumeB, WldPos.xyz, N);
+    Payload.Color += IrradianceLight * Albedo.rgb;
+    #endif
 }
 
 [shader("anyhit")]

@@ -79,6 +79,10 @@ protected:
 	CTextureRenderTarget* IndirectLightRT = nullptr;
 	CTextureDepthStencil* Depth = nullptr;
 
+	CTexture3D* SHVolumeR = nullptr;
+	CTexture3D* SHVolumeG = nullptr;
+	CTexture3D* SHVolumeB = nullptr;
+
 	CMaterial TemporalAccumulate;
 	CTextureRenderTarget* TA0 = nullptr;
 	CTextureRenderTarget* TA1 = nullptr;
