@@ -5,11 +5,6 @@ Texture2D DepthBuffer : register(t3);
 
 RWTexture2D<float> OutTexture : register(u0);
 
-struct Payload
-{
-    float Shadow;
-};
-
 [shader("raygeneration")]
 void ShadowRayGen()
 {
@@ -37,45 +32,9 @@ void ShadowRayGen()
     Ray.TMin = 1.5f;
     Ray.TMax = 5000;
 
-    Payload payload;
+    ShadowPayload payload;
     TraceRay(RtScene, 0 /*rayFlags*/, 0xFF, 0 /* ray index*/, 0, 0, Ray, payload);
 
     OutTexture[launchIndex.xy].r = payload.Shadow;
 }
 
-[shader("miss")]
-void ShadowMiss(inout Payload payload)
-{
-    payload.Shadow = 1.0f;
-}
-
-[shader("closesthit")]
-void ShadowClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attribs)
-{
-    payload.Shadow = 0.01f;
-}
-
-[shader("anyhit")]
-void ShadowAnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attribs)
-{
-    uint InstanceIdx = InstanceID();
-    SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
-
-    float Alpha = 1.0f;
-    int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
-    if (TexIdx >= 0)
-    {
-        Texture2D DiffuseTexture = MaterialTextures[TexIdx];
-        Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
-    }
-    
-    if (Alpha < 0.5f)
-    {
-        IgnoreHit();
-    }
-    else
-    {
-        payload.Shadow = 0.01f;
-        AcceptHitAndEndSearch();
-    }
-}

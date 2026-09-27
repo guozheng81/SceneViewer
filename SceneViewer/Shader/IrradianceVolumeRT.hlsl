@@ -10,11 +10,6 @@ struct IrradiancePayload
     float3 Color;
 };
 
-struct ShadowPayload
-{
-    float Shadow;
-};
-
 float RadicalInverse_VdC(uint bits)
 {
     bits = (bits << 16u) | (bits >> 16u);
@@ -149,43 +144,3 @@ void IrradianceVolumeAnyHit(inout IrradiancePayload Payload, in BuiltInTriangleI
 }
 
 
-[shader("miss")]
-void ShadowMiss(inout ShadowPayload payload)
-{
-    payload.Shadow = 1.0f;
-}
-
-[shader("closesthit")]
-void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
-{
-    payload.Shadow = 0.025f;
-}
-
-[shader("anyhit")]
-void ShadowAnyHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
-{
-    uint InstanceIdx = InstanceID();
-    SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
-
-    int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
-    if (TexIdx < 0)
-    {
-        payload.Shadow = 0.025f;
-        AcceptHitAndEndSearch();
-    }
-    
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
-    
-    float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
-    
-    if (Alpha < 0.5f)
-    {
-        IgnoreHit();
-    }
-    else
-    {
-        payload.Shadow = 0.025f;
-        AcceptHitAndEndSearch();
-
-    }
-}

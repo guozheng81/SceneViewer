@@ -83,3 +83,52 @@ float3 hemisphereSample_cos(float u, float v)
     float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
     return float3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
 }
+
+#define SHADOW_VALUE 0.01f
+
+struct ShadowPayload
+{
+    float Shadow;
+};
+
+[shader("miss")]
+void ShadowMiss(inout ShadowPayload payload)
+{
+    payload.Shadow = 1.0f;
+}
+
+[shader("closesthit")]
+void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
+{
+    payload.Shadow = SHADOW_VALUE;
+}
+
+[shader("anyhit")]
+void ShadowAnyHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
+{
+    uint InstanceIdx = InstanceID();
+    SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
+
+    int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
+    if (TexIdx < 0)
+    {
+        payload.Shadow = SHADOW_VALUE;
+        AcceptHitAndEndSearch();
+        return;
+    }
+    
+    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
+    
+    float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
+    
+    if (Alpha < 0.5f)
+    {
+        IgnoreHit();
+    }
+    else
+    {
+        payload.Shadow = SHADOW_VALUE;
+        AcceptHitAndEndSearch();
+
+    }
+}

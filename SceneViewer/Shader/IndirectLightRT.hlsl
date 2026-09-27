@@ -11,11 +11,6 @@ Texture3D SHVolumeB : register(t6);
 
 RWTexture2D<float4> OutTexture : register(u0);
 
-struct ShadowPayload
-{
-    float Shadow;
-};
-
 struct IndirectPayload
 {
     float3 Color;
@@ -139,44 +134,3 @@ void IndirectAnyHit(inout IndirectPayload Payload, in BuiltInTriangleIntersectio
     }
 }
 
-
-[shader("miss")]
-void ShadowMiss(inout ShadowPayload payload)
-{
-    payload.Shadow = 1.0f;
-}
-
-[shader("closesthit")]
-void ShadowClosestHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
-{
-    payload.Shadow = 0.025f;
-}
-
-[shader("anyhit")]
-void ShadowAnyHit(inout ShadowPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
-{
-    uint InstanceIdx = InstanceID();
-    SHitVertexAttributes HitVertex = GetHitVertexAttributes(attribs.barycentrics);
-
-    int TexIdx = AllMeshes[InstanceIdx].AlbedoTextureIdx;
-    if(TexIdx < 0)
-    {
-        payload.Shadow = 0.025f;
-        AcceptHitAndEndSearch();
-    }
-    
-    Texture2D DiffuseTexture = MaterialTextures[TexIdx];
-    
-    float Alpha = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).a;
-    
-    if (Alpha < 0.5f)
-    {
-        IgnoreHit();
-    }
-    else
-    {
-        payload.Shadow = 0.025f;
-        AcceptHitAndEndSearch();
-
-    }
-}
