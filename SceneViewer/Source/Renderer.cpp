@@ -388,8 +388,10 @@ bool	CRenderer::Init(HWND hWnd)
 
     //ScreenPasses.push_back(std::make_unique<CSimpleRTPass>());
     ScreenPasses.push_back(std::make_unique<CShadowRTPass>());
-	//ScreenPasses.push_back(std::make_unique<CIrradianceVolumeRTPass>());
+	ScreenPasses.push_back(std::make_unique<CIrradianceVolumeRTPass>());
+	ScreenPasses[1]->bIsActive = bUseIrradianceVolume;
     ScreenPasses.push_back(std::make_unique<CIndirectLightRTPass>());
+	ScreenPasses[2]->bIsActive = bUseIndirectLighting;
     ScreenPasses.push_back(std::make_unique<CLightPass>());
 
     for (auto& Pass : ScreenPasses)
@@ -570,6 +572,9 @@ void	CRenderer::UpdateViewBuffer()
 	ViewBuffer.BoundingBoxMin = XMFLOAT4(BoundingBoxMin.x, BoundingBoxMin.y, BoundingBoxMin.z, 0.0f);
 	ViewBuffer.BoundingBoxSize = XMFLOAT4(BoundingBoxMax.x - BoundingBoxMin.x, BoundingBoxMax.y - BoundingBoxMin.y, BoundingBoxMax.z - BoundingBoxMin.z, 0.0f);
 
+	ViewBuffer.UseIrradianceVolume = bUseIrradianceVolume ? 1 : 0;
+	ViewBuffer.UseIndirectLighting = bUseIndirectLighting ? 1 : 0;
+
     GetCurrentFrameContext().ViewBuffer.SetData(&ViewBuffer);
 }
 
@@ -597,7 +602,10 @@ void	CRenderer::Render()
 
     for (auto& Pass : ScreenPasses)
     {
-        Pass->OnRender(CommandList.Get());
+        if (Pass->bIsActive)
+        {
+            Pass->OnRender(CommandList.Get());
+        }
     }
 
 	RenderGUI();
@@ -720,11 +728,23 @@ void	CRenderer::RenderGUI()
     ImGui::NewFrame();
 
     ImGui::SetNextWindowPos(ImVec2(ViewportWidth - 300, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(600, 300), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(900, 300), ImGuiCond_Always);
     ImGui::Begin("Menu");
 
     ImGui::Text("FPS: %u", CurrentFps);
     ImGui::Text("Frame Time: %.3f ms", DeltaTime * 1000.0);
+
+    ImGui::Separator();
+
+    if (ImGui::Checkbox("Enable Irradiance Volume", &bUseIrradianceVolume))
+    {
+		ScreenPasses[1]->bIsActive = bUseIrradianceVolume;
+    }
+
+    if(ImGui::Checkbox("Enable Indirect Lighting", &bUseIndirectLighting))
+    {
+		ScreenPasses[2]->bIsActive = bUseIndirectLighting;
+    }
 
     ImGui::Separator();
 

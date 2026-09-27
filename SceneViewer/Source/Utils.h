@@ -28,8 +28,10 @@ struct SViewBuffer
 
 	XMFLOAT4	BoundingBoxMin;
 	XMFLOAT4	BoundingBoxSize;
+	UINT		UseIrradianceVolume;
+	UINT		UseIndirectLighting;
 
-	float padding[56];
+	float padding[54];
 };
 
 struct SMeshInfo

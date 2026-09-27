@@ -125,6 +125,9 @@ public:
 	UINT	ViewportWidth = 1280;
 	UINT	ViewportHeight = 720;
 
+	bool bUseIrradianceVolume = false;
+	bool bUseIndirectLighting = true;
+
 	ComPtr<ID3D12Device5>	D3dDevice;
 	ComPtr<ID3D12CommandQueue> D3DCommandQueue;
 

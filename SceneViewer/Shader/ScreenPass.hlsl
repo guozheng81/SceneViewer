@@ -19,14 +19,9 @@ SamplerState LinearSampler : register(s0);
 SamplerState PointSampler : register(s1);
 SamplerState AnisotropicSampler : register(s2);
 
-#define _USE_IRRADIANCE_LIGHTING 0
-
-#if _USE_IRRADIANCE_LIGHTING
-
 Texture3D SHVolumeR : register(t5);
 Texture3D SHVolumeG : register(t6);
 Texture3D SHVolumeB : register(t7);
-#endif
 
 float4 PSLighting(QuadVS_Output Input) : SV_TARGET
 {    
@@ -54,14 +49,17 @@ float4 PSLighting(QuadVS_Output Input) : SV_TARGET
 
     float3 Color = CalculatePBR(L, N, V, roughness, metal, Albedo.rgb, DirectionalLight.w) * Shadow;
     
-    #if _USE_IRRADIANCE_LIGHTING
-    // test irradiance lighting
-    float3 IrradianceLight = SampleIrradiance(SHVolumeR, SHVolumeG, SHVolumeB, WldPos.xyz, N);
-    Color += IrradianceLight * Albedo.rgb;
-    #else
-    float3 IndirectLighting = IndirectLightRT.Sample(LinearSampler, Input.Uv).rgb;
-    Color += IndirectLighting * Albedo.rgb;    
-    #endif
+    [branch]
+    if (UseIndirectLighting)
+    {
+        float3 IndirectLighting = IndirectLightRT.Sample(LinearSampler, Input.Uv).rgb;
+        Color += IndirectLighting * Albedo.rgb;
+    }
+    else if (UseIrradianceVolume)
+    {
+        float3 IrradianceLight = SampleIrradiance(SHVolumeR, SHVolumeG, SHVolumeB, WldPos.xyz, N);
+        Color += IrradianceLight * Albedo.rgb;
+    }
         
     Color.rgb = ACESFitted(Color.rgb);
 

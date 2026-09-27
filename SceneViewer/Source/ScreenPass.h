@@ -11,6 +11,8 @@ protected:
 	CMaterial	Material;
 
 public:
+	bool bIsActive = true;
+
 	virtual ~CScreenPass()
 	{
 	}

@@ -14,8 +14,10 @@ cbuffer cbView : register(b0)
 
     float4 BoundingBoxMin;
     float4 BoundingBoxSize;
+    uint UseIrradianceVolume;
+    uint UseIndirectLighting;
     
-    float padding[56];
+    float padding[54];
 };
 
 struct MeshInfo

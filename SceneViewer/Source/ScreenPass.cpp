@@ -25,7 +25,7 @@ void CLightPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::InitRootParameters(1, 5, 0, 0, RootParams, SrvRanges);
+	CMaterial::InitRootParameters(1, 8, 0, 0, RootParams, SrvRanges);
 	Material.BuildRootSignature(RootParams, false);
 	Material.BuildPSO(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso");
 
@@ -65,11 +65,9 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	Material.SetShaderResource(InCommandList, 3, ShadowRT);
 	Material.SetShaderResource(InCommandList, 4, IndirectLightRT);
 
-	/*
 	Material.SetShaderResource(InCommandList, 5, SHVolumeR);
 	Material.SetShaderResource(InCommandList, 6, SHVolumeG);
 	Material.SetShaderResource(InCommandList, 7, SHVolumeB);
-	*/
 
 	CScreenPass::OnRender(InCommandList);
 }
@@ -160,7 +158,7 @@ void CIndirectLightRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::InitRootParameters(1, 4, 1, 2, RootParams, Ranges);
+	CMaterial::InitRootParameters(1, 7, 1, 2, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(2);
@@ -223,11 +221,9 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	Material.SetShaderResource(InCommandList, 3, Depth);
 	Material.SetSceneForRaytracing(InCommandList, CRenderer::GetInstance().GetScene());
 
-	/*
 	Material.SetShaderResource(InCommandList, 4, SHVolumeR);
 	Material.SetShaderResource(InCommandList, 5, SHVolumeG);
 	Material.SetShaderResource(InCommandList, 6, SHVolumeB);
-	*/
 
 	Material.SetUav(InCommandList, 0, IndirectLightRT);
 
