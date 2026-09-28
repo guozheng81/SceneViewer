@@ -1,6 +1,6 @@
 // https://www.highperformancegraphics.org/previous/www_2010/media/RayTracing_I/HPG2010_RayTracing_I_Dammertz.pdf
 
-cbuffer AtrousBuffer : register(b0)
+cbuffer Constants_Atrous : register(b0)
 {
     int g_StepSize; // 1, 2, 4, 8, etc.
     float g_PhiColor; // 50

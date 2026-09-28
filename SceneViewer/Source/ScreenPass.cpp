@@ -25,9 +25,12 @@ void CLightPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::InitRootParameters(1, 8, 0, 0, RootParams, SrvRanges);
+	ComPtr<ID3DBlob> VSBlob = CMaterial::ReadShaderFile(L"ScreenPass_VSMain.cso");
+	ComPtr<ID3DBlob> PSBlob = CMaterial::ReadShaderFile(L"ScreenPass_PSLighting.cso");
+	CMaterial::InitRootParametersFromShaders({ VSBlob.Get(), PSBlob.Get() }, RootParams, SrvRanges);
+
 	Material.BuildRootSignature(RootParams, false);
-	Material.BuildPSO(L"ScreenPass_VSMain.cso", L"ScreenPass_PSLighting.cso");
+	Material.BuildPSO(VSBlob, PSBlob);
 
 	GBufferA = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferA"));
 	GBufferB = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferB"));
@@ -78,7 +81,8 @@ void CSimpleRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::InitRootParameters(1, 2, 1, 2, RootParams, Ranges);
+	ComPtr<ID3DBlob> Blob = CMaterial::ReadShaderFile(L"SimpleRT.cso");
+	CMaterial::InitRootParametersFromShaders({ Blob.Get() }, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(1);
@@ -87,7 +91,7 @@ void CSimpleRTPass::Init()
 	ShaderInfoArray[0].ClosestHitShader = L"PrimaryClosestHit";
 	ShaderInfoArray[0].AnyHitShader = L"PrimaryAnyHit";
 
-	Material.BuildRaytracingPSO(L"SimpleRT.cso", L"PrimaryRayGen", ShaderInfoArray);
+	Material.BuildRaytracingPSO(Blob, L"PrimaryRayGen", ShaderInfoArray);
 
 	SimpleRT = CRenderer::GetInstance().CreateRenderTarget("SimpleRT", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 
@@ -116,7 +120,8 @@ void CShadowRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::InitRootParameters(1, 4, 1, 2, RootParams, Ranges);
+	ComPtr<ID3DBlob> ShaderBlob = CMaterial::ReadShaderFile(L"ShadowRT.cso");
+	CMaterial::InitRootParametersFromShaders({ ShaderBlob.Get() }, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(1);
@@ -125,7 +130,7 @@ void CShadowRTPass::Init()
 	ShaderInfoArray[0].ClosestHitShader = L"ShadowClosestHit";
 	ShaderInfoArray[0].AnyHitShader = L"ShadowAnyHit";
 
-	Material.BuildRaytracingPSO(L"ShadowRT.cso", L"ShadowRayGen", ShaderInfoArray);
+	Material.BuildRaytracingPSO(ShaderBlob, L"ShadowRayGen", ShaderInfoArray);
 
 	ShadowRT = CRenderer::GetInstance().CreateRenderTarget("ShadowRT", DXGI_FORMAT_R8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 	GBufferB = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferB"));
@@ -158,7 +163,8 @@ void CIndirectLightRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::InitRootParameters(1, 7, 1, 2, RootParams, Ranges);
+	ComPtr<ID3DBlob> ShaderBlob = CMaterial::ReadShaderFile(L"IndirectLightRT.cso");
+	CMaterial::InitRootParametersFromShaders({ ShaderBlob.Get() }, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 	std::vector<SRaytracingShaderInfo> ShaderInfoArray(2);
@@ -172,7 +178,7 @@ void CIndirectLightRTPass::Init()
 	ShaderInfoArray[1].ClosestHitShader = L"ShadowClosestHit";
 	ShaderInfoArray[1].AnyHitShader = L"ShadowAnyHit";
 
-	Material.BuildRaytracingPSO(L"IndirectLightRT.cso", L"IndirectRayGen", ShaderInfoArray, 2);
+	Material.BuildRaytracingPSO(ShaderBlob, L"IndirectRayGen", ShaderInfoArray, 2);
 
 	IndirectLightRT = CRenderer::GetInstance().CreateRenderTarget("IndirectLightRT", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 	GBufferB = dynamic_cast<CTextureRenderTarget*>(CRenderer::GetInstance().GetTexture("GBufferB"));
@@ -185,10 +191,11 @@ void CIndirectLightRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	TARootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> TARanges;
-	CMaterial::InitRootParameters(1, 4, 1, 0, TARootParams, TARanges);
+	ComPtr<ID3DBlob> TABlob = CMaterial::ReadShaderFile(L"TemporalAccumulate.cso");
+	CMaterial::InitRootParametersFromShaders({ TABlob.Get() }, TARootParams, TARanges);
 
 	TemporalAccumulate.BuildRootSignature(TARootParams, false);
-	TemporalAccumulate.BuildComputePSO(L"TemporalAccumulate.cso");
+	TemporalAccumulate.BuildComputePSO(TABlob);
 	TA0 = CRenderer::GetInstance().CreateRenderTarget("TA0", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 	TA1 = CRenderer::GetInstance().CreateRenderTarget("TA1", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 
@@ -196,13 +203,12 @@ void CIndirectLightRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	ATrousRootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> ATrousRanges;
-	CMaterial::InitRootParameters(0, 3, 1, 0, ATrousRootParams, ATrousRanges);
-	CD3DX12_ROOT_PARAMETER RootParam;
-	RootParam.InitAsConstants(sizeof(SATrousConstants)/4, 0);
-	ATrousRootParams.push_back(RootParam);
+
+	ComPtr<ID3DBlob> ATrousBlob = CMaterial::ReadShaderFile(L"EdgeAvoidATrous.cso");
+	CMaterial::InitRootParametersFromShaders({ ATrousBlob.Get() }, ATrousRootParams, ATrousRanges);
 
 	ATrousMaterial.BuildRootSignature(ATrousRootParams, false);
-	ATrousMaterial.BuildComputePSO(L"EdgeAvoidATrous.cso");
+	ATrousMaterial.BuildComputePSO(ATrousBlob);
 
 	ATrous0 = CRenderer::GetInstance().CreateRenderTarget("ATrous0", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
 	ATrous1 = CRenderer::GetInstance().CreateRenderTarget("ATrous1", DXGI_FORMAT_R32G32B32A32_FLOAT, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, false, true);
@@ -306,7 +312,8 @@ void CIrradianceVolumeRTPass::Init()
 
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> Ranges;
-	CMaterial::InitRootParameters(1, 2, 3, 2, RootParams, Ranges);
+	ComPtr<ID3DBlob> ShaderBlob = CMaterial::ReadShaderFile(L"IrradianceVolumeRT.cso");
+	CMaterial::InitRootParametersFromShaders({ ShaderBlob.Get() }, RootParams, Ranges);
 
 	Material.BuildRootSignature(RootParams, true);
 
@@ -321,7 +328,7 @@ void CIrradianceVolumeRTPass::Init()
 	ShaderInfoArray[1].ClosestHitShader = L"ShadowClosestHit";
 	ShaderInfoArray[1].AnyHitShader = L"ShadowAnyHit";
 
-	Material.BuildRaytracingPSO(L"IrradianceVolumeRT.cso", L"IrradianceVolumeRayGen", ShaderInfoArray, 2);
+	Material.BuildRaytracingPSO(ShaderBlob, L"IrradianceVolumeRayGen", ShaderInfoArray, 2);
 
 	SHVolumeR = CRenderer::GetInstance().CreateTexture3D("SHVolumeR", DXGI_FORMAT_R16G16B16A16_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);
 	SHVolumeG = CRenderer::GetInstance().CreateTexture3D("SHVolumeG", DXGI_FORMAT_R16G16B16A16_FLOAT, VolumeWidth, VolumeHeight, VolumeDepth);

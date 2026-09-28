@@ -1,9 +1,141 @@
 #include <iostream>
 #include <filesystem>
+#include <set>
+#include <map>
+#include <algorithm>
+
 #include "Material.h"
 #include "Renderer.h"
 #include "Scene.h"
 #include "Logger.h"
+
+bool IsSrvInputType(D3D_SHADER_INPUT_TYPE InType)
+{
+    switch (InType)
+    {
+    case D3D_SIT_TBUFFER:
+    case D3D_SIT_TEXTURE:
+    case D3D_SIT_STRUCTURED:
+    case D3D_SIT_BYTEADDRESS:
+    case D3D_SIT_RTACCELERATIONSTRUCTURE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool IsUavInputType(D3D_SHADER_INPUT_TYPE InType)
+{
+    switch (InType)
+    {
+    case D3D_SIT_UAV_RWTYPED:
+    case D3D_SIT_UAV_RWSTRUCTURED:
+    case D3D_SIT_UAV_RWBYTEADDRESS:
+    case D3D_SIT_UAV_APPEND_STRUCTURED:
+    case D3D_SIT_UAV_CONSUME_STRUCTURED:
+    case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:
+    case D3D_SIT_UAV_FEEDBACKTEXTURE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool AccumulateNonCbvBinding(
+    const D3D12_SHADER_INPUT_BIND_DESC& InBindingDesc,
+    UINT& OutSrvCount,
+    UINT& OutUavCount,
+    std::set<UINT>& OutUnboundSrvSpaces)
+{
+    if (IsSrvInputType(InBindingDesc.Type))
+    {
+        const bool bIsUnbound = (InBindingDesc.BindCount == 0 || InBindingDesc.BindCount == UINT_MAX);
+        if (bIsUnbound)
+        {
+            if (InBindingDesc.BindPoint != 0 || InBindingDesc.Space == 0)
+            {
+                LOG_ERROR("Unbound SRV '%s' uses t%u space%u. Expected t0 in space 1+.",
+                    InBindingDesc.Name, InBindingDesc.BindPoint, InBindingDesc.Space);
+                return false;
+            }
+
+            OutUnboundSrvSpaces.insert(InBindingDesc.Space);
+        }
+        else
+        {
+            if (InBindingDesc.Space != 0)
+            {
+                LOG_ERROR("Bound SRV '%s' uses space %u. Expected SRV space 0.",
+                    InBindingDesc.Name, InBindingDesc.Space);
+                return false;
+            }
+
+            UINT RequiredCount = InBindingDesc.BindPoint + InBindingDesc.BindCount;
+            if (RequiredCount > OutSrvCount)
+            {
+                OutSrvCount = RequiredCount;
+            }
+        }
+
+        return true;
+    }
+
+    if (IsUavInputType(InBindingDesc.Type))
+    {
+        if (InBindingDesc.Space != 0)
+        {
+            LOG_ERROR("UAV '%s' uses space %u. Expected UAV space 0.",
+                InBindingDesc.Name, InBindingDesc.Space);
+            return false;
+        }
+
+        UINT RegisterSpan = (InBindingDesc.BindCount == 0 || InBindingDesc.BindCount == UINT_MAX)
+            ? 1
+            : InBindingDesc.BindCount;
+        UINT RequiredCount = InBindingDesc.BindPoint + RegisterSpan;
+        if (RequiredCount > OutUavCount)
+        {
+            OutUavCount = RequiredCount;
+        }
+
+        return true;
+    }
+
+    return true;
+}
+
+UINT GetRootConstantsCount(const std::string& InName, ID3D12ShaderReflectionConstantBuffer* ConstBuffer)
+{
+    if(InName.find("Constants_") != 0)
+    {
+        //LOG_ERROR("GetRootConstantsCount: Constant buffer name '%s' does not start with 'Constants_'.", InName.c_str());
+        return 0;
+	}
+
+    D3D12_SHADER_BUFFER_DESC BufferDesc = {};
+    HRESULT HrBufferDesc = ConstBuffer->GetDesc(&BufferDesc);
+    if (FAILED(HrBufferDesc))
+    {
+		LOG_ERROR("GetRootConstantsCount: Failed to get constant buffer description (0x%08X).", HrBufferDesc);
+        return 0;
+    }
+
+    UINT TotalRequiredBytes = 0;
+
+    // Loop through every variable to find the absolute furthest byte used
+    for (UINT i = 0; i < BufferDesc.Variables; ++i) {
+        ID3D12ShaderReflectionVariable* pVar = ConstBuffer->GetVariableByIndex(i);
+        D3D12_SHADER_VARIABLE_DESC VarDesc;
+        pVar->GetDesc(&VarDesc);
+
+        UINT variableEndByte = VarDesc.StartOffset + VarDesc.Size;
+        if (variableEndByte > TotalRequiredBytes) {
+            TotalRequiredBytes = variableEndByte;
+        }
+    }
+
+    return (TotalRequiredBytes + 3) / 4;
+}
 
 
 CMaterial::CMaterial()
@@ -88,6 +220,46 @@ void CMaterial::InitRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavC
         int Idx = InSrvCount + InUavCount + UnboundIdx;
         Ranges[Idx].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, 0, UnboundIdx + 1);
         RootParams[RootIdx].InitAsDescriptorTable(1, &(Ranges[Idx]), D3D12_SHADER_VISIBILITY_ALL);
+    }
+}
+
+void CMaterial::InitRootParametersFromShaders(const std::vector<ID3DBlob*>& InShaderBlobs, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges)
+{
+    UINT CbvCount = 0;
+    UINT SrvCount = 0;
+    UINT UavCount = 0;
+    UINT UnboundSrvCount = 0;
+    std::vector<UINT> RootConstantsCountPerRegister;
+    if (!CMaterial::CollectRootParameterCountsFromShaders(
+        InShaderBlobs,
+        CbvCount,
+        SrvCount,
+        UavCount,
+        UnboundSrvCount,
+        RootConstantsCountPerRegister))
+    {
+        LOG_ERROR("CMaterial::InitRootParametersFromShaders: Failed to collect root parameter counts from shader blobs.");
+        return;
+    }
+
+    CMaterial::InitRootParameters(CbvCount, SrvCount, UavCount, UnboundSrvCount, RootParams, Ranges);
+
+    for (UINT Register = 0; Register < (UINT)RootConstantsCountPerRegister.size(); ++Register)
+    {
+        UINT ConstantsCount = RootConstantsCountPerRegister[Register];
+        if (ConstantsCount == 0)
+        {
+            if(Register + 1 <(UINT)RootConstantsCountPerRegister.size() && RootConstantsCountPerRegister[Register+1] > 0 && CbvCount != Register + 1)
+            {
+                LOG_ERROR("Root constants found in register space %u, but CBV count is %u. Expected CBV registers before root constants register.", Register+1, CbvCount);
+			}
+
+            continue;
+        }
+
+        CD3DX12_ROOT_PARAMETER RootConstantParam;
+        RootConstantParam.InitAsConstants(ConstantsCount, Register);
+        RootParams.push_back(RootConstantParam);
     }
 }
 
@@ -180,7 +352,7 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
     }
 }
 
-void CMaterial::BuildComputePSO(LPCWSTR InComputeName)
+void CMaterial::BuildComputePSO(ComPtr<ID3DBlob> CSBlob)
 {
     if (!RootSign.Get())
     {
@@ -189,15 +361,6 @@ void CMaterial::BuildComputePSO(LPCWSTR InComputeName)
 	}
 
     D3D12_COMPUTE_PIPELINE_STATE_DESC ComputePsoDesc = {};
-
-    ComPtr<ID3DBlob> CSBlob;
-    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
-    HRESULT Hr = D3DReadFileToBlob((ExeDirectory / InComputeName).c_str(), &CSBlob);
-    if(FAILED(Hr))
-    {
-        LOG_ERROR("BuildComputePSO: Failed to load compute shader (0x%08X).", Hr);
-        return;
-	}
 
     ComputePsoDesc.pRootSignature = RootSign.Get();
     ComputePsoDesc.CS = { CSBlob->GetBufferPointer(), CSBlob->GetBufferSize() };
@@ -216,7 +379,7 @@ void CMaterial::BuildComputePSO(LPCWSTR InComputeName)
     bUsedForCompute = true;
 }
 
-void CMaterial::BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
+void CMaterial::BuildPSO(ComPtr<ID3DBlob> VSBlob, ComPtr<ID3DBlob> PSBlob)
 {
     if (!RootSign.Get())
     {
@@ -231,28 +394,9 @@ void CMaterial::BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName)
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 
-    ComPtr<ID3DBlob> VSBlob;
-    ComPtr<ID3DBlob> PSBlob;
-
-    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
-
-    HRESULT HrVS = D3DReadFileToBlob((ExeDirectory/InVSFileName).c_str(), &VSBlob);
-    if (FAILED(HrVS))
-    {
-        LOG_ERROR("BuildPSO: Failed to load vertex shader (0x%08X).", HrVS);
-        return;
-    }
-
     if (!VSBlob || VSBlob->GetBufferSize() == 0)
     {
         LOG_ERROR("BuildPSO: Vertex shader blob is invalid or empty.");
-        return;
-    }
-
-    HRESULT HrPS = D3DReadFileToBlob((ExeDirectory/InPSFileName).c_str(), &PSBlob);
-    if (FAILED(HrPS))
-    {
-        LOG_ERROR("BuildPSO: Failed to load pixel shader (0x%08X).", HrPS);
         return;
     }
 
@@ -457,21 +601,17 @@ void CMaterial::SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT
     }
 }
 
-void CMaterial::BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray, UINT MaxRecursionDepth)
+void CMaterial::BuildRaytracingPSO(ComPtr<ID3DBlob> ShaderBlob, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray, UINT MaxRecursionDepth)
 {
+    if(ShaderBlob == nullptr || ShaderBlob->GetBufferSize() == 0)
+    {
+        LOG_ERROR("BuildRaytracingPSO: Invalid shader blob.");
+        return;
+	}
+
     CD3DX12_STATE_OBJECT_DESC RtPSODesc(D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE);
 
     auto DxilLib = RtPSODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
-
-    ComPtr<ID3DBlob> ShaderBlob;
-    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
-
-    HRESULT HrRead = D3DReadFileToBlob((ExeDirectory / InFileName).c_str(), &ShaderBlob);
-    if(FAILED(HrRead))
-    {
-        LOG_ERROR("BuildRaytracingPSO: Failed to load DXIL shader library (0x%08X).", HrRead);
-        return;
-	}
 
     D3D12_SHADER_BYTECODE dxilBytecode = { ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize()};
     DxilLib->SetDXILLibrary(&dxilBytecode);
@@ -564,4 +704,238 @@ void CMaterial::SetSceneForRaytracing(ID3D12GraphicsCommandList* InCommandList, 
     {
         InCommandList->SetComputeRootDescriptorTable(VertexBufferParam, InScene->GetVertexBuffersGPUDescriptor());
     }
+}
+
+bool CMaterial::CollectRootParameterCountsFromShaders(
+    const std::vector<ID3DBlob*>& InShaderBlobs,
+    UINT& OutCbvCount,
+    UINT& OutSrvCount,
+    UINT& OutUavCount,
+    UINT& OutUnboundSrvCount,
+    std::vector<UINT>& OutRootConstantsCountPerRegister)
+{
+    OutCbvCount = 0;
+    OutSrvCount = 0;
+    OutUavCount = 0;
+    OutUnboundSrvCount = 0;
+    OutRootConstantsCountPerRegister.clear();
+
+    if (InShaderBlobs.empty())
+    {
+        LOG_ERROR("CollectRootParameterCountsFromShaders: Shader blob list is empty.");
+        return false;
+    }
+
+    std::set<UINT> UnboundSrvSpaces;
+    std::map<UINT, UINT> CbvConstantsPerRegister; 
+
+    for (UINT BlobIdx = 0; BlobIdx < (UINT)InShaderBlobs.size(); ++BlobIdx)
+    {
+        ID3DBlob* ShaderBlob = InShaderBlobs[BlobIdx];
+        if (ShaderBlob == nullptr || ShaderBlob->GetBufferPointer() == nullptr || ShaderBlob->GetBufferSize() == 0)
+        {
+            LOG_ERROR("CollectRootParameterCountsFromShaders: Invalid shader blob at index %u.", BlobIdx);
+            return false;
+        }
+
+        DxcBuffer ShaderBuffer = {};
+        ShaderBuffer.Ptr = ShaderBlob->GetBufferPointer();
+        ShaderBuffer.Size = ShaderBlob->GetBufferSize();
+        ShaderBuffer.Encoding = DXC_CP_ACP;
+
+        ComPtr<ID3D12ShaderReflection> ShaderReflection;
+        HRESULT HrShaderReflect = CRenderer::GetInstance().DxcUtils->CreateReflection(&ShaderBuffer, IID_PPV_ARGS(&ShaderReflection));
+        if (SUCCEEDED(HrShaderReflect) && ShaderReflection != nullptr)
+        {
+            D3D12_SHADER_DESC ShaderDesc = {};
+            HRESULT HrShaderDesc = ShaderReflection->GetDesc(&ShaderDesc);
+            if (FAILED(HrShaderDesc))
+            {
+                LOG_ERROR("CollectRootParameterCountsFromShaders: GetDesc failed for shader blob %u (0x%08X).",
+                    BlobIdx, HrShaderDesc);
+                return false;
+            }
+
+            for (UINT ResourceIdx = 0; ResourceIdx < ShaderDesc.BoundResources; ++ResourceIdx)
+            {
+                D3D12_SHADER_INPUT_BIND_DESC BindingDesc = {};
+                HRESULT HrBindingDesc = ShaderReflection->GetResourceBindingDesc(ResourceIdx, &BindingDesc);
+                if (FAILED(HrBindingDesc))
+                {
+                    LOG_ERROR("CollectRootParameterCountsFromShaders: GetResourceBindingDesc failed (blob %u, resource %u, 0x%08X).",
+                        BlobIdx, ResourceIdx, HrBindingDesc);
+                    return false;
+                }
+
+                if (BindingDesc.Type == D3D_SIT_CBUFFER)
+                {
+                    if (BindingDesc.Space != 0)
+                    {
+                        LOG_ERROR("CBV '%s' uses space %u. Expected CBV space 0.", BindingDesc.Name, BindingDesc.Space);
+                        return false;
+                    }
+
+                    ID3D12ShaderReflectionConstantBuffer* ConstBuffer =
+                        ShaderReflection->GetConstantBufferByName(BindingDesc.Name);
+                    if (ConstBuffer == nullptr)
+                    {
+                        LOG_ERROR("Failed to get constant buffer reflection for '%s'.", BindingDesc.Name);
+                        return false;
+                    }
+
+                    UINT ConstantsCount = GetRootConstantsCount(BindingDesc.Name, ConstBuffer);
+
+                    auto Iter = CbvConstantsPerRegister.find(BindingDesc.BindPoint);
+                    if (Iter == CbvConstantsPerRegister.end() || ConstantsCount > Iter->second)
+                    {
+                        CbvConstantsPerRegister[BindingDesc.BindPoint] = ConstantsCount;
+                    }
+
+                    continue;
+                }
+
+                if (!AccumulateNonCbvBinding(BindingDesc, OutSrvCount, OutUavCount, UnboundSrvSpaces))
+                {
+                    return false;
+                }
+            }
+
+            continue;
+        }
+
+        ComPtr<ID3D12LibraryReflection> LibraryReflection;
+        HRESULT HrLibraryReflect = CRenderer::GetInstance().DxcUtils->CreateReflection(&ShaderBuffer, IID_PPV_ARGS(&LibraryReflection));
+        if (FAILED(HrLibraryReflect) || LibraryReflection == nullptr)
+        {
+            LOG_ERROR("CollectRootParameterCountsFromShaders: Reflection failed for blob %u.", BlobIdx);
+            return false;
+        }
+
+        D3D12_LIBRARY_DESC LibraryDesc = {};
+        HRESULT HrLibraryDesc = LibraryReflection->GetDesc(&LibraryDesc);
+        if (FAILED(HrLibraryDesc))
+        {
+            LOG_ERROR("CollectRootParameterCountsFromShaders: Library GetDesc failed for blob %u (0x%08X).",
+                BlobIdx, HrLibraryDesc);
+            return false;
+        }
+
+        for (UINT FunctionIdx = 0; FunctionIdx < LibraryDesc.FunctionCount; ++FunctionIdx)
+        {
+            ID3D12FunctionReflection* FunctionReflection = LibraryReflection->GetFunctionByIndex((INT)FunctionIdx);
+            if (FunctionReflection == nullptr)
+            {
+                LOG_ERROR("GetFunctionByIndex failed (blob %u, function %u).", BlobIdx, FunctionIdx);
+                return false;
+            }
+
+            D3D12_FUNCTION_DESC FunctionDesc = {};
+            HRESULT HrFunctionDesc = FunctionReflection->GetDesc(&FunctionDesc);
+            if (FAILED(HrFunctionDesc))
+            {
+                LOG_ERROR("Function GetDesc failed (blob %u, function %u, 0x%08X).",
+                    BlobIdx, FunctionIdx, HrFunctionDesc);
+                return false;
+            }
+
+            for (UINT ResourceIdx = 0; ResourceIdx < FunctionDesc.BoundResources; ++ResourceIdx)
+            {
+                D3D12_SHADER_INPUT_BIND_DESC BindingDesc = {};
+                HRESULT HrBindingDesc = FunctionReflection->GetResourceBindingDesc(ResourceIdx, &BindingDesc);
+                if (FAILED(HrBindingDesc))
+                {
+                    LOG_ERROR("Function GetResourceBindingDesc failed (blob %u, function %u, resource %u, 0x%08X).",
+                        BlobIdx, FunctionIdx, ResourceIdx, HrBindingDesc);
+                    return false;
+                }
+
+                if (BindingDesc.Type == D3D_SIT_CBUFFER)
+                {
+                    if (BindingDesc.Space != 0)
+                    {
+                        LOG_ERROR("CBV '%s' uses space %u. Expected CBV space 0.", BindingDesc.Name, BindingDesc.Space);
+                        return false;
+                    }
+
+                    ID3D12ShaderReflectionConstantBuffer* ConstBuffer =
+                        FunctionReflection->GetConstantBufferByName(BindingDesc.Name);
+                    if (ConstBuffer == nullptr)
+                    {
+                        LOG_ERROR("Failed to get function constant buffer reflection for '%s'.", BindingDesc.Name);
+                        return false;
+                    }
+
+                    UINT ConstantsCount = GetRootConstantsCount(BindingDesc.Name, ConstBuffer);
+
+                    auto Iter = CbvConstantsPerRegister.find(BindingDesc.BindPoint);
+                    if (Iter == CbvConstantsPerRegister.end() || ConstantsCount > Iter->second)
+                    {
+                        CbvConstantsPerRegister[BindingDesc.BindPoint] = ConstantsCount;
+                    }
+
+                    continue;
+                }
+
+                if (!AccumulateNonCbvBinding(BindingDesc, OutSrvCount, OutUavCount, UnboundSrvSpaces))
+                {
+                    return false;
+                }
+            }
+        }
+    }
+
+    if (!UnboundSrvSpaces.empty())
+    {
+        OutUnboundSrvCount = *UnboundSrvSpaces.rbegin();
+    }
+
+    UINT MaxCbvRegister = 0;
+    bool bHasCbvRegister = false;
+    for (const auto& Pair : CbvConstantsPerRegister)
+    {
+        UINT Register = Pair.first;
+        UINT ConstantsCount = Pair.second;
+
+        if (ConstantsCount == 0)
+        {
+            ++OutCbvCount;
+        }
+
+        if (!bHasCbvRegister || Register > MaxCbvRegister)
+        {
+            MaxCbvRegister = Register;
+            bHasCbvRegister = true;
+        }
+    }
+
+    if (bHasCbvRegister)
+    {
+        for (UINT Register = 0; Register <= MaxCbvRegister; ++Register)
+        {
+            UINT ConstantsCount = 0;
+            auto Iter = CbvConstantsPerRegister.find(Register);
+            if (Iter != CbvConstantsPerRegister.end() && Iter->second > 0)
+            {
+                ConstantsCount = Iter->second;
+            }
+
+            OutRootConstantsCountPerRegister.push_back(ConstantsCount);
+        }
+    }
+
+    return true;
+}
+
+ComPtr<ID3DBlob> CMaterial::ReadShaderFile(LPCWSTR InFileName)
+{
+    ComPtr<ID3DBlob> ShaderBlob;
+    std::filesystem::path ExeDirectory = CRenderer::GetExeDirectory();
+    HRESULT Hr = D3DReadFileToBlob((ExeDirectory / InFileName).c_str(), &ShaderBlob);
+    if (FAILED(Hr))
+    {
+		LOG_ERROR("ReadShaderFile: Failed to read shader file '%ls' (0x%08X).", InFileName, Hr);
+		return nullptr;
+    }
+
+	return ShaderBlob;
 }

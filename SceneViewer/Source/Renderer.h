@@ -131,6 +131,8 @@ public:
 	ComPtr<ID3D12Device5>	D3dDevice;
 	ComPtr<ID3D12CommandQueue> D3DCommandQueue;
 
+	ComPtr<IDxcUtils> DxcUtils;
+
 	std::vector<CD3DX12_STATIC_SAMPLER_DESC> TextureSamplers;
 
 	CDescriptorAllocator SrvUavDescriptorAllocator;

@@ -50,12 +50,13 @@ public:
 
 	// unbound srvs starting from space1
 	static void InitRootParameters(UINT InCbvCount, UINT InSrvCount, UINT InUavCount, UINT InUnboundSrvCount, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges);
+	static void InitRootParametersFromShaders(const std::vector<ID3DBlob*>& InShaderBlobs, std::vector<CD3DX12_ROOT_PARAMETER>& RootParams, std::vector<CD3DX12_DESCRIPTOR_RANGE>& Ranges);
 	void BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootParams, bool bInForRaytracing);
-	void BuildPSO(LPCWSTR InVSFileName, LPCWSTR InPSFileName);
+	void BuildPSO(ComPtr<ID3DBlob> VSBlob, ComPtr<ID3DBlob> PSBlob);
 
-	void BuildRaytracingPSO(LPCWSTR InFileName, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray, UINT MaxRecursionDepth = 1);
+	void BuildRaytracingPSO(ComPtr<ID3DBlob> ShaderBlob, LPCWSTR InRayGenName, const std::vector<SRaytracingShaderInfo>& InShaderInfoArray, UINT MaxRecursionDepth = 1);
 
-	void BuildComputePSO(LPCWSTR InComputeName);
+	void BuildComputePSO(ComPtr<ID3DBlob> CSBlob);
 
 	void OnRender(ID3D12GraphicsCommandList4* InCommandList);
 
@@ -67,5 +68,15 @@ public:
 	void SetConstantBuffer(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CBuffer* InBuffer);
 
 	void SetSceneForRaytracing(ID3D12GraphicsCommandList* InCommandList, class CScene* InScene);
+
+	static ComPtr<ID3DBlob> ReadShaderFile(LPCWSTR InFileName);
+
+	static bool CollectRootParameterCountsFromShaders(
+		const std::vector<ID3DBlob*>& InShaderBlobs,
+		UINT& OutCbvCount,
+		UINT& OutSrvCount,
+		UINT& OutUavCount,
+		UINT& OutUnboundSrvCount,
+		std::vector<UINT>& OutRootConstantsCountPerRegister);
 };
 

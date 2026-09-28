@@ -276,6 +276,13 @@ bool	CRenderer::Init(HWND hWnd)
         return false;
     }
 
+    HRESULT HrUtils = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&DxcUtils));
+    if (FAILED(HrUtils) || DxcUtils == nullptr)
+    {
+		LOG_ERROR("DxcCreateInstance failed");
+        return false;
+    }
+
     //////// command queue /////////////////
 
     D3D12_COMMAND_QUEUE_DESC QueueDesc = {};

@@ -104,14 +104,13 @@ void	CScene::Init()
 {
 	std::vector<CD3DX12_ROOT_PARAMETER>	RootParams;
 	std::vector<CD3DX12_DESCRIPTOR_RANGE> SrvRanges;
-	CMaterial::InitRootParameters(1, 1, 0, 1, RootParams, SrvRanges);
+	ComPtr<ID3DBlob> VSBlob = CMaterial::ReadShaderFile(L"Scene_VSMain.cso");
+	ComPtr<ID3DBlob> PSBlob = CMaterial::ReadShaderFile(L"Scene_PSMain.cso");
 
-	CD3DX12_ROOT_PARAMETER MeshIdxRootParam;
-	MeshIdxRootParam.InitAsConstants(1, 1);
-	RootParams.push_back(MeshIdxRootParam);
+	CMaterial::InitRootParametersFromShaders({ VSBlob.Get(), PSBlob.Get() }, RootParams, SrvRanges);
 
 	Material->BuildRootSignature(RootParams, false);
-	Material->BuildPSO(L"Scene_VSMain.cso", L"Scene_PSMain.cso");
+	Material->BuildPSO(VSBlob, PSBlob);
 
 	CRenderer& RendererInst = CRenderer::GetInstance();
 	GBufferA = RendererInst.CreateRenderTarget("GBufferA", DXGI_FORMAT_R8G8B8A8_UNORM, XMFLOAT4A(0.0f, 0.0f, 0.0f, 1.0f));
