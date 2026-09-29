@@ -23,8 +23,7 @@ struct SViewBuffer
 	float		Proj_m32;
 	float		Proj_m22;
 	UINT		FrameNumber;
-
-	float padding0;
+	UINT		IrradianceFrameCount;
 
 	XMFLOAT4	BoundingBoxMin;
 	XMFLOAT4	BoundingBoxSize;

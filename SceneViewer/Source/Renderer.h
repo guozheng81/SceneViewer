@@ -127,6 +127,7 @@ public:
 
 	bool bUseIrradianceVolume = false;
 	bool bUseIndirectLighting = true;
+	UINT IrradianceFrameCount = 0;
 
 	ComPtr<ID3D12Device5>	D3dDevice;
 	ComPtr<ID3D12CommandQueue> D3DCommandQueue;

@@ -549,6 +549,7 @@ void	CRenderer::UpdateViewBuffer()
     }
 
     AccumulatedFrameNumber++;
+	IrradianceFrameCount++;
 
     ViewBuffer.PrevViewProjectionMatrix = ViewBuffer.ViewProjectionMatrix;
 
@@ -567,6 +568,7 @@ void	CRenderer::UpdateViewBuffer()
     XMStoreFloat3(&LightDir, Scene->DirectionalLightDir);
     ViewBuffer.DirectionalLight = XMFLOAT4(-LightDir.x, -LightDir.y, -LightDir.z, Scene->DirectionalLightIntensity);
     ViewBuffer.FrameNumber = AccumulatedFrameNumber;
+	ViewBuffer.IrradianceFrameCount = IrradianceFrameCount;
     ViewBuffer.ViewportSize = XMFLOAT4(ViewportWidth, ViewportHeight, 1.0f / (float)ViewportWidth, 1.0f / (float)ViewportHeight);
 
     float Near = Cam->GetNearPlane();

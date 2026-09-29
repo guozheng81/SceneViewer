@@ -514,6 +514,7 @@ void CScene::CollectAllMeshesInfo()
 
 	bNeedRebuildTLAS = (PreMeshCount != MeshInfoArray.size());
 	bIsModelBufferDirty = true;
+	CRenderer::GetInstance().IrradianceFrameCount = 0;
 
 	GetSceneBoundingBox(BoundingBoxMin, BoundingBoxMax);
 }
@@ -546,6 +547,8 @@ void	CScene::SetDirectionalLight(const XMFLOAT3& InDir, float Intensity)
 	XMVECTOR LightDirV = XMLoadFloat3(&InDir);
 	DirectionalLightDir = XMVector3Normalize(LightDirV);
 	DirectionalLightIntensity = Intensity;
+
+	CRenderer::GetInstance().IrradianceFrameCount = 0;
 }
 
 void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)

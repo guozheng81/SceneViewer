@@ -9,8 +9,7 @@ cbuffer cbView : register(b0)
     float Proj_m32;
     float Proj_m22;
     uint FrameNumber;
-
-    float padding0;
+    uint IrradianceFrameCount;
 
     float4 BoundingBoxMin;
     float4 BoundingBoxSize;

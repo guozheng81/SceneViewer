@@ -25,6 +25,62 @@ float2 Hammersley(uint i, uint N)
     return float2(float(i) / float(N), RadicalInverse_VdC(i));
 }
 
+static const uint Sobol_Vectors_D0[32] =
+{
+    0x80000000u, 0x40000000u, 0x20000000u, 0x10000000u,
+    0x08000000u, 0x04000000u, 0x02000000u, 0x01000000u,
+    0x00800000u, 0x00400000u, 0x00200000u, 0x00100000u,
+    0x00080000u, 0x00040000u, 0x00020000u, 0x00010000u,
+    0x00008000u, 0x00004000u, 0x00002000u, 0x00001000u,
+    0x00000800u, 0x00000400u, 0x00000200u, 0x00000100u,
+    0x00000080u, 0x00000040u, 0x00000020u, 0x00000010u,
+    0x00000008u, 0x00000004u, 0x00000002u, 0x00000001u
+};
+
+static const uint Sobol_Vectors_D1[32] =
+{
+    0x80000000u, 0xc0000000u, 0xa0000000u, 0xf0000000u,
+    0x88000000u, 0xcc000000u, 0xaa000000u, 0xff000000u,
+    0x80800000u, 0xc0c00000u, 0xa0a00000u, 0xf0f00000u,
+    0x88880000u, 0xcccc0000u, 0xaaaa0000u, 0xffff0000u,
+    0x80008000u, 0xc000c000u, 0xa000a000u, 0xf000f000u,
+    0x88008800u, 0xcc00cc00u, 0xaa00aa00u, 0xff00ff00u,
+    0x80808080u, 0xc0c0c0c0u, 0xa0a0a0a0u, 0xf0f0f0f0u,
+    0x88888888u, 0xccccccccu, 0xaaaaaaaau, 0xffffffffu
+};
+
+
+uint GetSobolSampleBits(uint SampleIndex, uint Vectors[32])
+{
+    uint GrayCode = SampleIndex ^ (SampleIndex >> 1);
+    uint ResultBits = 0;
+
+    [unroll]
+    for (uint BitIdx = 0; BitIdx < 32; ++BitIdx)
+    {
+        if ((GrayCode & (1u << BitIdx)) != 0u)
+        {
+            ResultBits ^= Vectors[BitIdx];
+        }
+    }
+
+    return ResultBits;
+}
+
+float GetSobolSampleScrambled(uint SampleIndex, uint Vectors[32], uint Scramble)
+{
+    uint Bits = GetSobolSampleBits(SampleIndex, Vectors);
+    Bits ^= Scramble;
+    return float(Bits) * (1.0f / 4294967296.0f);
+}
+
+float2 GetSobolPoint2DScrambled(uint SampleIndex, uint2 Scramble)
+{
+    float X = GetSobolSampleScrambled(SampleIndex, Sobol_Vectors_D0, Scramble.x);
+    float Y = GetSobolSampleScrambled(SampleIndex, Sobol_Vectors_D1, Scramble.y);
+    return float2(X, Y);
+}
+
 [shader("raygeneration")]
 void IrradianceVolumeRayGen()
 {
@@ -38,11 +94,22 @@ void IrradianceVolumeRayGen()
     float4 SHG = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float4 SHB = float4(0.0f, 0.0f, 0.0f, 0.0f);
     
-    const uint SamplesPerProbe = 160;
+    uint ProbeLinearIdx =
+    ProbeIdx.x +
+    ProbeIdx.y * VolumeResolution.x +
+    ProbeIdx.z * VolumeResolution.x * VolumeResolution.y;
+
+    uint ScrambleX = initRand(ProbeLinearIdx, 0x12345678u);
+    uint ScrambleY = initRand(ProbeLinearIdx, 0x87654321u);
+        
+    const uint SamplesPerProbe = 120;
     for (uint i = 0; i < SamplesPerProbe; ++i)
     {
-        uint sampleIndex = (i + FrameNumber * SamplesPerProbe) % 1024;
-        float2 xi = Hammersley(sampleIndex, 1024);
+        //uint sampleIndex = (i + FrameNumber * SamplesPerProbe) % 720;
+        //float2 xi = Hammersley(sampleIndex, 720);
+                
+        uint SampleIndex = i + FrameNumber * SamplesPerProbe;
+        float2 xi = GetSobolPoint2DScrambled(SampleIndex, uint2(ScrambleX, ScrambleY));
 
         // Uniform sample over the full sphere since a probe gathers radiance from all directions.
         float Phi = xi.y * 2.0f * PI;
@@ -51,7 +118,7 @@ void IrradianceVolumeRayGen()
         float3 SampleDir = float3(cos(Phi) * SinTheta, sin(Phi) * SinTheta, CosTheta);
         
         RayDesc Ray;
-        Ray.Origin = ProbePos;
+        Ray.Origin = ProbePos; 
         Ray.Direction = SampleDir;
         Ray.TMin = 0.01f;
         Ray.TMax = 5000;
@@ -66,9 +133,9 @@ void IrradianceVolumeRayGen()
         SHG += Payload.Color.g * Basis;
         SHB += Payload.Color.b * Basis;
     }
-
+    
     // Monte-Carlo normalization for uniform sphere sampling: 4*PI / N.
-    float Weight = 4.0f * PI / (float) SamplesPerProbe;
+    float Weight = 4.0f*PI / (float) SamplesPerProbe;
     SHR *= Weight;
     SHG *= Weight;
     SHB *= Weight;
@@ -77,8 +144,7 @@ void IrradianceVolumeRayGen()
     float4 PrevSHG = SHVolumeG[ProbeIdx];
     float4 PrevSHB = SHVolumeB[ProbeIdx];
     
-    //float BlendFactor = (FrameNumber == 0) ? 1.0f : (1.0f / (float) (FrameNumber + 1));
-    float BlendFactor = 0.01f;
+    float BlendFactor = (IrradianceFrameCount < 50 ? 0.02f : 1.0f / (IrradianceFrameCount));
     SHVolumeR[ProbeIdx] = lerp(PrevSHR, SHR, BlendFactor);
     SHVolumeG[ProbeIdx] = lerp(PrevSHG, SHG, BlendFactor);
     SHVolumeB[ProbeIdx] = lerp(PrevSHB, SHB, BlendFactor);
@@ -120,7 +186,7 @@ void IrradianceVolumeClosestHit(inout IrradiancePayload Payload, in BuiltInTrian
     TraceRay(RtScene, 0 /*rayFlags*/, 0xFF, 1 /* ray index*/, 0, 1, Ray, ShadowRes);
 
     float3 L = DirectionalLight.xyz;
-    Payload.Color = Albedo / 3.14159265f * max(dot(N, L), 0.0f) * ShadowRes.Shadow * DirectionalLight.w;
+    Payload.Color = Albedo * max(dot(N, L), 0.0f) * ShadowRes.Shadow * DirectionalLight.w;
 }
 
 [shader("anyhit")]
