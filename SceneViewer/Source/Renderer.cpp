@@ -737,8 +737,8 @@ void	CRenderer::RenderGUI()
     ImGui::NewFrame();
 
     ImGui::SetNextWindowPos(ImVec2(ViewportWidth - 300, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(900, 300), ImGuiCond_Always);
-    ImGui::Begin("Menu");
+    ImGui::SetNextWindowSize(ImVec2(300, 600), ImGuiCond_Always);
+    ImGui::Begin("Menu", nullptr, ImGuiWindowFlags_NoResize);
 
     ImGui::Text("FPS: %u", CurrentFps);
     ImGui::Text("Frame Time: %.3f ms", DeltaTime * 1000.0);
