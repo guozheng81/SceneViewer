@@ -125,7 +125,7 @@ public:
 	UINT	ViewportWidth = 1280;
 	UINT	ViewportHeight = 720;
 
-	bool bUseIrradianceVolume = false;
+	bool bUseIrradianceVolume = true;
 	bool bUseIndirectLighting = true;
 	UINT IrradianceFrameCount = 0;
 

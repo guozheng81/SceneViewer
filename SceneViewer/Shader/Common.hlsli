@@ -163,7 +163,8 @@ float3 SampleIrradiance(Texture3D InSHVolumeR, Texture3D InSHVolumeG, Texture3D 
 
     float3 VolumeCellSize = (BoundingBoxSize.xyz) / (VolumeResolution - 1);
     
-    float3 BiasedWldPos = WldPos + N * 1.5f;
+    float MinCell = min(VolumeCellSize.x, min(VolumeCellSize.y, VolumeCellSize.z));
+    float3 BiasedWldPos = WldPos + N * (0.5f * MinCell);
     BiasedWldPos = clamp(BiasedWldPos, BoundingBoxMin.xyz + float3(0.001f, 0.001f, 0.001f), BoundingBoxMin.xyz + BoundingBoxSize.xyz - float3(0.001f, 0.001f, 0.001f));
     
     float3 VoxelCoords = (BiasedWldPos - BoundingBoxMin.xyz) / VolumeCellSize;
@@ -188,13 +189,6 @@ float3 SampleIrradiance(Texture3D InSHVolumeR, Texture3D InSHVolumeG, Texture3D 
                                                y == 1 ? FracWeights.y : 1.0f - FracWeights.y,
                                                z == 1 ? FracWeights.z : 1.0f - FracWeights.z);
                 float CombinedWeight = TrilinearTerms.x * TrilinearTerms.y * TrilinearTerms.z;
-                
-                /*
-                float3 ProbeWldPos = BoundingBoxMin.xyz + float3(ProbeCoords) * VolumeCellSize;
-                float3 DirToProbe = normalize(ProbeWldPos - BiasedWldPos + 0.0001f);
-                float Facing = saturate(dot(N, DirToProbe) * 0.5f + 0.5f);
-                CombinedWeight *= (Facing * Facing + 0.2f);
-                */
                 
                 //if (CombinedWeight > 0.001f)
                 {

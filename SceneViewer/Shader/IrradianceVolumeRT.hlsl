@@ -153,7 +153,9 @@ void IrradianceVolumeRayGen()
 [shader("miss")]
 void IrradianceVolumeMiss(inout IrradiancePayload Payload)
 {
-    Payload.Color = float3(0.0f, 0.0f, 0.0f);
+    float3 Direction = WorldRayDirection();
+    float T = saturate(Direction.y * 0.5f + 0.5f);
+    Payload.Color = float3(0.1f, 0.1f, 0.1f) * T;
 }
 
 [shader("closesthit")]
@@ -185,8 +187,12 @@ void IrradianceVolumeClosestHit(inout IrradiancePayload Payload, in BuiltInTrian
     ShadowRes.Shadow = 1.0f;
     TraceRay(RtScene, 0 /*rayFlags*/, 0xFF, 1 /* ray index*/, 0, 1, Ray, ShadowRes);
 
+    float Facing = saturate(dot(N, WorldRayDirection()));
+    Facing = (1.0f - Facing);
+    Facing *= Facing;
+    
     float3 L = DirectionalLight.xyz;
-    Payload.Color = Albedo * max(dot(N, L), 0.0f) * ShadowRes.Shadow * DirectionalLight.w;
+    Payload.Color = Albedo * max(dot(N, L), 0.0f) * ShadowRes.Shadow * DirectionalLight.w * Facing;
 }
 
 [shader("anyhit")]
