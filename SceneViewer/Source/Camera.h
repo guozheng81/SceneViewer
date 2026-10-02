@@ -40,6 +40,8 @@ public:
 	inline float	GetNearPlane() const {	return NearPlane;	}
 	inline float	GetFarPlane() const { return FarPlane; }
 
+	void GetAxesXZ(XMFLOAT3* OutRight, XMFLOAT3* OutForward, bool bFlatten) const;
+
 	void	OnInputMouse(int InDeltaX, int InDeltaY);
 	void	OnUpdate();
 };

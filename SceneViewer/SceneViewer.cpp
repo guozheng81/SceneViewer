@@ -36,10 +36,6 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
     case WM_KEYUP:
         return 0;
 
-    case WM_PAINT:
-        CRenderer::GetInstance().Render();
-        return 0;
-
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -76,10 +72,24 @@ static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
             CScene* Scene = CRenderer::GetInstance().GetScene();
             if (Scene)
             {
-                g_DirLightX += (Y - g_LastMousePositionY) * 0.01f;
-                g_DirLightX = std::clamp(g_DirLightX, -2.0f, 2.0f);
-                g_DirLightZ += (X - g_LastMousePositionX) * 0.01f;
-                g_DirLightZ = std::clamp(g_DirLightZ, -2.0f, 2.0f);
+                XMFLOAT3 Right, Forward;
+                Scene->GetMainCamera()->GetAxesXZ(&Right, &Forward, true);
+
+                float DeltaX = (X - g_LastMousePositionX) * 0.005f;
+                float DeltaY = (Y - g_LastMousePositionY) * 0.005f;
+
+                // Drag right -> light moves toward camera right; drag down -> light moves toward the camera
+                g_DirLightX += Right.x * DeltaX - Forward.x * DeltaY;
+                g_DirLightZ += Right.z * DeltaX - Forward.z * DeltaY;
+
+                const float DIR_LIGHT_MAX_RADIUS = 1.5f;
+                float LightLength = sqrtf(g_DirLightX * g_DirLightX + g_DirLightZ * g_DirLightZ);
+                if (LightLength > DIR_LIGHT_MAX_RADIUS)
+                {
+                    float Scale = DIR_LIGHT_MAX_RADIUS / LightLength;
+                    g_DirLightX *= Scale;
+                    g_DirLightZ *= Scale;
+                }
 
                 Scene->SetDirectionalLight(XMFLOAT3(g_DirLightX, -1.0f, g_DirLightZ), g_DirLightInensity);
             }
@@ -181,6 +191,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        }
+        else
+        {
+			CRenderer::GetInstance().Render();
         }
     }
 

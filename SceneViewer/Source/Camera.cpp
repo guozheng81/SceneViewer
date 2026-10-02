@@ -90,3 +90,21 @@ void	CCamera::OnUpdate()
 	Position += LookAtDirection * (Z * MoveSpeed);
 	Position += RightDirection * (X * MoveSpeed);
 }
+
+void CCamera::GetAxesXZ(XMFLOAT3* OutRight, XMFLOAT3* OutForward, bool bFlatten) const
+{
+	if (bFlatten)
+	{
+		XMVECTOR FlattenedRight = XMVectorSetY(RightDirection, 0.0f);
+		XMVECTOR FlattenedForward = XMVectorSetY(LookAtDirection, 0.0f);
+		FlattenedRight = XMVector3Normalize(FlattenedRight);
+		FlattenedForward = XMVector3Normalize(FlattenedForward);
+		XMStoreFloat3(OutRight, FlattenedRight);
+		XMStoreFloat3(OutForward, FlattenedForward);
+	}
+	else
+	{
+		XMStoreFloat3(OutRight, RightDirection);
+		XMStoreFloat3(OutForward, LookAtDirection);
+	}
+}
