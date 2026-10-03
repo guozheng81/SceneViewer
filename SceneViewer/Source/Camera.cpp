@@ -25,7 +25,7 @@ void	CCamera::SetPositionAndRotation(XMFLOAT3 InPos, float InYaw, float InPitch)
 	LookAtDirection = RotMtx.r[2];
 }
 
-void	CCamera::GetCameraPosition(XMFLOAT4* OutPos)
+void	CCamera::GetCameraPosition(XMFLOAT4* OutPos) const
 {
 	XMStoreFloat4(OutPos, Position);
 }
@@ -43,27 +43,30 @@ void	CCamera::UpdateViewBuffer(SViewBuffer* OutViewBuffer)
 	XMStoreFloat4x4(&(OutViewBuffer->InvViewProjectionMatrix), XMMatrixTranspose(InvViewProjMtx));
 }
 
-void	CCamera::GetViewMatrix(XMFLOAT4X4* OutMtx)
+void	CCamera::GetViewMatrix(XMFLOAT4X4* OutMtx) const
 {
 	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(ViewMatrix));
 }
 
-void	CCamera::GetProjectionMatrix(XMFLOAT4X4* OutMtx)
+void	CCamera::GetProjectionMatrix(XMFLOAT4X4* OutMtx) const
 {
 	XMStoreFloat4x4(OutMtx, XMMatrixTranspose(ProjectionMatrix));
 }
 
 void	CCamera::OnInputMouse(int InDeltaX, int InDeltaY)
 {
+	const float MaxPitch = XM_PIDIV2 - 0.01f;
+
 	Yaw += InDeltaX * YawScale;
 	Pitch += InDeltaY * PitchScale;
+	Pitch = std::max(-MaxPitch, std::min(MaxPitch, Pitch));
 
 	XMMATRIX RotMtx = XMMatrixRotationRollPitchYaw(Pitch, Yaw, 0.0f);
 	RightDirection = RotMtx.r[0];
 	LookAtDirection = RotMtx.r[2];
 }
 
-void	CCamera::OnUpdate()
+void	CCamera::OnUpdate(float DeltaTime)
 {
 	int X = 0;
 	int Z = 0;
@@ -87,8 +90,14 @@ void	CCamera::OnUpdate()
 		X += 1;
 	}
 
-	Position += LookAtDirection * (Z * MoveSpeed);
-	Position += RightDirection * (X * MoveSpeed);
+	if (X == 0 && Z == 0)
+	{
+		return;
+	}
+
+	XMVECTOR Move = LookAtDirection * Z + RightDirection * X;
+	Move = XMVector3Normalize(Move);
+	Position += Move * (MoveSpeed * DeltaTime);
 }
 
 void CCamera::GetAxesXZ(XMFLOAT3* OutRight, XMFLOAT3* OutForward, bool bFlatten) const

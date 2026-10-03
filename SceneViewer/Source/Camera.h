@@ -17,14 +17,14 @@ protected:
 	float		Pitch = 0.0f;
 	float		PitchScale = 0.002f;
 
-	float		MoveSpeed = 2.5f;
+	float		MoveSpeed = 250.0f;
 
 	XMVECTOR	Position = { 0.0f, 0.0f, -10.0f };
 	XMVECTOR	LookAtDirection = { 0.0f, 0.0f, 1.0f };
 	XMVECTOR	RightDirection = { 1.0f, 0.0f, 0.0f };
 
-	XMMATRIX ViewMatrix;
-	XMMATRIX ProjectionMatrix;
+	XMMATRIX ViewMatrix = XMMatrixIdentity();
+	XMMATRIX ProjectionMatrix = XMMatrixIdentity();
 
 public:
 	void	SetPositionAndRotation(XMFLOAT3 InPos, float InYaw, float InPitch);
@@ -32,10 +32,10 @@ public:
 	void	SetAspectRatio(UINT InW, UINT InH);
 	void	SetFOV(float InDegree);
 
-	void	GetViewMatrix(XMFLOAT4X4* OutMtx);
-	void	GetProjectionMatrix(XMFLOAT4X4* OutMtx);
+	void	GetViewMatrix(XMFLOAT4X4* OutMtx) const;
+	void	GetProjectionMatrix(XMFLOAT4X4* OutMtx) const;
 	void	UpdateViewBuffer(struct SViewBuffer* OutViewBuffer);
-	void	GetCameraPosition(XMFLOAT4* OutPos);
+	void	GetCameraPosition(XMFLOAT4* OutPos) const;
 
 	inline float	GetNearPlane() const {	return NearPlane;	}
 	inline float	GetFarPlane() const { return FarPlane; }
@@ -43,6 +43,6 @@ public:
 	void GetAxesXZ(XMFLOAT3* OutRight, XMFLOAT3* OutForward, bool bFlatten) const;
 
 	void	OnInputMouse(int InDeltaX, int InDeltaY);
-	void	OnUpdate();
+	void	OnUpdate(float DeltaTime);
 };
 

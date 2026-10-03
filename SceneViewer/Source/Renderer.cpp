@@ -40,7 +40,7 @@ void CBuffer::Init(UINT InEleSize, UINT InEleCount, bool InForUpload, D3D12_RESO
     }
 
     CD3DX12_HEAP_PROPERTIES HeapProps(bUseForUpload ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT);
-    CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InEleSize * InEleCount);
+    CD3DX12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(ElementSize * ElementCount);
 
     if (bNeedUAV)
     {
@@ -221,6 +221,12 @@ void CBuffer::SetData(void* InData, UINT InEleCount)
         InEleCount = ElementCount;
 	}
 
+    if(MappedPtr == nullptr)
+    {
+        LOG_ERROR("CBuffer::SetData: Buffer is not mapped (not an upload buffer).");
+        return;
+	}
+
     memcpy(MappedPtr, InData, ElementSize * InEleCount);
 }
 
@@ -350,7 +356,11 @@ bool	CRenderer::Init(HWND hWnd)
 
     /////////////////// per frame resources ///////////////////
 
-    D3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&FrameFence));
+    if(FAILED(D3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&FrameFence))))
+    {
+        LOG_ERROR("CreateFence failed");
+        return false;
+	}
     FrameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     PerFrameContext[CurrentFrameIndex].FenceValue = 1;
 
@@ -360,7 +370,11 @@ bool	CRenderer::Init(HWND hWnd)
 
     for (UINT i = 0; i < TotalFrameCount; ++i)
     {
-        D3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&(PerFrameContext[i].CommandAllocator)));
+        if (FAILED(D3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&(PerFrameContext[i].CommandAllocator)))))
+        {
+            LOG_ERROR("CreateCommandAllocator failed");
+			return false;
+        }
 
         SwapChain->GetBuffer(i, IID_PPV_ARGS(&(PerFrameContext[i].FrameBuffer)));
 
@@ -382,7 +396,11 @@ bool	CRenderer::Init(HWND hWnd)
 
     ScissorRect = CD3DX12_RECT(0, 0, ViewportWidth, ViewportHeight);
 
-    D3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, PerFrameContext[CurrentFrameIndex].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&CommandList));
+    if(FAILED(D3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, PerFrameContext[CurrentFrameIndex].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&CommandList))))
+    {
+        LOG_ERROR("CreateCommandList failed");
+        return false;
+	}
     CommandList->Close();
 
     /////////////////////////////////////////////////
@@ -554,7 +572,7 @@ void	CRenderer::UpdateViewBuffer()
     ViewBuffer.PrevViewProjectionMatrix = ViewBuffer.ViewProjectionMatrix;
 
     CCamera* Cam = Scene->GetMainCamera();
-    Cam->OnUpdate();
+    Cam->OnUpdate(DeltaTime);
 
     Cam->GetCameraPosition(&(ViewBuffer.CameraOrigin));
     Cam->UpdateViewBuffer(&ViewBuffer);
@@ -844,12 +862,17 @@ void	CRenderer::FlushCommandQueue(bool bShouldIncreaseFence)
 
 void	CRenderer::Shutdown()
 {
+    FlushCommandQueue();
+
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    FlushCommandQueue();
-    CloseHandle(FrameFenceEvent);
+    if(FrameFenceEvent)
+    {
+        CloseHandle(FrameFenceEvent);
+        FrameFenceEvent = nullptr;
+	}
 
     LOG_INFO("Renderer Shutdown");
 }
@@ -1046,6 +1069,11 @@ int	CRenderer::GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3
 
 void	CRenderer::OnResize(int InW, int InH)
 {
+    if (InW <= 0 || InH <= 0)
+    {
+        return;
+    }
+
     FlushCommandQueue(false);
 
     UINT64 FenceValue = GetCurrentFrameContext().FenceValue;

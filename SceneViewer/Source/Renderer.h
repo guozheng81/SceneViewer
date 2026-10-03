@@ -79,7 +79,7 @@ protected:
 	ComPtr<IDXGISwapChain3>	SwapChain;
 
 	ComPtr<ID3D12Fence>		FrameFence;
-	HANDLE					FrameFenceEvent;
+	HANDLE					FrameFenceEvent = nullptr;
 
 	UINT	CurrentFrameIndex = 0;
 	const static UINT	TotalFrameCount = 3;
