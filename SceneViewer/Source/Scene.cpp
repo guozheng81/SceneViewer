@@ -42,6 +42,8 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 		}
 	}
 
+	static const tinyobj::material_t tinyobjDefaultMaterial = {};
+
 	std::vector<SSceneVertex> Verts;
 	std::vector<UINT32>	Indices;
 
@@ -61,7 +63,7 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 			size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
 			if (shapes[s].mesh.material_ids[f] != CurrentMatIdx)
 			{
-				auto TinyObjMat = materials[CurrentMatIdx];
+				auto& TinyObjMat = (CurrentMatIdx >= 0? materials[CurrentMatIdx] : tinyobjDefaultMaterial);
 				AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname, TinyObjMat.roughness_texname);
 
 				Verts.clear();
@@ -73,29 +75,36 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 			for (size_t v = 0; v < fv; v++)
 			{
 				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-				tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
-				tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
-				tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
+				SSceneVertex Vert;
+				Vert.Position = XMFLOAT3(
+					attrib.vertices[3 * size_t(idx.vertex_index) + 0],
+					attrib.vertices[3 * size_t(idx.vertex_index) + 1],
+					attrib.vertices[3 * size_t(idx.vertex_index) + 2]);
 
-				tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
-				tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
-				tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+				Vert.Normal = XMFLOAT3(0.0f, 1.0f, 0.0f);
+				if (idx.normal_index >= 0)
+				{
+					Vert.Normal = XMFLOAT3(
+						attrib.normals[3 * size_t(idx.normal_index) + 0],
+						attrib.normals[3 * size_t(idx.normal_index) + 1],
+						attrib.normals[3 * size_t(idx.normal_index) + 2]);
+				}
 
-				tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
-				tinyobj::real_t ty = 1.0f - attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
+				Vert.Tex = XMFLOAT2(0.0f, 0.0f);
+				if (idx.texcoord_index >= 0)
+				{
+					Vert.Tex = XMFLOAT2(
+						attrib.texcoords[2 * size_t(idx.texcoord_index) + 0],
+						1.0f - attrib.texcoords[2 * size_t(idx.texcoord_index) + 1]);
+				}
+				Verts.push_back(Vert);
 
 				//Indices.push_back((UINT)(Verts.size()));
-
-				SSceneVertex Vert;
-				Vert.Position = XMFLOAT3(vx, vy, vz);
-				Vert.Normal = XMFLOAT3(nx, ny, nz);
-				Vert.Tex = XMFLOAT2(tx, ty);
-				Verts.push_back(Vert);
 			}
 			index_offset += fv;
 		}
 
-		auto TinyObjMat = materials[CurrentMatIdx];
+		auto& TinyObjMat = (CurrentMatIdx >= 0 ? materials[CurrentMatIdx] : tinyobjDefaultMaterial);
 		AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname, TinyObjMat.roughness_texname);
 	}
 }
@@ -621,17 +630,15 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	}
 	
 	int MeshIndexParam = Material->FindConstantRootParameterIndex(1);
-	if (MeshIndexParam < 0)
+	if (MeshIndexParam >= 0)
 	{
-		return;
-	}
-	
-	for(int i = 0; i < AllMeshes.size(); ++i)
-	{
-		auto& CurMesh = AllMeshes[i];
-		InCommandList->SetGraphicsRoot32BitConstant(MeshIndexParam, CurMesh->GetGlobalInstanceIndex(), 0);
-		CurMesh->OnRender(InCommandList);
-	}
+		for (int i = 0; i < AllMeshes.size(); ++i)
+		{
+			auto& CurMesh = AllMeshes[i];
+			InCommandList->SetGraphicsRoot32BitConstant(MeshIndexParam, CurMesh->GetGlobalInstanceIndex(), 0);
+			CurMesh->OnRender(InCommandList);
+		}
+	}	
 
 	CRenderer::GetInstance().ResourceBarrier(GBufferB->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	CRenderer::GetInstance().ResourceBarrier(GetDepthTexture()->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

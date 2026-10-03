@@ -1,6 +1,7 @@
 #include "Mesh.h"
 #include "Renderer.h"
 #include "SceneObject.h"
+#include "Logger.h"
 
 void CMesh::Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT32>& Indices, int InTextureIdx, int InNormalTextureIdx, int InPBRTextureIdx, bool bAlphaTest)
 {
@@ -8,26 +9,42 @@ void CMesh::Init(const std::vector<SSceneVertex>& Verts, const std::vector<UINT3
 	AlbedoTextureIndex = InTextureIdx;
 	NormalTextureIndex = InNormalTextureIdx;
 	PBRTextureIndex = InPBRTextureIdx;
+	InstanceSceneObjects.clear();
 
-	VertexCount = Verts.size();
-	UINT TotalSize = sizeof(SSceneVertex) * VertexCount;
+	if (Verts.empty())
+	{
+		LOG_ERROR("CMesh::Init: Vertex array is empty.");
+		return;
+	}
+
+	VertexCount = static_cast<UINT>(Verts.size());
+	UINT TotalSize = static_cast<UINT>(sizeof(SSceneVertex)) * VertexCount;
 	VertexBuffer = CRenderer::GetInstance().CreateDefaultBuffer(Verts.data(), TotalSize, VertexUploadBuffer);
+	if (!VertexBuffer)
+	{
+		VertexCount = 0;
+		return;
+	}
 
 	VertexBufferView.BufferLocation = VertexBuffer->GetGPUVirtualAddress();
 	VertexBufferView.SizeInBytes = TotalSize;
 	VertexBufferView.StrideInBytes = sizeof(SSceneVertex);
 
-	IndicesCount = Indices.size();
+	IndicesCount = static_cast<UINT>(Indices.size());
 	if (IndicesCount > 0)
 	{
-		TotalSize = sizeof(UINT32) * IndicesCount;
+		TotalSize = static_cast<UINT>(sizeof(UINT32)) * IndicesCount;
 		IndexBuffer = CRenderer::GetInstance().CreateDefaultBuffer(Indices.data(), TotalSize, IndexUploadBuffer);
+		if (!IndexBuffer)
+		{
+			IndicesCount = 0;
+			return;
+		}
+
 		IndexBufferView.BufferLocation = IndexBuffer->GetGPUVirtualAddress();
 		IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
 		IndexBufferView.SizeInBytes = TotalSize;
 	}
-
-	InstanceSceneObjects.clear();
 }
 
 void CMesh::ResetUploadResource()
@@ -80,6 +97,12 @@ D3D12_GPU_VIRTUAL_ADDRESS CMesh::GetVertexGPUAddress()
 
 void CMesh::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
 {
+	if (!IsValid())
+	{
+		LOG_ERROR("CMesh::BuildBottomLevelAS: Mesh has no vertex buffer.");
+		return;
+	}
+
 	D3D12_RAYTRACING_GEOMETRY_DESC GeomDesc = {};
 
 	GeomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
@@ -88,6 +111,13 @@ void CMesh::BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList)
 	GeomDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(SSceneVertex);
 	GeomDesc.Triangles.VertexCount = VertexCount;
 	GeomDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+
+	if (IndicesCount > 0 && IndexBuffer)
+	{
+		GeomDesc.Triangles.IndexBuffer = IndexBuffer->GetGPUVirtualAddress();
+		GeomDesc.Triangles.IndexCount = IndicesCount;
+		GeomDesc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+	}
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
 	BuildInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;

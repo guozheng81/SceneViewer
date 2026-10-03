@@ -306,7 +306,7 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
         if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV)
         {
             UINT Space = Param.Descriptor.RegisterSpace;
-            if (ConstantRegisterMap.size() >= Space)
+            if (ConstantRegisterMap.size() <= Space)
             {
                 ConstantRegisterMap.resize(Space + 1);
             }
@@ -316,7 +316,7 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
         else if (Param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
         {
             UINT Space = Param.Constants.RegisterSpace;
-            if (ConstantRegisterMap.size() >= Space)
+            if (ConstantRegisterMap.size() <= Space)
             {
                 ConstantRegisterMap.resize(Space + 1);
             }
@@ -330,7 +330,7 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
                 if (Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
                 {
                     UINT Space = Param.DescriptorTable.pDescriptorRanges[0].RegisterSpace;
-                    if (SrvRegisterMap.size() >= Space)
+                    if (SrvRegisterMap.size() <= Space)
                     {
                         SrvRegisterMap.resize(Space + 1);
                     }
@@ -340,7 +340,7 @@ void CMaterial::BuildRootSignature(std::vector<CD3DX12_ROOT_PARAMETER>& InRootPa
                 else if (Param.DescriptorTable.pDescriptorRanges[0].RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
                 {
                     UINT Space = Param.DescriptorTable.pDescriptorRanges[0].RegisterSpace;
-                    if (UavRegisterMap.size() >= Space)
+                    if (UavRegisterMap.size() <= Space)
                     {
                         UavRegisterMap.resize(Space + 1);
                     }
@@ -387,7 +387,7 @@ void CMaterial::BuildPSO(ComPtr<ID3DBlob> VSBlob, ComPtr<ID3DBlob> PSBlob)
         return;
     }
 
-	std::vector<D3D12_INPUT_ELEMENT_DESC> InputDescArray =
+	static const std::vector<D3D12_INPUT_ELEMENT_DESC> InputDescArray =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -494,10 +494,16 @@ int CMaterial::FindUavRootParameterIndex(UINT InRegister, UINT InSpace)
 
 void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister, CTexture* InTex)
 {
-    CD3DX12_GPU_DESCRIPTOR_HANDLE UavHandle = InTex->GetUavGPUDescriptor();
-    if (InTex == nullptr || UavHandle.ptr == 0)
+    if (InTex == nullptr)
     {
-		LOG_ERROR("SetUav: Invalid texture or UAV descriptor for register %u.", InRegister);
+        LOG_ERROR("SetUav: Invalid texture for register %u.", InRegister);
+		return;
+    }
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE UavHandle = InTex->GetUavGPUDescriptor();
+    if (UavHandle.ptr == 0)
+    {
+		LOG_ERROR("SetUav: Invalid UAV descriptor for register %u.", InRegister);
         return;
     }
 

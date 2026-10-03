@@ -11,8 +11,8 @@ protected:
 	UINT	IndicesCount = 0;
 	UINT	VertexCount = 0;
 
-	D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
-	D3D12_INDEX_BUFFER_VIEW	 IndexBufferView;
+	D3D12_VERTEX_BUFFER_VIEW VertexBufferView = {};
+	D3D12_INDEX_BUFFER_VIEW	 IndexBufferView = {};
 
 	ComPtr<ID3D12Resource> VertexBuffer;
 	ComPtr<ID3D12Resource> IndexBuffer;
@@ -86,4 +86,6 @@ public:
 	void BuildBottomLevelAS(ID3D12GraphicsCommandList4* InCommandList);
 
 	void CreateVertexShaderResourceView();
+
+	bool IsValid() const { return VertexBuffer != nullptr; }
 };
