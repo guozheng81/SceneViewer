@@ -78,7 +78,7 @@ void CTexture2D::LoadResource(LPCWSTR InFileName, ID3D12GraphicsCommandList4* In
         return;
     }
     UpdateSubresources(InCommandList, GetResource(), UploadTexture.Get(), 0, 0, static_cast<UINT>(Subresources.size()), Subresources.data());
-    CRenderer::GetInstance().ResourceBarrier(GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    CRenderer::GetInstance().ResourceBarrier(GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
     Width = Texture->GetDesc().Width;
     Height = Texture->GetDesc().Height;
@@ -159,7 +159,7 @@ void CTextureDepthStencil::CreateResource()
     ClearValue.DepthStencil.Stencil = 0;
 
     CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    HRESULT hr = CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &ClearValue, IID_PPV_ARGS(Texture.GetAddressOf()));
+    HRESULT hr = CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, &ClearValue, IID_PPV_ARGS(Texture.GetAddressOf()));
     if (FAILED(hr))
     {
 		LOG_ERROR("Failed to create depth stencil resource.");

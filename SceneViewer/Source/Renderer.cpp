@@ -249,6 +249,14 @@ bool	CRenderer::Init(HWND hWnd)
     {
         D3dDebug->EnableDebugLayer();
         DXgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+
+        /*
+        ComPtr<ID3D12Debug1> D3dDebug1;
+        if (SUCCEEDED(D3dDebug->QueryInterface(IID_PPV_ARGS(&D3dDebug1))))
+        {
+            D3dDebug1->SetEnableGPUBasedValidation(TRUE);
+        }
+        */
     }
 #endif
 
