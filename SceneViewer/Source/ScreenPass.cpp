@@ -48,15 +48,9 @@ void CLightPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
 	Depth = CRenderer::GetInstance().GetScene()->GetDepthTexture();
 
-	CRenderer::GetInstance().ResourceBarrier(CRenderer::GetInstance().GetCurrentFrameContext().FrameBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
 	Material.OnRender(InCommandList);
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle = CRenderer::GetInstance().GetCurrentFrameContext().FrameBufferRtvDescriptor;
-	InCommandList->OMSetRenderTargets(1, &RtvHandle, false, nullptr);
-
-	float ClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	InCommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
+	CRenderer::GetInstance().SetFrameBufferRenderTarget();
 
 	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 	Material.SetShaderResource(InCommandList, 0, GBufferA);

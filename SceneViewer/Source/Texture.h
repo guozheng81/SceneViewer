@@ -86,6 +86,8 @@ public:
 	virtual CD3DX12_GPU_DESCRIPTOR_HANDLE GetUavGPUDescriptor() override {
 		return UavGPUDescriptor;
 	}
+
+	const float* GetClearColor() const { return &RTClearColor.x; }
 };
 
 class CTextureDepthStencil : public CTexture

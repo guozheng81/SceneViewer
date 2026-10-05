@@ -604,17 +604,7 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	Material->OnRender(InCommandList);
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandles[2] = { GBufferA->RtvCPUDescriptor, GBufferB->RtvCPUDescriptor };
-	CD3DX12_CPU_DESCRIPTOR_HANDLE DsvHandle = GetDepthTexture()->DsvCPUDescriptor;
-	InCommandList->OMSetRenderTargets(2, RtvHandles, true, &DsvHandle);
-
-	float ClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	InCommandList->ClearRenderTargetView(RtvHandles[0], ClearColor, 0, nullptr);
-
-	float ClearColorB[] = { 0.5f, 0.5f, 0.5f, 0.0f };
-	InCommandList->ClearRenderTargetView(RtvHandles[1], ClearColorB, 0, nullptr);
-
-	InCommandList->ClearDepthStencilView(DsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	CRenderer::GetInstance().SetRenderTargets({ GBufferA, GBufferB }, GetDepthTexture());
 
 	Material->SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 

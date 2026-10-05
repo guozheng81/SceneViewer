@@ -183,6 +183,9 @@ public:
 	int	GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE InStart, CD3DX12_GPU_DESCRIPTOR_HANDLE InEnd);
 	void	FlushCommandQueue(bool bShouldIncreaseFence = true);
 
+	void	SetRenderTargets(const std::vector<CTextureRenderTarget*>& InRenderTargets, CTextureDepthStencil* InDepthStencil);
+	void	SetFrameBufferRenderTarget();
+
 	void	OnResize(int InW, int InH);
 };
 

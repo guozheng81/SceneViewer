@@ -533,6 +533,8 @@ void	CRenderer::BeginFrame()
 {
     GetCurrentFrameContext().CommandAllocator->Reset();
     CommandList->Reset(GetCurrentFrameContext().CommandAllocator.Get(), nullptr);
+
+    ResourceBarrier(GetCurrentFrameContext().FrameBuffer.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
 void	CRenderer::EndFrame()
@@ -1118,4 +1120,65 @@ void	CRenderer::OnResize(int InW, int InH)
     {
         TextureIter->second->OnResize(InW, InH);
     }
+}
+
+void	CRenderer::SetRenderTargets(const std::vector<CTextureRenderTarget*>& InRenderTargets, CTextureDepthStencil* InDepthStencil)
+{
+    if(InRenderTargets.empty())
+    {
+        return;
+	}
+
+    if (InRenderTargets.size() > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT)
+    {
+        LOG_ERROR("CRenderer::SetRenderTargets: Too many render targets (%u).", (UINT)InRenderTargets.size());
+        return;
+    }
+
+    // convert InRenderTargets to array of D3D12_CPU_DESCRIPTOR_HANDLE
+    D3D12_CPU_DESCRIPTOR_HANDLE RtvHandles[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT] = {};
+    UINT RtvCount = 0;
+
+    for (CTextureRenderTarget* RenderTarget : InRenderTargets)
+    {
+        if (RenderTarget == nullptr)
+        {
+            LOG_ERROR("CRenderer::SetRenderTargets: Render target is null.");
+            return;
+        }
+
+        RtvHandles[RtvCount++] = RenderTarget->RtvCPUDescriptor;
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE DsvHandle = {};
+    bool bHasDepthStencil = (InDepthStencil != nullptr);
+    if (bHasDepthStencil)
+    {
+        DsvHandle = InDepthStencil->DsvCPUDescriptor;
+    }
+
+    CommandList->OMSetRenderTargets(RtvCount, RtvHandles, bHasDepthStencil, bHasDepthStencil ? &DsvHandle : nullptr);
+
+	// clear render targets
+    for (UINT i = 0; i < RtvCount; ++i)
+    {
+        CTextureRenderTarget* RenderTarget = InRenderTargets[i];
+        if (RenderTarget)
+        {
+            CommandList->ClearRenderTargetView(RenderTarget->RtvCPUDescriptor, RenderTarget->GetClearColor(), 0, nullptr);
+        }
+    }
+    if (bHasDepthStencil)
+    {
+        CommandList->ClearDepthStencilView(DsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	}
+}
+
+void	CRenderer::SetFrameBufferRenderTarget()
+{
+    CD3DX12_CPU_DESCRIPTOR_HANDLE RtvHandle = GetCurrentFrameContext().FrameBufferRtvDescriptor;
+    CommandList->OMSetRenderTargets(1, &RtvHandle, false, nullptr);
+
+    float ClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    CommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
 }
