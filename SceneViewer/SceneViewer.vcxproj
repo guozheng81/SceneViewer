@@ -137,6 +137,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SceneViewer.cpp" />
+    <ClCompile Include="Source\BarrierBatcher.cpp" />
     <ClCompile Include="Source\Camera.cpp" />
     <ClCompile Include="Source\DDSTextureLoader12.cpp" />
     <ClCompile Include="Source\DescriptorAllocator.cpp" />
@@ -158,6 +159,7 @@
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\BarrierBatcher.h" />
     <ClInclude Include="Source\Camera.h" />
     <ClInclude Include="Source\DDSTextureLoader12.h" />
     <ClInclude Include="Source\DescriptorAllocator.h" />

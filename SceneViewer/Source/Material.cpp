@@ -513,6 +513,8 @@ void CMaterial::SetUav(ID3D12GraphicsCommandList* InCommandList, UINT InRegister
         return;
     }
 
+    InTex->RequestResourceState(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
     if (bUsedForRaytracing || bUsedForCompute)
     {
         InCommandList->SetComputeRootDescriptorTable(FoundRootParamIdx, UavHandle);
@@ -536,6 +538,8 @@ void CMaterial::SetShaderResource(ID3D12GraphicsCommandList* InCommandList, UINT
     {
         return;
     }
+
+    InTex->RequestResourceState(D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
     if (bUsedForRaytracing || bUsedForCompute)
     {

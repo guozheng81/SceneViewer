@@ -2,14 +2,21 @@
 
 #include "Utils.h"
 
+class CBarrierBatcher;
+
 class CTexture
 {
+	friend class CBarrierBatcher;
+
 protected:
 	UINT		Width = 0;
 	UINT		Height = 0;
 
 	DXGI_FORMAT Format = DXGI_FORMAT_UNKNOWN;
 	DXGI_FORMAT SrvFormat = DXGI_FORMAT_UNKNOWN;
+
+	// state the GPU resource is in after all flushed barriers
+	D3D12_RESOURCE_STATES CurrentState = D3D12_RESOURCE_STATE_COMMON;
 
 public:
 	CTexture() = default;
@@ -42,6 +49,9 @@ public:
 	virtual CD3DX12_GPU_DESCRIPTOR_HANDLE GetUavGPUDescriptor() {
 		return CD3DX12_GPU_DESCRIPTOR_HANDLE();
 	}
+
+	// Asks the barrier batcher to have this texture in InState at the next flush
+	void RequestResourceState(D3D12_RESOURCE_STATES InState);
 };
 
 class CTexture2D : public CTexture

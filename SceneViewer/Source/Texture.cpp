@@ -49,6 +49,11 @@ void CTexture::CreateShaderResourceView(bool bIsResizing)
     CRenderer::GetInstance().D3dDevice->CreateShaderResourceView(Texture.Get(), &SrvDesc, SrvCPUDescriptor);
 }
 
+void CTexture::RequestResourceState(D3D12_RESOURCE_STATES InState)
+{
+    CRenderer::GetInstance().BarrierBatcher.Request(this, InState);
+}
+
 CTexture2D::CTexture2D(bool InIsDiffuse)
     : bIsDiffuse(InIsDiffuse)
 {
@@ -83,6 +88,8 @@ void CTexture2D::LoadResource(LPCWSTR InFileName, ID3D12GraphicsCommandList4* In
     Width = Texture->GetDesc().Width;
     Height = Texture->GetDesc().Height;
 	Format = Texture->GetDesc().Format;
+
+	CurrentState = D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE;
 
     if (bIsDiffuse)
     {
@@ -158,12 +165,14 @@ void CTextureDepthStencil::CreateResource()
     ClearValue.DepthStencil.Depth = 1.0f;
     ClearValue.DepthStencil.Stencil = 0;
 
+    CurrentState = D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE;
     CD3DX12_HEAP_PROPERTIES HeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     HRESULT hr = CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, &ClearValue, IID_PPV_ARGS(Texture.GetAddressOf()));
     if (FAILED(hr))
     {
 		LOG_ERROR("Failed to create depth stencil resource.");
     }
+
 }
 
 CTextureRenderTarget::CTextureRenderTarget(DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW, UINT InH, bool InNeedRtv, bool InNeedUav)
@@ -209,6 +218,7 @@ void CTextureRenderTarget::CreateResource()
     ClearValue.Color[2] = RTClearColor.z;
     ClearValue.Color[3] = RTClearColor.w;
 
+    CurrentState = D3D12_RESOURCE_STATE_COMMON;
     HRESULT hr = CRenderer::GetInstance().D3dDevice->CreateCommittedResource(&HeapProp, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_COMMON, (bNeedRtv ? &ClearValue : nullptr), IID_PPV_ARGS(Texture.GetAddressOf()));
     if (FAILED(hr))
     {

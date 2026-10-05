@@ -639,6 +639,7 @@ void	CRenderer::Render()
 
     for (auto& Pass : ScreenPasses)
     {
+		LOG_INFO("Rendering pass: %s (Active: %s)", typeid(*Pass).name(), Pass->bIsActive ? "Yes" : "No");
         if (Pass->bIsActive)
         {
             Pass->OnRender(CommandList.Get());
@@ -1147,6 +1148,7 @@ void	CRenderer::SetRenderTargets(const std::vector<CTextureRenderTarget*>& InRen
             return;
         }
 
+        RenderTarget->RequestResourceState(D3D12_RESOURCE_STATE_RENDER_TARGET);
         RtvHandles[RtvCount++] = RenderTarget->RtvCPUDescriptor;
     }
 
@@ -1154,8 +1156,11 @@ void	CRenderer::SetRenderTargets(const std::vector<CTextureRenderTarget*>& InRen
     bool bHasDepthStencil = (InDepthStencil != nullptr);
     if (bHasDepthStencil)
     {
+        InDepthStencil->RequestResourceState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
         DsvHandle = InDepthStencil->DsvCPUDescriptor;
     }
+
+    BarrierBatcher.Flush(CommandList.Get());
 
     CommandList->OMSetRenderTargets(RtvCount, RtvHandles, bHasDepthStencil, bHasDepthStencil ? &DsvHandle : nullptr);
 
@@ -1181,4 +1186,17 @@ void	CRenderer::SetFrameBufferRenderTarget()
 
     float ClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     CommandList->ClearRenderTargetView(RtvHandle, ClearColor, 0, nullptr);
+}
+
+const std::string& CRenderer::GetTextureName(CTexture* InTexture)
+{
+    for (const auto& Pair : AllTextures)
+    {
+        if (Pair.second.get() == InTexture)
+        {
+            return Pair.first;
+        }
+    }
+    static const std::string EmptyString = "";
+	return EmptyString;
 }

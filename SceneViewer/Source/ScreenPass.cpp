@@ -10,6 +10,7 @@ void CScreenPass::Init()
 
 void CScreenPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
+	CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 	if (ScreenQuad)
 	{
 		ScreenQuad->OnRender(InCommandList);
@@ -100,6 +101,7 @@ void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	Material.SetUav(InCommandList, 0, SimpleRT);
 
+	CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 	// dispatch raytracing
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
 
@@ -143,6 +145,7 @@ void CShadowRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	Material.SetUav(InCommandList, 0, ShadowRT);
 
+	CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 	// dispatch raytracing
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
 
@@ -225,6 +228,7 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 	Material.SetUav(InCommandList, 0, IndirectLightRT);
 
+	CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 	// dispatch raytracing
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
 
@@ -252,6 +256,7 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 		TemporalAccumulate.SetShaderResource(InCommandList, 3, CRenderer::GetInstance().GetScene()->GetHistoryDepthTexture());
 		TemporalAccumulate.SetUav(InCommandList, 0, TATarget);
 
+		CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 7) / 8, (CRenderer::GetInstance().ViewportHeight + 7) / 8, 1);
 
 		CRenderer::GetInstance().ResourceBarrier(TATarget->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
@@ -292,6 +297,7 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 		ATrousMaterial.SetShaderResource(InCommandList, 0, SrcTexture);
 		ATrousMaterial.SetUav(InCommandList, 0, TargetTexture);
 
+		CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 15) / 16, (CRenderer::GetInstance().ViewportHeight + 15) / 16, 1);
 
 		CRenderer::GetInstance().ResourceBarrier(TargetTexture->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
@@ -345,6 +351,7 @@ void CIrradianceVolumeRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList
 	Material.SetUav(InCommandList, 1, SHVolumeG);
 	Material.SetUav(InCommandList, 2, SHVolumeB);
 
+	CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 	// dispatch raytracing
 	Material.RaytraceDesc.Width = VolumeWidth;
 	Material.RaytraceDesc.Height = VolumeHeight;

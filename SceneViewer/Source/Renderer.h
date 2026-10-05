@@ -2,6 +2,7 @@
 
 #include "Utils.h"
 #include "DescriptorAllocator.h"
+#include "BarrierBatcher.h"
 #include <filesystem>
 
 class CScene;
@@ -140,6 +141,8 @@ public:
 	CDescriptorAllocator RtvDescriptorAllocator;
 	CDescriptorAllocator DsvDescriptorAllocator;
 
+	CBarrierBatcher BarrierBatcher;
+
 	inline SPerFrameContext& GetCurrentFrameContext()
 	{
 		return PerFrameContext[CurrentFrameIndex];
@@ -176,6 +179,7 @@ public:
 	CTextureDepthStencil* CreateDepthTexture(const std::string& InName, UINT InW, UINT InH);
 	CTextureRenderTarget* CreateRenderTarget(const std::string& InName, DXGI_FORMAT InFormat, XMFLOAT4 InColor, UINT InW = 0, UINT InH = 0, bool InNeedRtv = true, bool InNeedUav = false);
 	CTexture3D* CreateTexture3D(const std::string& InName, DXGI_FORMAT InFormat, UINT InW, UINT InH, UINT InD);
+	const std::string& GetTextureName(CTexture* InTexture);
 
 	void OnSceneLoaded();
 	void ReloadScene();

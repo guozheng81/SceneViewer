@@ -618,7 +618,9 @@ void CScene::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	{
 		InCommandList->SetGraphicsRootDescriptorTable(TexturesParam, GetMaterialTexturesGPUDescriptor());
 	}
-	
+
+	CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
+
 	int MeshIndexParam = Material->FindConstantRootParameterIndex(1);
 	if (MeshIndexParam >= 0)
 	{
