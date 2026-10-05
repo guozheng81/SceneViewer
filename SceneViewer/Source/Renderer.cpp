@@ -639,7 +639,7 @@ void	CRenderer::Render()
 
     for (auto& Pass : ScreenPasses)
     {
-		LOG_INFO("Rendering pass: %s (Active: %s)", typeid(*Pass).name(), Pass->bIsActive ? "Yes" : "No");
+		//LOG_INFO("Rendering pass: %s (Active: %s)", typeid(*Pass).name(), Pass->bIsActive ? "Yes" : "No");
         if (Pass->bIsActive)
         {
             Pass->OnRender(CommandList.Get());

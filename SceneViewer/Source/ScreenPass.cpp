@@ -92,8 +92,6 @@ void CSimpleRTPass::Init()
 
 void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
-	CRenderer::GetInstance().ResourceBarrier(SimpleRT->GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 	Material.OnRender(InCommandList);
 	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 
@@ -105,7 +103,6 @@ void CSimpleRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	// dispatch raytracing
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
 
-	CRenderer::GetInstance().ResourceBarrier(SimpleRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 }
 
 void CShadowRTPass::Init()
@@ -134,8 +131,6 @@ void CShadowRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
 	Depth = CRenderer::GetInstance().GetScene()->GetDepthTexture();
 
-	CRenderer::GetInstance().ResourceBarrier(ShadowRT->GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 	Material.OnRender(InCommandList);
 	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 
@@ -148,8 +143,6 @@ void CShadowRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 	// dispatch raytracing
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
-
-	CRenderer::GetInstance().ResourceBarrier(ShadowRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 }
 
 void CIndirectLightRTPass::Init()
@@ -213,8 +206,6 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
 	Depth = CRenderer::GetInstance().GetScene()->GetDepthTexture();
 
-	CRenderer::GetInstance().ResourceBarrier(IndirectLightRT->GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 	Material.OnRender(InCommandList);
 	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 
@@ -232,8 +223,6 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 	// dispatch raytracing
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
 
-	CRenderer::GetInstance().ResourceBarrier(IndirectLightRT->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
-
 	////////////// Temporal accumulate
 
 	CTextureRenderTarget* TATarget = (bIsTA1Target? TA1 : TA0);
@@ -247,8 +236,6 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 		TemporalAccumulate.OnRender(InCommandList);
 
-		CRenderer::GetInstance().ResourceBarrier(TATarget->GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 		TemporalAccumulate.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 		TemporalAccumulate.SetShaderResource(InCommandList, 0, IndirectLightRT);
 		TemporalAccumulate.SetShaderResource(InCommandList, 1, TASource);
@@ -258,8 +245,6 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 		CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 7) / 8, (CRenderer::GetInstance().ViewportHeight + 7) / 8, 1);
-
-		CRenderer::GetInstance().ResourceBarrier(TATarget->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 	}
 
 	bIsTA1Target = !bIsTA1Target;
@@ -289,8 +274,6 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 			SrcTexture = TATarget;
 		}
 
-		CRenderer::GetInstance().ResourceBarrier(TargetTexture->GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
 		ATrousConstants.g_StepSize = pow(2, ATrousIdx);
 		InCommandList->SetComputeRoot32BitConstants(ATrousMaterial.FindConstantRootParameterIndex(0), sizeof(SATrousConstants) / 4, &ATrousConstants, 0);
 
@@ -299,8 +282,6 @@ void CIndirectLightRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 
 		CRenderer::GetInstance().BarrierBatcher.Flush(InCommandList);
 		InCommandList->Dispatch((CRenderer::GetInstance().ViewportWidth + 15) / 16, (CRenderer::GetInstance().ViewportHeight + 15) / 16, 1);
-
-		CRenderer::GetInstance().ResourceBarrier(TargetTexture->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 	}	
 }
 
@@ -335,13 +316,6 @@ void CIrradianceVolumeRTPass::Init()
 
 void CIrradianceVolumeRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList)
 {
-	CD3DX12_RESOURCE_BARRIER TransitionBarriers[3] = {
-		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeR->GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
-		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeG->GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
-		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeB->GetResource(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
-	};
-	InCommandList->ResourceBarrier(3, TransitionBarriers);
-
 	Material.OnRender(InCommandList);
 	Material.SetConstantBuffer(InCommandList, 0, CRenderer::GetInstance().GetCurrentViewBuffer());
 
@@ -357,12 +331,5 @@ void CIrradianceVolumeRTPass::OnRender(ID3D12GraphicsCommandList4* InCommandList
 	Material.RaytraceDesc.Height = VolumeHeight;
 	Material.RaytraceDesc.Depth = VolumeDepth;
 	InCommandList->DispatchRays(&(Material.RaytraceDesc));
-
-	CD3DX12_RESOURCE_BARRIER EndTransitionBarriers[3] = {
-		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeR->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE),
-		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeG->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE),
-		CD3DX12_RESOURCE_BARRIER::Transition(SHVolumeB->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE)
-	};
-	InCommandList->ResourceBarrier(3, EndTransitionBarriers);
 
 }

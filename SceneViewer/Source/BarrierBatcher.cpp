@@ -91,15 +91,14 @@ void CBarrierBatcher::Flush(ID3D12GraphicsCommandList* InCommandList)
         Barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(Req.Tex->GetResource(), Req.Tex->CurrentState, Req.State));
         Req.Tex->CurrentState = Req.State;
 
-		std::string TexName = CRenderer::GetInstance().GetTextureName(Req.Tex);
-        LOG_INFO("BarrierBatcher: Transitioning %s : %s -> %s",
-            TexName.c_str(), ResourceStateToString(OldState).c_str(), ResourceStateToString(Req.State).c_str());
+		//std::string TexName = CRenderer::GetInstance().GetTextureName(Req.Tex);
+        //LOG_INFO("BarrierBatcher: Transitioning %s : %s -> %s", TexName.c_str(), ResourceStateToString(OldState).c_str(), ResourceStateToString(Req.State).c_str());
     }
 
     Requests.clear();
 
     if (!Barriers.empty())
     {
-        //InCommandList->ResourceBarrier(static_cast<UINT>(Barriers.size()), Barriers.data());
+        InCommandList->ResourceBarrier(static_cast<UINT>(Barriers.size()), Barriers.data());
     }
 }
