@@ -64,7 +64,7 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 			if (shapes[s].mesh.material_ids[f] != CurrentMatIdx)
 			{
 				auto& TinyObjMat = (CurrentMatIdx >= 0? materials[CurrentMatIdx] : tinyobjDefaultMaterial);
-				AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname, TinyObjMat.roughness_texname);
+				AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname, TinyObjMat.roughness_texname, (!TinyObjMat.alpha_texname.empty()));
 
 				Verts.clear();
 				Indices.clear();
@@ -105,7 +105,7 @@ void CScene::LoadObjFile(const std::filesystem::path& InObjPath, CSceneObject* I
 		}
 
 		auto& TinyObjMat = (CurrentMatIdx >= 0 ? materials[CurrentMatIdx] : tinyobjDefaultMaterial);
-		AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname, TinyObjMat.roughness_texname);
+		AddMesh(InParentSceneObject, Verts, Indices, TinyObjMat.diffuse_texname, TinyObjMat.bump_texname, TinyObjMat.roughness_texname, (!TinyObjMat.alpha_texname.empty()));
 	}
 }
 
@@ -363,7 +363,7 @@ void CScene::CalculateBoundingBox(std::vector<SSceneVertex>& Verts, XMFLOAT3& Ou
 	}
 }
 
-CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName, const std::string& InPBRTexName)
+CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& Verts, std::vector<UINT32>& Indices, const std::string& InDiffTexName, const std::string& InNormalTexName, const std::string& InPBRTexName, bool bAlphaTest)
 {
 	std::unique_ptr<CMesh> CurMesh = std::make_unique<CMesh>();
 
@@ -398,8 +398,6 @@ CMesh* CScene::AddMesh(CSceneObject* InSceneObject, std::vector<SSceneVertex>& V
 			PBRTextureIdx = CRenderer::GetInstance().GetSrvDescriptorOffset(CD3DX12_GPU_DESCRIPTOR_HANDLE(GetMaterialTexturesGPUDescriptor()), PBRTexture->SrvGPUDescriptor);
 		}
 	}
-
-	bool bAlphaTest = (InDiffTexName.find("vase_plant") != std::string::npos || InDiffTexName.find("sponza_thorn") != std::string::npos || InDiffTexName.find("chain") != std::string::npos);
 
 	bool bAddNewSceneObject = (InDiffTexName.find("vase_base") != std::string::npos);
 	if (bAddNewSceneObject)

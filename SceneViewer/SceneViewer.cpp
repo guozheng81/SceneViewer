@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "./Source/Renderer.h"
 #include "./Source/Scene.h"
+#include "./Source/Logger.h"
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
@@ -168,13 +169,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
         hInstance,
         nullptr);
 
+    if(g_HWnd == nullptr)
+    {
+        return -1;
+	}
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::StyleColorsDark(); // Or StyleColorsLight()
     ImGui_ImplWin32_Init(g_HWnd);
 
-    CRenderer::GetInstance().Init(g_HWnd);
+    if(!CRenderer::GetInstance().Init(g_HWnd))
+    {
+        LOG_ERROR("CRenderer::Init failed");
+        return -1;
+	}
 
     CScene* Scene = CRenderer::GetInstance().GetScene();
     if (Scene)

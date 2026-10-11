@@ -60,7 +60,7 @@ PS_OUTPUT PSMain(PS_INPUT Input)
     if(TexIdx >= 0)
     {
         Texture2D DiffuseTexture = MaterialTextures[TexIdx];    
-        Albedo = DiffuseTexture.Sample(AnisotropicSampler, Input.Texcoord);
+        Albedo *= DiffuseTexture.Sample(AnisotropicSampler, Input.Texcoord);
     }
     
     if (Albedo.a < 0.5f)

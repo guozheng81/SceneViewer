@@ -169,7 +169,7 @@ void IrradianceVolumeClosestHit(inout IrradiancePayload Payload, in BuiltInTrian
     if (TexIdx >= 0)
     {
         Texture2D DiffuseTexture = MaterialTextures[TexIdx];
-        Albedo = DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).rgb;
+        Albedo *= DiffuseTexture.SampleLevel(AnisotropicSampler, HitVertex.Uv, 0).rgb;
     }
     float3 N = HitVertex.Normal;
 

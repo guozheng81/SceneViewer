@@ -216,7 +216,7 @@ void CBuffer::SetData(void* InData, UINT InEleCount)
         return;
     }
 
-    if(InEleCount == 0)
+    if(InEleCount == 0 || InEleCount > ElementCount)
     {
         InEleCount = ElementCount;
 	}
