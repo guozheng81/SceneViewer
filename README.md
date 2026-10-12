@@ -7,7 +7,7 @@ A bindless renderer using DirectX 12, featuring deferred shading, raytracing sha
 `CScene` owns all scene objects and meshes, and all mesh info are collected using a structured buffer (`ModelBuffer`). It loads the scene from `.obj` files specified in `assets/scene.json`, and builds raytracing acceleration structures as needed.  
 `CRenderer` is a singleton class. It manages descriptor allocation, textures, view buffers and render passes.  
 `CShadowRTPass` traces shadow rays against the main directional light, and saves result in a screen-sized render texture.  
-`CIrradianceVolumeRTPass` maintains a probe grid over the scene bounds. It accumulates irradiance and stores the result as L1 spherical harmonics in three 3D textures.  
+`CIrradianceVolumeRTPass` maintains a probe grid over the scene bounds. It accumulates irradiance and stores the result as L1 spherical harmonics in three 3D textures.   
 `CIndirectLightRTPass` raytraces indirect light per pixel from the G-buffer. It then uses temporal accumulation and A-Trous denoiser to get stable one-bounce indirect lighting.  
 `CLightPass` calculates PBR lighting, composites shadow and indirect lighting, then applies tonemapping before presenting to the framebuffer.  
  
